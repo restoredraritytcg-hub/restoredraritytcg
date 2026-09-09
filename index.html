@@ -579,7 +579,7 @@
       For cards valued at $500 or less in Near Mint condition, no value surcharge applies.
     </p>
     <p style="font-size:13px; color:var(--muted); margin:0 0 4px; line-height:1.6;">
-      For cards valued over $500, a surcharge is added to the selected service price based on the card's current Near Mint TCG market value: 10% of that value once it's over $500, rounded up to the nearest dollar. Once a card's Near Mint value exceeds $1,500, the rate increases to 12%.
+      For cards valued over $500, a surcharge is added to the selected service price based on the card's current Near Mint TCG market value: 10% for cards between $500 and $1,500, and 12.5% for cards between $1,501 and $2,500, rounded up to the nearest dollar. Cards valued above $2,500 require a custom quote.
     </p>
     <div class="surcharge-table" id="surcharge-table"></div>
     <div class="surcharge-note" id="surcharge-note"></div>
@@ -747,7 +747,8 @@
       <summary>How are high-value cards handled?</summary>
       <div class="faq-answer">
         <p>Cards with a Near Mint value of $500 or less do not have a card-value surcharge.</p>
-        <p>For cards valued over $500, a surcharge of 10% of the card's Near Mint value is added to the selected service price, rounded up to the nearest dollar. Once a card's Near Mint value exceeds $1,500, the surcharge rate increases to 12%.</p>
+        <p>For cards valued between $500 and $1,500, a surcharge of 10% of the card's Near Mint value is added to the selected service price. For cards valued between $1,501 and $2,500, the surcharge rate is 12.5%. All surcharges are rounded up to the nearest dollar.</p>
+        <p>Cards valued above $2,500 Near Mint are individually reviewed and require a custom quote.</p>
       </div>
     </details>
 
@@ -885,9 +886,10 @@
         <div class="surcharge-row surcharge-header"><span class="val">Near Mint Card Value</span><span class="fee">Surcharge</span></div>
         <div class="surcharge-row"><span class="val">$500 or less</span><span class="fee">No Surcharge</span></div>
         <div class="surcharge-row"><span class="val">$501 – $1,500</span><span class="fee">10% of NM Value</span></div>
-        <div class="surcharge-row"><span class="val">Over $1,500</span><span class="fee">12% of NM Value</span></div>
+        <div class="surcharge-row"><span class="val">$1,501 – $2,500</span><span class="fee">12.5% of NM Value</span></div>
+        <div class="surcharge-row"><span class="val">Over $2,500</span><span class="fee">Custom Quote</span></div>
       </div>
-      <p style="margin-top:10px;">Surcharges are calculated using the card's current Near Mint TCG market value and rounded up to the nearest dollar.</p>
+      <p style="margin-top:10px;">Surcharges are calculated using the card's current Near Mint TCG market value and rounded up to the nearest dollar. Cards valued above $2,500 Near Mint are individually reviewed and require a custom quote based on the card, its condition, value, and restoration required.</p>
 
       <h4>8. Verification of Card Values</h4>
       <p>All submitted card values are subject to verification by Restored Rarity.</p>
@@ -1037,17 +1039,19 @@ const REPAIR_TIERS = [
   {price:"$30", title:"Base Repair", desc:"Targeted restoration for localized damage, including minor corner or edge lifting, dents or gouges under \u00bc inch, and creases under \u00bd inch. Each repair is carefully addressed to stabilize the affected area and restore the card as close as possible to its original appearance."},
   {price:"$40", title:"Major Repair", desc:"Advanced restoration for significant damage, including major corner or edge lifting, delamination or layer separation, dents or gouges over \u00bc inch, and creases over \u00bd inch. Designed for cards requiring more extensive techniques, additional working time, or multiple rounds of restoration to achieve the best result possible."}
 ];
-/* Surcharge policy: 0 at $500 or under; 10% of NM value (rounded up) once over $500;
-   12% of NM value (rounded up) once over $1,500. No upper cap. */
+/* Surcharge policy: 0 at $500 or under; 10% of NM value (rounded up) for $500\u2013$1,500;
+   12.5% of NM value (rounded up) for $1,501\u2013$2,500; custom quote above $2,500. */
 function surchargeForValue(value){
   if(!value || value <= 500) return 0;
-  const rate = value > 1500 ? 0.12 : 0.10;
+  if(value > 2500) return null;
+  const rate = value > 1500 ? 0.125 : 0.10;
   return Math.ceil(value * rate);
 }
 const SURCHARGE_DISPLAY_ROWS = [
   {range:"$500 or less", fee:"No Surcharge"},
   {range:"$501 – $1,500", fee:"10% of NM value"},
-  {range:"Over $1,500", fee:"12% of NM value"}
+  {range:"$1,501 – $2,500", fee:"12.5% of NM value"},
+  {range:"Over $2,500", fee:"Custom Quote"}
 ];
 const SURCHARGE_NOTE = "Surcharges are calculated on the card's current Near Mint TCG market value and rounded up to the nearest dollar.";
 
@@ -1092,6 +1096,13 @@ function runCalculator(){
 
   const rawValue = calcValueInput.value.trim();
   const value = rawValue ? Number(rawValue.replace(/[^0-9.]/g, '')) : 0;
+
+  if(rawValue && value > 2500){
+    calcSurchargeLine.style.display = 'none';
+    calcTotalEl.textContent = 'Custom quote';
+    calcHintEl.textContent = "Cards valued above $2,500 Near Mint need a custom quote — reach out directly for pricing.";
+    return;
+  }
 
   const surcharge = surchargeForValue(value);
   if(surcharge > 0){
