@@ -214,11 +214,11 @@
   }
   .show-card:hover{border-color:var(--cyan);}
   .show-date{
-    flex-shrink:0; width:52px; text-align:center; background:var(--bg-panel-2);
-    border:1px solid var(--line); border-radius:6px; padding:8px 4px;
+    flex-shrink:0; width:60px; text-align:center; background:var(--bg-panel-2);
+    border:1px solid var(--line); border-radius:6px; padding:8px 3px;
   }
   .show-date .month{font-family:'Press Start 2P', monospace; font-size:9px; color:var(--orange); display:block;}
-  .show-date .day{font-family:'Press Start 2P', monospace; font-size:14px; color:var(--white); display:block; margin-top:4px;}
+  .show-date .day{font-family:'Press Start 2P', monospace; font-size:12px; color:var(--white); display:block; margin-top:4px; white-space:nowrap;}
   .show-info .name{font-size:14px; font-weight:700; color:var(--white);}
   .show-info .loc{font-size:12px; color:var(--muted); margin-top:3px;}
   .show-info .link-label{font-size:12px; color:var(--cyan); margin-top:6px;}
@@ -994,16 +994,23 @@ document.getElementById('year').textContent = new Date().getFullYear();
 const SUBMIT_ENDPOINT = "https://script.google.com/macros/s/AKfycbwPxjUfhjcJOFBdqRqcqx53-UXQbEkYyqNfZGlIpkxw9skh4dj-fwOIyMmxrAUevg/exec";
 
 /* ---------- Upcoming shows (edit here to add/remove shows) ---------- */
-/* date: "YYYY-MM-DD", name: event name, location: city/venue, link: URL to event page or map (optional) */
+/* date: "YYYY-MM-DD" (start date), endDate: "YYYY-MM-DD" (optional, for multi-day shows),
+   name: event name, location: venue/address, time: display string (optional), link: URL (optional) */
 const SHOWS = [
-  // Example — replace with your real shows, or delete this line:
-  // { date: "2026-10-18", name: "Houston Card Show", location: "Humble Civic Center, Humble, TX", link: "https://example.com" }
+  { date: "2026-09-12", name: "Operation Collect & Serve — Pokémon Card Show", location: "VFW Post 4709, 1303 W. Semands Ave, Conroe, TX 77301", time: "9:00 AM – 10:00 PM", link: "https://vfw4709.org/mc-events/operation-collect-serve/?mc_id=436" },
+  { date: "2026-09-26", endDate: "2026-09-27", name: "HTX Card Show", location: "Margaritaville Lake Resort, 600 Margaritaville Pkwy, Montgomery, TX 77356", time: "Sat: VIP 9:00 AM · GA 9:30 AM – 5:00 PM, Trade Night after<br>Sun: VIP 10:00 AM · GA 10:30 AM – 4:00 PM", link: "https://tickets.txcardshows.com/htx/htx-card-show-pokemon-tcg-sports-cards-in-the-houston-area-sept-2026" }
 ];
 
-function formatShowDate(dateStr){
+function formatShowDate(dateStr, endDateStr){
   const [y, m, d] = dateStr.split('-').map(Number);
   const dt = new Date(y, m - 1, d);
   const month = dt.toLocaleString('en-US', { month: 'short' }).toUpperCase();
+  if(endDateStr){
+    const [ey, em, ed] = endDateStr.split('-').map(Number);
+    if(ey === y && em === m){
+      return { month, day: `${d}–${ed}` };
+    }
+  }
   return { month, day: d };
 }
 
@@ -1015,12 +1022,13 @@ function renderShows(){
   }
   const sorted = [...SHOWS].sort((a,b) => new Date(a.date) - new Date(b.date));
   el.innerHTML = sorted.map(s => {
-    const { month, day } = formatShowDate(s.date);
+    const { month, day } = formatShowDate(s.date, s.endDate);
     const inner = `
       <div class="show-date"><span class="month">${month}</span><span class="day">${day}</span></div>
       <div class="show-info">
         <div class="name">${s.name}</div>
         <div class="loc">${s.location}</div>
+        ${s.time ? `<div class="loc">${s.time}</div>` : ''}
         ${s.link ? `<div class="link-label">Details / directions →</div>` : ''}
       </div>
     `;
