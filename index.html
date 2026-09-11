@@ -614,7 +614,7 @@
       <div class="calc-result">
         <div class="calc-line"><span>Base service</span><span id="calc-base">—</span></div>
         <div class="calc-line" id="calc-surcharge-line" style="display:none;"><span id="calc-surcharge-label">Value surcharge</span><span id="calc-surcharge">—</span></div>
-        <div class="calc-line" id="calc-discount-line" style="display:none;"><span>Referral discount (5%)</span><span id="calc-discount">—</span></div>
+        <div class="calc-line" id="calc-discount-line" style="display:none;"><span>Referral discount (10%)</span><span id="calc-discount">—</span></div>
         <div class="calc-line calc-total"><span>Estimated total</span><span id="calc-total">—</span></div>
       </div>
       <div class="calc-hint" id="calc-hint">This is an estimate. Final pricing is confirmed after evaluation.</div>
@@ -1017,7 +1017,7 @@ document.getElementById('year').textContent = new Date().getFullYear();
 const SUBMIT_ENDPOINT = "https://script.google.com/macros/s/AKfycbyB3lWxsrKg0hfSh4YvHG319jyenpPE1uljsiW1AcrQ328kDO6npH9mncOkellCYJVM/exec";
 
 /* ---------- Referral codes ---------- */
-const REFERRAL_DISCOUNT = 0.05;
+const REFERRAL_DISCOUNT = 0.10;
 let validReferralCodes = new Set();
 let referralCodesLoaded = false;
 
@@ -1046,7 +1046,7 @@ function checkReferralInput(){
     return;
   }
   if(validReferralCodes.has(code)){
-    referralMsg.textContent = '✓ Code applied — 5% off your service total.';
+    referralMsg.textContent = '✓ Code applied — 10% off your service total.';
     referralMsg.className = 'referral-msg ok';
   } else {
     referralMsg.textContent = "Code not recognized — you can still submit, we'll double check on our end.";
