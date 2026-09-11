@@ -254,6 +254,9 @@
   .field label{display:block; font-size:12px; color:var(--muted); margin-bottom:6px;}
   .field .req{color:var(--orange);}
   .field .hint-inline{color:var(--muted); font-weight:400; text-transform:none; letter-spacing:0;}
+  .referral-msg{font-size:12px; margin-top:6px; min-height:16px;}
+  .referral-msg.ok{color:var(--cyan);}
+  .referral-msg.err{color:var(--orange);}
   .checkbox-field{background:var(--bg-panel-2); border:1px solid var(--line); border-radius:6px; padding:12px 14px;}
   .checkbox-label{
     display:flex; align-items:center; gap:10px; font-size:13px; color:var(--white);
@@ -343,6 +346,16 @@
   .photo-slot input{display:none;}
   .photo-preview{width:100%; height:100%; object-fit:cover; border-radius:5px;}
   .photo-slot.has-image label{padding:0; border-style:solid; min-height:96px; overflow:hidden;}
+  .photo-slot{position:relative;}
+  .upload-spinner{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size:11px; color:var(--cyan); background:rgba(13,23,48,0.4); pointer-events:none;
+  }
+  .detail-thumb{position:relative;}
+  .upload-spinner-sm{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size:16px; color:var(--cyan); pointer-events:none;
+  }
   .detail-upload-label{
     display:inline-block; font-size:12px; color:var(--cyan); border:1.5px dashed var(--line);
     padding:10px 14px; border-radius:6px; cursor:pointer; margin-top:12px;
@@ -594,9 +607,14 @@
         <label for="calc-value">Estimated near-mint value ($) <span class="hint-inline">(optional)</span></label>
         <input type="text" id="calc-value" placeholder="e.g. 300">
       </div>
+      <div class="field" style="margin-bottom:0; margin-top:14px;">
+        <label for="calc-referral">Referral code <span class="hint-inline">(optional)</span></label>
+        <input type="text" id="calc-referral" placeholder="e.g. JESS10" autocapitalize="characters">
+      </div>
       <div class="calc-result">
         <div class="calc-line"><span>Base service</span><span id="calc-base">—</span></div>
         <div class="calc-line" id="calc-surcharge-line" style="display:none;"><span id="calc-surcharge-label">Value surcharge</span><span id="calc-surcharge">—</span></div>
+        <div class="calc-line" id="calc-discount-line" style="display:none;"><span>Referral discount (5%)</span><span id="calc-discount">—</span></div>
         <div class="calc-line calc-total"><span>Estimated total</span><span id="calc-total">—</span></div>
       </div>
       <div class="calc-hint" id="calc-hint">This is an estimate. Final pricing is confirmed after evaluation.</div>
@@ -652,6 +670,11 @@
             </label>
             <div class="detail-hint">Shipping cost varies based on your card's declared value and will be confirmed with you before it's charged.</div>
           </div>
+        </div>
+        <div class="field">
+          <label for="f-referral">Referral code <span class="hint-inline">(optional)</span></label>
+          <input type="text" id="f-referral" placeholder="e.g. JESS10" autocapitalize="characters">
+          <div class="referral-msg" id="referral-msg"></div>
         </div>
         <div id="cards-container"></div>
         <button type="button" class="btn btn-outline btn-block" id="add-card-btn">+ ADD ANOTHER CARD</button>
@@ -991,7 +1014,47 @@
 document.getElementById('year').textContent = new Date().getFullYear();
 
 /* Google Apps Script Web App endpoint — receives submissions and writes to your Google Sheet */
-const SUBMIT_ENDPOINT = "https://script.google.com/macros/s/AKfycbwPxjUfhjcJOFBdqRqcqx53-UXQbEkYyqNfZGlIpkxw9skh4dj-fwOIyMmxrAUevg/exec";
+const SUBMIT_ENDPOINT = "https://script.google.com/macros/s/AKfycbwfli22F451O0t0zBLIoKX5oC9Rhe8XmQvffs-667f3DU17sv15HVXIZrh_MVRvCYO7/exec";
+
+/* ---------- Referral codes ---------- */
+const REFERRAL_DISCOUNT = 0.05;
+let validReferralCodes = new Set();
+let referralCodesLoaded = false;
+
+fetch(`${SUBMIT_ENDPOINT}?action=referralCodes`)
+  .then(r => r.json())
+  .then(data => {
+    if(data && data.success && Array.isArray(data.codes)){
+      validReferralCodes = new Set(data.codes.map(c => c.toUpperCase()));
+    }
+  })
+  .catch(err => console.error('Referral code fetch failed:', err))
+  .finally(() => { referralCodesLoaded = true; checkReferralInput(); });
+
+const referralInput = document.getElementById('f-referral');
+const referralMsg = document.getElementById('referral-msg');
+function checkReferralInput(){
+  const code = referralInput.value.trim().toUpperCase();
+  if(!code){
+    referralMsg.textContent = '';
+    referralMsg.className = 'referral-msg';
+    return;
+  }
+  if(!referralCodesLoaded){
+    referralMsg.textContent = 'Checking code…';
+    referralMsg.className = 'referral-msg';
+    return;
+  }
+  if(validReferralCodes.has(code)){
+    referralMsg.textContent = '✓ Code applied — 5% off your service total.';
+    referralMsg.className = 'referral-msg ok';
+  } else {
+    referralMsg.textContent = "Code not recognized — you can still submit, we'll double check on our end.";
+    referralMsg.className = 'referral-msg err';
+  }
+}
+referralInput.addEventListener('input', checkReferralInput);
+referralInput.addEventListener('blur', checkReferralInput);
 
 /* ---------- Upcoming shows (edit here to add/remove shows) ---------- */
 /* date: "YYYY-MM-DD" (start date), endDate: "YYYY-MM-DD" (optional, for multi-day shows),
@@ -1092,9 +1155,12 @@ const calcServiceSelect = document.getElementById('calc-service');
 calcServiceSelect.innerHTML = ALL_TIERS.map((t, i) => `<option value="${i}">${t.title} — ${t.price}</option>`).join('');
 
 const calcValueInput = document.getElementById('calc-value');
+const calcReferralInput = document.getElementById('calc-referral');
 const calcBaseEl = document.getElementById('calc-base');
 const calcSurchargeLine = document.getElementById('calc-surcharge-line');
 const calcSurchargeEl = document.getElementById('calc-surcharge');
+const calcDiscountLine = document.getElementById('calc-discount-line');
+const calcDiscountEl = document.getElementById('calc-discount');
 const calcTotalEl = document.getElementById('calc-total');
 const calcHintEl = document.getElementById('calc-hint');
 const DEFAULT_CALC_HINT = "This is an estimate. Final pricing is confirmed after evaluation.";
@@ -1108,15 +1174,19 @@ function runCalculator(){
   const rawValue = calcValueInput.value.trim();
   const value = rawValue ? Number(rawValue.replace(/[^0-9.]/g, '')) : 0;
 
+  const refCode = calcReferralInput.value.trim().toUpperCase();
+  const refValid = refCode && referralCodesLoaded && validReferralCodes.has(refCode);
+
   if(tier.type !== 'repair'){
     calcSurchargeLine.style.display = 'none';
-    calcTotalEl.textContent = `$${basePrice}`;
+    applyDiscountAndTotal(basePrice, refValid);
     calcHintEl.textContent = rawValue ? CLEAN_CALC_HINT : DEFAULT_CALC_HINT;
     return;
   }
 
   if(rawValue && value > 2500){
     calcSurchargeLine.style.display = 'none';
+    calcDiscountLine.style.display = 'none';
     calcTotalEl.textContent = 'Custom quote';
     calcHintEl.textContent = "Cards valued above $2,500 Near Mint need a custom quote — reach out directly for pricing.";
     return;
@@ -1129,11 +1199,24 @@ function runCalculator(){
   } else {
     calcSurchargeLine.style.display = 'none';
   }
-  calcTotalEl.textContent = `$${basePrice + surcharge}`;
+  applyDiscountAndTotal(basePrice + surcharge, refValid);
   calcHintEl.textContent = DEFAULT_CALC_HINT;
 }
+function applyDiscountAndTotal(subtotal, refValid){
+  if(refValid){
+    const discount = Math.round(subtotal * REFERRAL_DISCOUNT * 100) / 100;
+    calcDiscountLine.style.display = 'flex';
+    calcDiscountEl.textContent = `-$${discount.toFixed(2)}`;
+    calcTotalEl.textContent = `$${(subtotal - discount).toFixed(2)}`;
+  } else {
+    calcDiscountLine.style.display = 'none';
+    calcTotalEl.textContent = `$${subtotal}`;
+  }
+}
+
 calcServiceSelect.addEventListener('change', runCalculator);
 calcValueInput.addEventListener('input', runCalculator);
+calcReferralInput.addEventListener('input', runCalculator);
 runCalculator();
 
 
@@ -1143,9 +1226,26 @@ function serviceOptionsHtml(){
     [...CLEAN_TIERS, ...REPAIR_TIERS].map(t => `<option value="${t.title} (${t.price})">${t.title} — ${t.price}</option>`).join('');
 }
 
-/* ---------- Photo handling (compress client-side before storing) ---------- */
-function compressFile(file){
-  return new Promise((resolve) => {
+/* ---------- Photo handling: compress client-side, then upload to Cloudinary ---------- */
+const CLOUDINARY_CLOUD = "flcbxas4";
+const CLOUDINARY_PRESET = "RestoredRarity";
+let activeUploadCount = 0;
+
+function setUploadingState(active){
+  const submitBtn = form.querySelector('button[type=submit]');
+  if(active){
+    submitBtn.dataset.uploadBlocked = 'true';
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'UPLOADING PHOTOS…';
+  } else if(submitBtn.dataset.uploadBlocked === 'true'){
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'SUBMIT CARD(S)';
+    delete submitBtn.dataset.uploadBlocked;
+  }
+}
+
+function compressToBlob(file){
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const img = new Image();
@@ -1157,12 +1257,28 @@ function compressFile(file){
         const canvas = document.createElement('canvas');
         canvas.width = w; canvas.height = h;
         canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', 0.72));
+        const previewUrl = canvas.toDataURL('image/jpeg', 0.72);
+        canvas.toBlob(blob => resolve({ blob, previewUrl }), 'image/jpeg', 0.72);
       };
+      img.onerror = reject;
       img.src = e.target.result;
     };
+    reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+async function uploadToCloudinary(blob, filename){
+  const formData = new FormData();
+  formData.append('file', blob, filename);
+  formData.append('upload_preset', CLOUDINARY_PRESET);
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {
+    method: 'POST',
+    body: formData
+  });
+  const data = await res.json();
+  if(!data.secure_url){ throw new Error(data.error ? data.error.message : 'Upload failed'); }
+  return data.secure_url;
 }
 
 /* ---------- Repeatable card entries ---------- */
@@ -1217,14 +1333,25 @@ function cardEntryTemplate(id){
 function wirePhotoSlot(inputId, slotId, id, key){
   const input = document.getElementById(inputId);
   const slot = document.getElementById(slotId);
-  input.addEventListener('change', () => {
+  input.addEventListener('change', async () => {
     const file = input.files[0];
     if(!file) return;
-    compressFile(file).then(dataUrl => {
-      cardEntries[id].photos[key] = dataUrl;
+    try{
+      const { blob, previewUrl } = await compressToBlob(file);
       slot.classList.add('has-image');
-      slot.querySelector('label').innerHTML = `<img class="photo-preview" src="${dataUrl}">`;
-    });
+      slot.querySelector('label').innerHTML = `<img class="photo-preview" src="${previewUrl}" style="opacity:0.5;"><span class="upload-spinner">Uploading…</span>`;
+      activeUploadCount++; setUploadingState(true);
+      const url = await uploadToCloudinary(blob, `${key}-${id}.jpg`);
+      cardEntries[id].photos[key] = url;
+      slot.querySelector('label').innerHTML = `<img class="photo-preview" src="${previewUrl}">`;
+    }catch(err){
+      console.error('Photo upload failed:', err);
+      slot.classList.remove('has-image');
+      slot.querySelector('label').innerHTML = `<span>+ ${key === 'front' ? 'Front' : 'Back'}</span>`;
+      alert("That photo didn't upload — please try selecting it again.");
+    }finally{
+      activeUploadCount--; setUploadingState(activeUploadCount > 0);
+    }
   });
 }
 
@@ -1232,9 +1359,10 @@ function wireDetailPhotos(id){
   const input = document.getElementById(`f-photo-details-${id}`);
   const thumbs = document.getElementById(`detail-thumbs-${id}`);
   function render(){
-    thumbs.innerHTML = cardEntries[id].photos.details.map((src, i) => `
+    thumbs.innerHTML = cardEntries[id].photos.details.map((item, i) => `
       <div class="detail-thumb">
-        <img src="${src}">
+        <img src="${item.previewUrl}" style="${item.status === 'uploading' ? 'opacity:0.5;' : ''}">
+        ${item.status === 'uploading' ? '<span class="upload-spinner-sm">…</span>' : ''}
         <button type="button" data-i="${i}" aria-label="Remove photo">&times;</button>
       </div>
     `).join('');
@@ -1247,12 +1375,29 @@ function wireDetailPhotos(id){
   }
   input.addEventListener('change', async () => {
     const files = [...input.files];
-    for(const file of files){
-      const dataUrl = await compressFile(file);
-      cardEntries[id].photos.details.push(dataUrl);
-    }
-    render();
     input.value = '';
+    for(const file of files){
+      const item = { status: 'uploading', previewUrl: '', url: null };
+      cardEntries[id].photos.details.push(item);
+      render();
+      try{
+        const { blob, previewUrl } = await compressToBlob(file);
+        item.previewUrl = previewUrl;
+        render();
+        activeUploadCount++; setUploadingState(true);
+        const url = await uploadToCloudinary(blob, `detail-${id}-${Date.now()}.jpg`);
+        item.url = url;
+        item.status = 'done';
+      }catch(err){
+        console.error('Detail photo upload failed:', err);
+        const idx = cardEntries[id].photos.details.indexOf(item);
+        if(idx > -1) cardEntries[id].photos.details.splice(idx, 1);
+        alert("One of your detail photos didn't upload — please try adding it again.");
+      }finally{
+        activeUploadCount--; setUploadingState(activeUploadCount > 0);
+        render();
+      }
+    }
   });
 }
 
@@ -1304,12 +1449,19 @@ form.addEventListener('submit', async (e) => {
   formMsg.textContent = '';
   formMsg.className = 'form-msg';
 
+  if(activeUploadCount > 0){
+    formMsg.textContent = 'Please wait for your photos to finish uploading before submitting.';
+    formMsg.className = 'form-msg err';
+    return;
+  }
+
   const name = document.getElementById('f-name').value.trim();
   const email = document.getElementById('f-email').value.trim();
   const phone = document.getElementById('f-phone').value.trim();
   const deliveryMethod = document.getElementById('f-delivery-hand').checked ? 'Hand delivered' : 'Ship';
   const address = document.getElementById('f-address').value.trim();
   const insuredShipping = document.getElementById('f-insured').checked;
+  const referralCode = document.getElementById('f-referral').value.trim().toUpperCase();
 
   const cardEls = [...cardsContainer.querySelectorAll('.card-entry')];
   const cards = [];
@@ -1329,7 +1481,7 @@ form.addEventListener('submit', async (e) => {
       photos: {
         front: cardEntries[cid].photos.front,
         back: cardEntries[cid].photos.back,
-        details: cardEntries[cid].photos.details.slice()
+        details: cardEntries[cid].photos.details.filter(d => d.status === 'done').map(d => d.url)
       }
     });
   }
@@ -1352,7 +1504,7 @@ form.addEventListener('submit', async (e) => {
 
   const id = 'sub_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
   const record = {
-    id, name, email, phone, deliveryMethod, address, insuredShipping,
+    id, name, email, phone, deliveryMethod, address, insuredShipping, referralCode,
     cards,
     agreedToTerms: true,
     status: 'New',
@@ -1375,6 +1527,8 @@ form.addEventListener('submit', async (e) => {
     formMsg.textContent = `Submitted ${cardWord}! Your reference number is ${id.slice(-8).toUpperCase()}. I'll follow up by ${email ? 'email' : 'phone'}.`;
     formMsg.className = 'form-msg ok';
     form.reset();
+    referralMsg.textContent = '';
+    referralMsg.className = 'referral-msg';
     updateDeliveryUI();
     cardsContainer.innerHTML = '';
     Object.keys(cardEntries).forEach(k => delete cardEntries[k]);
