@@ -19,7 +19,7 @@
     --orange:#f68a1e;
     --yellow:#ffd23f;
     --white:#f5f7fb;
-    --muted:#93a0c2;
+    --muted:#b7c3de;
     --line:#243468;
     --radius:8px;
     --maxw:520px;
@@ -327,7 +327,7 @@
   .rv-rating{display:flex; gap:4px;}
   .rv-star{
     background:none; border:none; cursor:pointer; font-size:26px; line-height:1;
-    color:var(--line); padding:0 2px; transition:color .15s ease;
+    color:#3a4a80; padding:0 2px; transition:color .15s ease;
   }
   .rv-star.on{color:var(--yellow);}
   .rv-star:hover{color:var(--yellow);}
@@ -458,6 +458,48 @@
   .grade-card.tier-top .grade-val{color:var(--yellow);}
   .grade-card.tier-high .grade-val{color:var(--cyan);}
   .grade-card .grade-note{font-size:11px; color:var(--muted); margin-top:3px; line-height:1.5;}
+
+  /* BGS 10 Black Label treatment */
+  .grade-card.black-label{
+    position:relative; overflow:hidden;
+    background:linear-gradient(150deg,#0a0a0c,#141418 55%,#0a0a0c);
+    border:2px solid #d9b44a;
+    box-shadow:0 0 0 1px rgba(217,180,74,0.25), 0 0 18px -2px rgba(217,180,74,0.45);
+    animation:bl-pulse 2.6s ease-in-out infinite;
+    padding-top:20px;
+  }
+  @keyframes bl-pulse{
+    0%,100%{box-shadow:0 0 0 1px rgba(217,180,74,0.25), 0 0 14px -4px rgba(217,180,74,0.35);}
+    50%    {box-shadow:0 0 0 1px rgba(217,180,74,0.45), 0 0 26px 0 rgba(217,180,74,0.60);}
+  }
+  .grade-card.black-label::after{
+    content:''; position:absolute; top:0; bottom:0; width:32%; pointer-events:none;
+    background:linear-gradient(100deg, transparent, rgba(255,231,163,0.16), transparent);
+    animation:bl-sheen 3.4s ease-in-out infinite;
+  }
+  @keyframes bl-sheen{ 0%{left:-40%;} 55%{left:112%;} 100%{left:112%;} }
+  .grade-card.black-label .bl-ribbon{
+    position:absolute; top:0; left:0; right:0; text-align:center;
+    font-family:'Press Start 2P', monospace; font-size:7px; letter-spacing:0.18em;
+    color:#0a0a0c; background:linear-gradient(90deg,#c39b38,#f2d477 50%,#c39b38);
+    padding:4px 0 3px;
+  }
+  .grade-card.black-label .grader{color:#d9b44a;}
+  .grade-card.black-label .grade-val{
+    color:#f6e3a8; text-shadow:0 0 10px rgba(217,180,74,0.5);
+  }
+  .grade-card.black-label .bl-pristine{
+    font-family:'Press Start 2P', monospace; font-size:8px; letter-spacing:0.08em;
+    color:#d9b44a; margin-left:4px; vertical-align:1px;
+  }
+  .grade-card.black-label .bl-prov-tag{font-size:11px; color:#8a7a52; font-weight:400;}
+  .grade-card.black-label .grade-note{color:#9a8c6a;}
+  .grade-card.black-label.bl-provisional{
+    border-color:#8a7332;
+  }
+  @media (prefers-reduced-motion:reduce){
+    .grade-card.black-label, .grade-card.black-label::after{animation:none;}
+  }
   .cent-backnote{
     font-size:11px; color:var(--yellow); line-height:1.6; margin-top:14px;
     background:rgba(255,210,63,0.07); border:1px solid rgba(255,210,63,0.25);
@@ -693,7 +735,7 @@
 
   footer{padding:40px 20px 30px; text-align:center;}
   footer .fname{font-size:11px; color:var(--muted); letter-spacing:0.05em;}
-  footer .fyear{font-size:11px; color:var(--line); margin-top:6px;}
+  footer .fyear{font-size:11px; color:var(--muted); margin-top:6px;}
 
   @media (min-width:600px){
     .hero-ctas{flex-wrap:nowrap;}
@@ -1684,7 +1726,7 @@ const CENT_STANDARDS = {
   BGS: {
     label: 'BGS',
     tiers: [
-      { grade: 'BGS 10',  name: 'Pristine — Black Label eligible', front: 50, back: 60, frontBoth: true },
+      { grade: 'BGS 10',  name: 'Pristine — Black Label eligible', front: 50, back: 60, frontBoth: true, blackLabel: true },
       { grade: 'BGS 9.5', name: 'Gem Mint', front: 55, frontBest: 50, back: 60 },
       { grade: 'BGS 9',   name: 'Mint',     front: 55, back: 70 }
     ],
@@ -1888,6 +1930,20 @@ function runCenteringCalc(){
     const note = res.provisional
       ? `Front qualifies. Needs back within ${res.backLimit}/${fmtPct(100-res.backLimit)} to confirm.`
       : res.tier.name;
+    const isBL = res.tier.blackLabel === true;
+    if(isBL){
+      return `
+        <div class="grade-card black-label${res.provisional ? ' bl-provisional' : ''}">
+          <span class="bl-ribbon">BLACK LABEL</span>
+          <span class="grader">${std.label}</span>
+          <span class="grade-body">
+            <span class="grade-val">BGS 10 <span class="bl-pristine">PRISTINE</span>${res.provisional ? '<span class="bl-prov-tag"> (front only)</span>' : ''}</span>
+            <div class="grade-note">${res.provisional
+              ? `Front is a perfect 50/50. Needs back within ${res.backLimit}/${fmtPct(100-res.backLimit)} to confirm.`
+              : 'Perfect 50/50 front &mdash; the top centering tier Beckett awards.'}</div>
+          </span>
+        </div>`;
+    }
     return `
       <div class="grade-card ${cls}">
         <span class="grader">${std.label}</span>
