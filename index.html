@@ -52,7 +52,7 @@
     max-width:var(--maxw); margin:0 auto; padding:10px 16px;
     display:flex; align-items:center; justify-content:space-between; gap:8px;
   }
-  .brand{display:flex; align-items:center; text-decoration:none;}
+  .brand{display:flex; align-items:center; text-decoration:none; flex-shrink:0;}
   .brand-name{
     font-family:'Press Start 2P', monospace; font-size:9px; line-height:1.6;
     white-space:nowrap;
@@ -66,7 +66,14 @@
     -webkit-background-clip:text; background-clip:text; color:transparent;
     margin-left:5px;
   }
-  .header-nav{display:flex; gap:6px; align-items:center;}
+  .header-nav{
+    display:flex; gap:10px; align-items:center;
+    overflow-x:auto; min-width:0; scrollbar-width:none; -ms-overflow-style:none;
+    -webkit-overflow-scrolling:touch;
+    -webkit-mask-image:linear-gradient(to right, #000 calc(100% - 16px), transparent);
+    mask-image:linear-gradient(to right, #000 calc(100% - 16px), transparent);
+  }
+  .header-nav::-webkit-scrollbar{display:none;}
   .header-nav a{font-size:10px; color:var(--muted); text-decoration:none; font-weight:500; white-space:nowrap;}
   .header-nav a:hover{color:var(--cyan);}
   .ig-dot{width:8px;height:8px;border-radius:50%;background:var(--orange);display:inline-block;margin-left:6px;}
@@ -702,12 +709,11 @@
         <span class="brand-name"><span class="r1">RESTORED</span><span class="r2">RARITY</span></span>
       </a>
       <nav class="header-nav">
-        <a href="#shows">Shows</a>
         <a href="#about">About</a>
         <a href="#gallery">Gallery</a>
         <a href="#pricing">Pricing</a>
-        <a href="#centering">Center</a>
         <a href="#submit">Submit</a>
+        <a href="#reviews">Reviews</a>
         <a href="#faq">FAQ</a>
       </nav>
     </div>
