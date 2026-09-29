@@ -71,10 +71,14 @@
     display:flex; gap:10px; align-items:center;
     overflow-x:auto; min-width:0; scrollbar-width:none; -ms-overflow-style:none;
     -webkit-overflow-scrolling:touch;
-    -webkit-mask-image:linear-gradient(to right, #000 calc(100% - 16px), transparent);
-    mask-image:linear-gradient(to right, #000 calc(100% - 16px), transparent);
   }
   .header-nav::-webkit-scrollbar{display:none;}
+  @media (max-width:359px){
+    .header-nav{
+      -webkit-mask-image:linear-gradient(to right, #000 calc(100% - 16px), transparent);
+              mask-image:linear-gradient(to right, #000 calc(100% - 16px), transparent);
+    }
+  }
   .header-nav a{font-size:10px; color:var(--muted); text-decoration:none; font-weight:500; white-space:nowrap;}
   .header-nav a:hover{color:var(--cyan);}
   .ig-dot{width:8px;height:8px;border-radius:50%;background:var(--orange);display:inline-block;margin-left:6px;}
@@ -262,33 +266,37 @@
   }
 
   /* ===== Reviews ===== */
-  .review-banner{
-    margin-top:18px; background:var(--bg-panel); border:1px solid var(--line);
-    border-radius:12px; padding:18px 18px 14px; position:relative; overflow:hidden;
+  /* Scrolling review ticker (lives in the sticky header) */
+  .review-ticker{
+    display:flex; align-items:center; text-decoration:none;
+    border-top:1px solid var(--line); background:rgba(13,23,48,0.92);
+    height:30px; overflow:hidden;
   }
-  .review-banner::before{
-    content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
-    background:linear-gradient(180deg, var(--cyan), var(--blue-light));
+  .rt-label{
+    flex-shrink:0; align-self:stretch; display:flex; align-items:center;
+    padding:0 10px; font-family:'Press Start 2P', monospace; font-size:7px; letter-spacing:0.08em;
+    color:var(--bg-deep); background:linear-gradient(135deg, var(--cyan), var(--blue-light));
   }
-  .rb-inner{min-height:78px; display:flex; flex-direction:column; justify-content:center;}
-  .rb-quote{
-    font-size:14px; color:var(--white); line-height:1.6; font-style:italic;
-    transition:opacity .4s ease; opacity:1;
+  .rt-viewport{
+    flex:1; min-width:0; overflow:hidden; position:relative;
+    -webkit-mask-image:linear-gradient(to right, transparent, #000 18px, #000 calc(100% - 18px), transparent);
+            mask-image:linear-gradient(to right, transparent, #000 18px, #000 calc(100% - 18px), transparent);
   }
-  .rb-quote.fade{opacity:0;}
-  .rb-meta{display:flex; align-items:center; gap:10px; margin-top:9px; flex-wrap:wrap;
-    transition:opacity .4s ease;}
-  .rb-meta.fade{opacity:0;}
-  .rb-stars{color:var(--yellow); font-size:13px; letter-spacing:1px;}
-  .rb-name{font-size:12px; color:var(--muted);}
-  .rb-dots{display:flex; gap:5px; margin-top:12px;}
-  .rb-dot{
-    width:6px; height:6px; border-radius:50%; background:var(--line); cursor:pointer;
-    border:none; padding:0; transition:background .2s ease;
+  .rt-track{
+    display:inline-flex; white-space:nowrap; will-change:transform;
+    animation:rt-scroll var(--rt-dur, 40s) linear infinite;
   }
-  .rb-dot.active{background:var(--cyan);}
-  .rb-link{
-    display:inline-block; margin-top:10px; font-size:12px; color:var(--cyan); text-decoration:none;
+  .review-ticker:hover .rt-track,
+  .review-ticker:focus-visible .rt-track{animation-play-state:paused;}
+  @keyframes rt-scroll{ from{transform:translateX(0);} to{transform:translateX(-50%);} }
+  .rt-item{display:inline-flex; align-items:center; gap:7px; padding:0 22px; font-size:12px; color:var(--white);}
+  .rt-item + .rt-item{border-left:1px solid var(--line);}
+  .rt-stars{color:var(--yellow); letter-spacing:1px; font-size:11px;}
+  .rt-text{font-style:italic;}
+  .rt-who{color:var(--muted);}
+  @media (prefers-reduced-motion:reduce){
+    .rt-track{animation:none;}
+    .rt-viewport{overflow-x:auto;}
   }
 
   .rv-summary{
@@ -776,6 +784,10 @@
         <a href="#faq">FAQ</a>
       </nav>
     </div>
+    <a href="#reviews" class="review-ticker" id="review-ticker" aria-label="Customer reviews — tap to read all" hidden>
+      <span class="rt-label">REVIEWS</span>
+      <span class="rt-viewport"><span class="rt-track" id="rt-track"></span></span>
+    </a>
   </header>
 
   <div id="top"></div>
@@ -807,17 +819,6 @@
     <span class="cc-promo-arrow">&rarr;</span>
   </a>
 
-  <div class="review-banner wrap" id="review-banner" hidden>
-    <div class="rb-inner">
-      <div class="rb-quote" id="rb-quote"></div>
-      <div class="rb-meta">
-        <span class="rb-stars" id="rb-stars"></span>
-        <span class="rb-name" id="rb-name"></span>
-      </div>
-      <div class="rb-dots" id="rb-dots"></div>
-    </div>
-    <a href="#reviews" class="rb-link">Read all reviews &rarr;</a>
-  </div>
 
   <div class="divider wrap"></div>
 
@@ -1515,7 +1516,7 @@
 
   <footer>
     <div class="fname pixel" style="font-size:10px; color:var(--muted);">RESTORED RARITY</div>
-    <div class="fyear">© <span id="year"></span> · Card cleaning, repair &amp; grading prep <span style="opacity:.55;">· build v9-28b</span></div>
+    <div class="fyear">© <span id="year"></span> · Card cleaning, repair &amp; grading prep <span style="opacity:.55;">· build v9-28c</span></div>
   </footer>
 </div>
 
@@ -2020,10 +2021,7 @@ document.querySelectorAll('a[href="#centering"]').forEach(a => {
 });
 
 /* ---------- Reviews ---------- */
-const RV_ROTATE_MS = 6500;
 let rvReviews = [];
-let rvIndex = 0;
-let rvTimer = null;
 
 function stars(n){
   n = Math.max(0, Math.min(5, Math.round(Number(n) || 0)));
@@ -2035,44 +2033,39 @@ function esc(s){
   return d.innerHTML;
 }
 
-function renderBanner(){
-  const banner = document.getElementById('review-banner');
-  if(!rvReviews.length){ banner.hidden = true; return; }
-  banner.hidden = false;
-  const dots = document.getElementById('rb-dots');
-  dots.innerHTML = rvReviews.map((_, i) =>
-    `<button type="button" class="rb-dot${i === rvIndex ? ' active' : ''}" data-i="${i}" aria-label="Review ${i+1}"></button>`
-  ).join('');
-  dots.querySelectorAll('.rb-dot').forEach(d => {
-    d.addEventListener('click', () => { showReview(Number(d.dataset.i)); restartRotate(); });
-  });
-  paintReview();
+const RT_SPEED = 55;            // pixels per second — lower is slower
+
+function tickerItemHtml(r){
+  const who = esc(r.name) + (r.card ? ' · ' + esc(r.card) : '');
+  return `<span class="rt-item"><span class="rt-stars">${stars(r.rating)}</span>`
+       + `<span class="rt-text">“${esc(r.text)}”</span>`
+       + `<span class="rt-who">— ${who}</span></span>`;
 }
 
-function paintReview(){
-  const r = rvReviews[rvIndex];
-  if(!r) return;
-  document.getElementById('rb-quote').textContent = '\u201C' + r.text + '\u201D';
-  document.getElementById('rb-stars').textContent = stars(r.rating);
-  document.getElementById('rb-name').textContent = r.name + (r.card ? ' \u00B7 ' + r.card : '');
-  document.querySelectorAll('.rb-dot').forEach((d, i) => d.classList.toggle('active', i === rvIndex));
+function renderTicker(){
+  const ticker = document.getElementById('review-ticker');
+  const track  = document.getElementById('rt-track');
+  if(!rvReviews.length){ ticker.hidden = true; track.innerHTML = ''; return; }
+  ticker.hidden = false;
+
+  // One "set" must be at least as wide as the screen, or a gap shows as it loops.
+  const once = rvReviews.map(tickerItemHtml).join('');
+  track.innerHTML = once;
+  const viewport = track.parentElement.clientWidth || window.innerWidth;
+  let set = once, guard = 0;
+  while(track.scrollWidth < viewport && guard++ < 20){ set += once; track.innerHTML = set; }
+
+  // Two identical sets back to back; sliding exactly one set's width loops seamlessly.
+  track.innerHTML = set + set;
+  const setWidth = track.scrollWidth / 2;
+  track.style.setProperty('--rt-dur', Math.max(12, setWidth / RT_SPEED).toFixed(1) + 's');
 }
 
-function showReview(i){
-  if(!rvReviews.length) return;
-  const q = document.getElementById('rb-quote');
-  const m = document.getElementById('rb-meta') || document.querySelector('.rb-meta');
-  q.classList.add('fade'); if(m) m.classList.add('fade');
-  setTimeout(() => {
-    rvIndex = (i + rvReviews.length) % rvReviews.length;
-    paintReview();
-    q.classList.remove('fade'); if(m) m.classList.remove('fade');
-  }, 400);
-}
-function restartRotate(){
-  clearInterval(rvTimer);
-  if(rvReviews.length > 1) rvTimer = setInterval(() => showReview(rvIndex + 1), RV_ROTATE_MS);
-}
+let rtResizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(rtResizeTimer);
+  rtResizeTimer = setTimeout(renderTicker, 250);
+});
 
 function renderReviewList(){
   const list = document.getElementById('rv-list');
@@ -2107,7 +2100,7 @@ fetch(`${SUBMIT_ENDPOINT}?action=reviews`)
     if(data && data.success && Array.isArray(data.reviews)) rvReviews = data.reviews;
   })
   .catch(err => console.error('Review fetch failed:', err))
-  .finally(() => { renderBanner(); renderReviewList(); restartRotate(); });
+  .finally(() => { renderTicker(); renderReviewList(); });
 
 /* Star picker */
 let rvRating = 0;
