@@ -73,10 +73,11 @@
     -webkit-overflow-scrolling:touch;
   }
   .header-nav::-webkit-scrollbar{display:none;}
-  @media (max-width:400px){ .header-nav{gap:8px;} }
-  .header-nav.is-overflowing:not(.at-end){
-    -webkit-mask-image:linear-gradient(to right, #000 calc(100% - 18px), transparent);
-            mask-image:linear-gradient(to right, #000 calc(100% - 18px), transparent);
+  @media (max-width:359px){
+    .header-nav{
+      -webkit-mask-image:linear-gradient(to right, #000 calc(100% - 16px), transparent);
+              mask-image:linear-gradient(to right, #000 calc(100% - 16px), transparent);
+    }
   }
   .header-nav a{font-size:10px; color:var(--muted); text-decoration:none; font-weight:500; white-space:nowrap;}
   .header-nav a:hover{color:var(--cyan);}
@@ -181,24 +182,6 @@
   .surcharge-row .fee{color:var(--yellow); font-weight:600;}
   .surcharge-note{font-size:12px; color:var(--muted); margin-top:12px; line-height:1.6;}
 
-  .price-notice{
-    display:flex; gap:12px; align-items:flex-start;
-    background:rgba(246,138,30,.08); border:1px solid var(--orange); border-radius:var(--radius);
-    padding:14px 16px; margin:0 0 26px; font-size:13px; line-height:1.6; color:var(--white);
-  }
-  .price-notice .pn-tag{
-    flex-shrink:0; font-family:'Press Start 2P', monospace; font-size:8px; letter-spacing:.04em;
-    background:var(--orange); color:#20140a; padding:6px 8px; border-radius:4px; margin-top:2px;
-  }
-  .price-notice b{color:var(--yellow);}
-  .price-notice ul{margin:6px 0 0; padding-left:18px; color:var(--muted);}
-  .price-notice ul b{color:var(--white);}
-  .bulk-table{margin:4px 0 0 58px; border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; max-width:420px;}
-  .bulk-table .surcharge-row .fee{color:var(--cyan);}
-  @media (max-width:420px){ .bulk-table{margin-left:22px;} }
-  .tier-body .tier-sub{display:block; margin-top:6px; font-size:12px; color:var(--cyan);}
-  .addon-check{display:flex; align-items:center; gap:10px; font-size:13px; color:var(--white); cursor:pointer; margin-top:10px;}
-  .addon-check input{width:17px; height:17px; accent-color:var(--cyan); flex-shrink:0; cursor:pointer;}
   .calc-panel{
     background:var(--bg-panel); border:1px solid var(--line); border-radius:var(--radius);
     padding:20px; margin-top:16px;
@@ -597,42 +580,6 @@
   .faq-answer p{margin:0 0 12px;}
   .faq-answer p:last-child{margin-bottom:0;}
 
-  /* Track Your Submission */
-  .trk-form{display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;}
-  .trk-form .field{flex:1 1 180px; margin-bottom:0;}
-  .trk-form .btn{flex:0 0 auto;}
-  .trk-form input#trk-ref{text-transform:uppercase; letter-spacing:1px;}
-  .trk-result{margin-top:22px;}
-  .trk-head{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:18px;}
-  .trk-ref{font-family:'Press Start 2P', monospace; font-size:12px; color:var(--cyan); letter-spacing:1px;}
-  .trk-hello{font-size:13px; color:var(--muted); margin-top:6px;}
-  .trk-status{text-align:right;}
-  .trk-status .lbl{font-size:11px; color:var(--muted); letter-spacing:1px;}
-  .trk-status .val{font-size:18px; font-weight:700; color:var(--yellow); margin-top:2px;}
-  .trk-status .upd{font-size:12px; color:var(--muted); margin-top:2px;}
-  .trk-flag{border:1px solid var(--orange); background:rgba(246,138,30,.1); color:var(--white); border-radius:6px; padding:10px 12px; font-size:13px; margin-bottom:16px;}
-  .trk-steps{list-style:none; margin:0 0 18px; padding:0; position:relative;}
-  .trk-steps li{position:relative; padding:0 0 16px 34px; font-size:14px; color:var(--muted);}
-  .trk-steps li:last-child{padding-bottom:0;}
-  .trk-steps li::before{content:''; position:absolute; left:8px; top:20px; bottom:-2px; width:2px; background:var(--line);}
-  .trk-steps li:last-child::before{display:none;}
-  .trk-steps .dot{position:absolute; left:0; top:1px; width:18px; height:18px; border-radius:50%; border:2px solid var(--line); background:var(--bg-panel-2); box-sizing:border-box; display:flex; align-items:center; justify-content:center; font-size:10px; color:#070b16; font-weight:700;}
-  .trk-steps li.done{color:var(--white);}
-  .trk-steps li.done .dot{background:var(--cyan); border-color:var(--cyan);}
-  .trk-steps li.done::before{background:var(--cyan);}
-  .trk-steps li.current{color:var(--yellow); font-weight:700;}
-  .trk-steps li.current .dot{background:var(--yellow); border-color:var(--yellow); box-shadow:0 0 0 4px rgba(255,210,63,.18);}
-  .trk-steps .when{display:block; font-size:11px; color:var(--muted); font-weight:400; margin-top:2px;}
-  .trk-note{border-left:3px solid var(--orange); background:var(--bg-panel-2); padding:12px 14px; border-radius:0 6px 6px 0; margin-bottom:16px; font-size:14px; white-space:pre-line;}
-  .trk-note .lbl{display:block; font-size:11px; color:var(--orange); letter-spacing:1px; margin-bottom:4px;}
-  .trk-sub{font-size:11px; color:var(--cyan); letter-spacing:1px; margin:0 0 8px;}
-  .trk-cards{list-style:none; margin:0; padding:0; font-size:14px;}
-  .trk-cards li{display:flex; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid var(--line);}
-  .trk-cards li span:last-child{color:var(--muted); text-align:right;}
-  .trk-tracking{font-size:14px; margin-bottom:16px;}
-  .trk-tracking b{color:var(--cyan); letter-spacing:1px;}
-  @media (max-width:520px){ .trk-status{text-align:left;} .trk-form .btn{width:100%;} }
-
   /* Form */
   .card-panel{
     background:var(--bg-panel); border:1px solid var(--line); border-radius:var(--radius);
@@ -833,7 +780,6 @@
         <a href="#gallery">Gallery</a>
         <a href="#pricing">Pricing</a>
         <a href="#submit">Submit</a>
-        <a href="#track">Track</a>
         <a href="#reviews">Reviews</a>
         <a href="#faq">FAQ</a>
       </nav>
@@ -1002,38 +948,18 @@
       <p>Every tier below builds on services offered from the previous. Pick the one that matches how far your card needs to go.</p>
     </div>
 
-    <div class="price-notice" role="note">
-      <span class="pn-tag">NOTICE</span>
-      <div>
-        <b>Pricing update, effective October 1, 2026:</b> repair tier prices have increased, and card-value surcharge thresholds have been adjusted.
-        <ul>
-          <li>Base Repair is now <b>$35</b> and Major Repair is now <b>$50</b>.</li>
-          <li>Repair surcharges now start at <b>$251</b> Near Mint value, with a new <b>8%</b> tier for cards valued $251–$500.</li>
-        </ul>
-      </div>
-    </div>
-
     <div class="ladder-group-label">Cleaning &amp; grading prep</div>
     <div class="ladder" id="ladder-clean"></div>
-    <div class="bulk-table" aria-label="Bulk cleaning pricing">
-      <div class="surcharge-row surcharge-header"><span class="val">Bulk Card Cleaning</span><span class="fee">Per card</span></div>
-      <div class="surcharge-row"><span class="val">1–20 cards</span><span class="fee">$10</span></div>
-      <div class="surcharge-row"><span class="val">21–40 cards</span><span class="fee">$8</span></div>
-      <div class="surcharge-row"><span class="val">41+ cards</span><span class="fee">$6</span></div>
-    </div>
 
     <div class="ladder-group-label" style="margin-top:36px;">Repairs</div>
     <div class="ladder" id="ladder-repair"></div>
 
-    <div class="ladder-group-label" style="margin-top:36px;">Additional services</div>
-    <div class="ladder" id="ladder-addon"></div>
-
     <div class="ladder-group-label" style="margin-top:36px;">Card value surcharge</div>
     <p style="font-size:13px; color:var(--muted); margin:0 0 12px; line-height:1.6;">
-      For cards valued at $250 or less in Near Mint condition, no value surcharge applies.
+      For cards valued at $500 or less in Near Mint condition, no value surcharge applies.
     </p>
     <p style="font-size:13px; color:var(--muted); margin:0 0 4px; line-height:1.6;">
-      For repair services, a surcharge is added to the selected service price based on the card's current Near Mint TCG market value: 8% for cards between $251 and $500, 10% for cards between $501 and $1,500, and 12% for cards between $1,501 and $2,500, rounded up to the nearest dollar. Cards valued above $2,500 require a custom quote. Cleaning and evaluation services are never subject to a value surcharge.
+      For repair services, a surcharge is added to the selected service price based on the card's current Near Mint TCG market value: 10% for cards between $500 and $1,500, and 12% for cards between $1,501 and $2,500, rounded up to the nearest dollar. Cards valued above $2,500 require a custom quote. Cleaning and evaluation services are never subject to a value surcharge.
     </p>
     <div class="surcharge-table" id="surcharge-table"></div>
     <div class="surcharge-note" id="surcharge-note"></div>
@@ -1044,13 +970,8 @@
         <label for="calc-service">Service</label>
         <select id="calc-service"></select>
       </div>
-      <label class="addon-check" id="calc-crack-wrap" style="margin:-4px 0 16px;"><input type="checkbox" id="calc-crack"> Also crack the card out of a graded slab (+$10)</label>
-      <div class="field">
-        <label for="calc-qty">Number of cards</label>
-        <input type="text" id="calc-qty" inputmode="numeric" placeholder="1" value="1">
-      </div>
       <div class="field" style="margin-bottom:0;">
-        <label for="calc-value">Estimated near-mint value per card ($) <span class="hint-inline">(optional)</span></label>
+        <label for="calc-value">Estimated near-mint value ($) <span class="hint-inline">(optional)</span></label>
         <input type="text" id="calc-value" placeholder="e.g. 300">
       </div>
       <div class="field" style="margin-bottom:0; margin-top:14px;">
@@ -1058,8 +979,7 @@
         <input type="text" id="calc-referral" placeholder="e.g. CODE123" autocapitalize="characters">
       </div>
       <div class="calc-result">
-        <div class="calc-line"><span id="calc-base-label">Base service</span><span id="calc-base">—</span></div>
-        <div class="calc-line" id="calc-crack-line" style="display:none;"><span>Slab cracking add-on</span><span id="calc-crack-amt">—</span></div>
+        <div class="calc-line"><span>Base service</span><span id="calc-base">—</span></div>
         <div class="calc-line" id="calc-surcharge-line" style="display:none;"><span id="calc-surcharge-label">Value surcharge</span><span id="calc-surcharge">—</span></div>
         <div class="calc-line" id="calc-discount-line" style="display:none;"><span>Referral discount (10%)</span><span id="calc-discount">—</span></div>
         <div class="calc-line calc-total"><span>Estimated total</span><span id="calc-total">—</span></div>
@@ -1275,12 +1195,11 @@
 
           <h4>7. Card Value Surcharge</h4>
           <p>Card-value surcharges apply to repair services only. Cleaning and evaluation services are never subject to a value surcharge, regardless of the card's Near Mint value.</p>
-          <p>For repair services, cards valued at $250 or less in Near Mint condition are not subject to a card-value surcharge.</p>
-          <p>For repair services on cards valued above $250, an additional surcharge is added to the selected service price based on the card's current Near Mint TCG market value.</p>
+          <p>For repair services, cards valued at $500 or less in Near Mint condition are not subject to a card-value surcharge.</p>
+          <p>For repair services on cards valued above $500, an additional surcharge is added to the selected service price based on the card's current Near Mint TCG market value.</p>
           <div class="surcharge-table">
             <div class="surcharge-row surcharge-header"><span class="val">Near Mint Card Value</span><span class="fee">Surcharge</span></div>
-            <div class="surcharge-row"><span class="val">$250 or less</span><span class="fee">No Surcharge</span></div>
-            <div class="surcharge-row"><span class="val">$251 – $500</span><span class="fee">8% of NM Value</span></div>
+            <div class="surcharge-row"><span class="val">$500 or less</span><span class="fee">No Surcharge</span></div>
             <div class="surcharge-row"><span class="val">$501 – $1,500</span><span class="fee">10% of NM Value</span></div>
             <div class="surcharge-row"><span class="val">$1,501 – $2,500</span><span class="fee">12% of NM Value</span></div>
             <div class="surcharge-row"><span class="val">Over $2,500</span><span class="fee">Custom Quote</span></div>
@@ -1403,30 +1322,6 @@
 
   <div class="divider wrap"></div>
 
-  <section id="track" class="wrap">
-    <div class="section-head">
-      <h2 class="pixel" style="font-size:15px;">Track Your Submission</h2>
-      <p>Enter the reference number from your confirmation email and the email you submitted with to see where your cards are.</p>
-    </div>
-    <div class="card-panel">
-      <form id="track-form" class="trk-form" novalidate>
-        <div class="field">
-          <label for="trk-ref">Reference number</label>
-          <input type="text" id="trk-ref" placeholder="RR-XXXXXX" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="30">
-        </div>
-        <div class="field">
-          <label for="trk-email">Email</label>
-          <input type="email" id="trk-email" placeholder="you@example.com" autocomplete="email">
-        </div>
-        <button type="submit" class="btn btn-primary" id="trk-btn">TRACK</button>
-      </form>
-      <div class="form-msg" id="trk-msg"></div>
-      <div class="trk-result" id="trk-result" hidden></div>
-    </div>
-  </section>
-
-  <div class="divider wrap"></div>
-
   <section id="reviews" class="wrap">
     <div class="section-head">
       <h2 class="pixel" style="font-size:15px;">Reviews</h2>
@@ -1543,8 +1438,8 @@
       <summary>How are high-value cards handled?</summary>
       <div class="faq-answer">
         <p>Value surcharges apply to repair services only — cleaning and evaluation services are never subject to a surcharge, no matter the card's value.</p>
-        <p>For repairs, cards with a Near Mint value of $250 or less do not have a card-value surcharge.</p>
-        <p>For repairs on cards valued between $251 and $500, a surcharge of 8% of the card's Near Mint value is added to the selected service price. For cards valued between $501 and $1,500, the surcharge is 10% of the card's Near Mint value is added to the selected service price. For repairs on cards valued between $1,501 and $2,500, the surcharge rate is 12%. All surcharges are rounded up to the nearest dollar.</p>
+        <p>For repairs, cards with a Near Mint value of $500 or less do not have a card-value surcharge.</p>
+        <p>For repairs on cards valued between $500 and $1,500, a surcharge of 10% of the card's Near Mint value is added to the selected service price. For repairs on cards valued between $1,501 and $2,500, the surcharge rate is 12%. All surcharges are rounded up to the nearest dollar.</p>
         <p>Cards valued above $2,500 Near Mint are individually reviewed and require a custom quote.</p>
       </div>
     </details>
@@ -1621,7 +1516,7 @@
 
   <footer>
     <div class="fname pixel" style="font-size:10px; color:var(--muted);">RESTORED RARITY</div>
-    <div class="fyear">© <span id="year"></span> · Card cleaning, repair &amp; grading prep <span style="opacity:.55;">· build v10-01a</span></div>
+    <div class="fyear">© <span id="year"></span> · Card cleaning, repair &amp; grading prep <span style="opacity:.55;">· build v9-28c</span></div>
   </footer>
 </div>
 
@@ -1718,31 +1613,24 @@ renderShows();
 
 /* ---------- Pricing data (edit here to change prices/text) ---------- */
 const CLEAN_TIERS = [
-  {price:"$10", title:"Card Cleaning", type:"clean", bulk:true, sub:"Bulk pricing: $8/card for 21–40 cards, $6/card for 41+ cards.", desc:"A meticulous cleaning performed under magnification to safely lift dirt, grime, fingerprints, and surface buildup while restoring the card's natural presentation and holo brilliance. Does not include scratch repair or buffing."},
+  {price:"$10", title:"Card Cleaning", type:"clean", desc:"A meticulous cleaning performed under magnification to safely lift dirt, grime, fingerprints, and surface buildup while restoring the card's natural presentation and holo brilliance. Does not include scratch repair or buffing."},
   {price:"$15", title:"Card Cleaning + Scratch Repair", type:"clean", desc:"Everything included in our Card Cleaning service, with additional surface refinement and precision buffing to reduce visible scratches, scuffs, and holo wear while preserving the card's original finish."},
   {price:"$20", title:"Grade-Ready Evaluation + Deep Clean", type:"clean", desc:"Our most comprehensive grading-prep service. Includes a detailed evaluation under magnification, deep cleaning, scratch and surface refinement, identification and correction of addressable surface defects, and minor corner or edge flattening where appropriate. Your card is cleaned, evaluated, refined, and ready to submit."}
 ];
 const REPAIR_TIERS = [
-  {price:"$35", title:"Base Repair", type:"repair", desc:"Targeted restoration for localized damage, including minor corner or edge lifting, dents or gouges under \u00bc inch, and creases under \u00bd inch. Each repair is carefully addressed to stabilize the affected area and restore the card as close as possible to its original appearance."},
-  {price:"$50", title:"Major Repair", type:"repair", desc:"Advanced restoration for significant damage, including major corner or edge lifting, delamination or layer separation, dents or gouges over \u00bc inch, and creases over \u00bd inch. Designed for cards requiring more extensive techniques, additional working time, or multiple rounds of restoration to achieve the best result possible."}
+  {price:"$30", title:"Base Repair", type:"repair", desc:"Targeted restoration for localized damage, including minor corner or edge lifting, dents or gouges under \u00bc inch, and creases under \u00bd inch. Each repair is carefully addressed to stabilize the affected area and restore the card as close as possible to its original appearance."},
+  {price:"$40", title:"Major Repair", type:"repair", desc:"Advanced restoration for significant damage, including major corner or edge lifting, delamination or layer separation, dents or gouges over \u00bc inch, and creases over \u00bd inch. Designed for cards requiring more extensive techniques, additional working time, or multiple rounds of restoration to achieve the best result possible."}
 ];
-const ADDON_TIERS = [
-  {price:"$15", title:"Slab Cracking", type:"addon", sub:"Only $10 when combined with another service.", desc:"Careful removal of your card from a graded slab so it can be cleaned, restored, or resubmitted. The slab is opened with care to protect the card's surface, edges, and corners."}
-];
-/* Bulk Card Cleaning: $10/card (1–20), $8/card (21–40), $6/card (41+) */
-function bulkCleaningPrice(qty){ return qty > 40 ? 6 : qty > 20 ? 8 : 10; }
-const SLAB_CRACK_SOLO = 15, SLAB_CRACK_ADDON = 10;
-/* Surcharge policy (effective Oct 1, 2026): 0 at $250 or under; 8% of NM value (rounded up) for $251\u2013$500;
-   10% for $501\u2013$1,500; 12% for $1,501\u2013$2,500; custom quote above $2,500. */
+/* Surcharge policy: 0 at $500 or under; 10% of NM value (rounded up) for $500\u2013$1,500;
+   12% of NM value (rounded up) for $1,501\u2013$2,500; custom quote above $2,500. */
 function surchargeForValue(value){
-  if(!value || value <= 250) return 0;
+  if(!value || value <= 500) return 0;
   if(value > 2500) return null;
-  const rate = value > 1500 ? 0.12 : value > 500 ? 0.10 : 0.08;
+  const rate = value > 1500 ? 0.12 : 0.10;
   return Math.ceil(value * rate);
 }
 const SURCHARGE_DISPLAY_ROWS = [
-  {range:"$250 or less", fee:"No Surcharge"},
-  {range:"$251 – $500", fee:"8% of NM value"},
+  {range:"$500 or less", fee:"No Surcharge"},
   {range:"$501 – $1,500", fee:"10% of NM value"},
   {range:"$1,501 – $2,500", fee:"12% of NM value"},
   {range:"Over $2,500", fee:"Custom Quote"}
@@ -1756,14 +1644,13 @@ function renderLadder(containerId, tiers){
       <div class="tier-price pixel">${t.price}</div>
       <div class="tier-body">
         <h3>${t.title}</h3>
-        <p>${t.desc}${t.sub ? `<span class="tier-sub">${t.sub}</span>` : ''}</p>
+        <p>${t.desc}</p>
       </div>
     </div>
   `).join('');
 }
 renderLadder('ladder-clean', CLEAN_TIERS);
 renderLadder('ladder-repair', REPAIR_TIERS);
-renderLadder('ladder-addon', ADDON_TIERS);
 
 const surchargeHeaderRow = `<div class="surcharge-row surcharge-header"><span class="val">Near Mint Card Value</span><span class="fee">Surcharge</span></div>`;
 document.getElementById('surcharge-table').innerHTML = surchargeHeaderRow + SURCHARGE_DISPLAY_ROWS.map(s => `
@@ -1772,7 +1659,7 @@ document.getElementById('surcharge-table').innerHTML = surchargeHeaderRow + SURC
 document.getElementById('surcharge-note').textContent = SURCHARGE_NOTE;
 
 /* ---------- Price calculator ---------- */
-const ALL_TIERS = [...CLEAN_TIERS, ...REPAIR_TIERS, ...ADDON_TIERS];
+const ALL_TIERS = [...CLEAN_TIERS, ...REPAIR_TIERS];
 const calcServiceSelect = document.getElementById('calc-service');
 calcServiceSelect.innerHTML = ALL_TIERS.map((t, i) => `<option value="${i}">${t.title} — ${t.price}</option>`).join('');
 
@@ -1788,28 +1675,10 @@ const calcHintEl = document.getElementById('calc-hint');
 const DEFAULT_CALC_HINT = "This is an estimate. Final pricing is confirmed after evaluation.";
 const CLEAN_CALC_HINT = "Value surcharges apply to repair services only — cleaning and evaluation services are never subject to a surcharge.";
 
-const calcQtyInput = document.getElementById('calc-qty');
-const calcCrackInput = document.getElementById('calc-crack');
-const calcCrackWrap = document.getElementById('calc-crack-wrap');
-const calcCrackLine = document.getElementById('calc-crack-line');
-const calcCrackAmt = document.getElementById('calc-crack-amt');
-const calcBaseLabel = document.getElementById('calc-base-label');
 function runCalculator(){
   const tier = ALL_TIERS[Number(calcServiceSelect.value)];
-  const qty = Math.max(1, Math.floor(Number(calcQtyInput.value.replace(/[^0-9]/g, '')) || 1));
-  let perCard = tier.bulk ? bulkCleaningPrice(qty) : Number(tier.price.replace(/[^0-9.]/g, ''));
-  const isSlabOnly = tier.type === 'addon';
-  calcCrackWrap.style.display = isSlabOnly ? 'none' : 'flex';
-  const crack = !isSlabOnly && calcCrackInput.checked;
-  calcBaseLabel.textContent = qty > 1 ? `Base service ($${perCard} × ${qty})` : 'Base service';
-  calcBaseEl.textContent = `$${perCard * qty}`;
-  if(crack){
-    calcCrackLine.style.display = 'flex';
-    calcCrackAmt.textContent = `+$${SLAB_CRACK_ADDON * qty}`;
-  } else {
-    calcCrackLine.style.display = 'none';
-  }
-  const basePrice = (perCard + (crack ? SLAB_CRACK_ADDON : 0)) * qty;
+  const basePrice = Number(tier.price.replace(/[^0-9.]/g, ''));
+  calcBaseEl.textContent = `$${basePrice}`;
 
   const rawValue = calcValueInput.value.trim();
   const value = rawValue ? Number(rawValue.replace(/[^0-9.]/g, '')) : 0;
@@ -1820,7 +1689,7 @@ function runCalculator(){
   if(tier.type !== 'repair'){
     calcSurchargeLine.style.display = 'none';
     applyDiscountAndTotal(basePrice, refValid);
-    calcHintEl.textContent = (rawValue ? CLEAN_CALC_HINT : DEFAULT_CALC_HINT) + (tier.bulk && qty <= 20 ? " Submit 21+ cards for bulk cleaning pricing." : "");
+    calcHintEl.textContent = rawValue ? CLEAN_CALC_HINT : DEFAULT_CALC_HINT;
     return;
   }
 
@@ -1832,7 +1701,7 @@ function runCalculator(){
     return;
   }
 
-  const surcharge = surchargeForValue(value) * qty;
+  const surcharge = surchargeForValue(value);
   if(surcharge > 0){
     calcSurchargeLine.style.display = 'flex';
     calcSurchargeEl.textContent = `+$${surcharge}`;
@@ -1840,7 +1709,7 @@ function runCalculator(){
     calcSurchargeLine.style.display = 'none';
   }
   applyDiscountAndTotal(basePrice + surcharge, refValid);
-  calcHintEl.textContent = qty > 1 ? DEFAULT_CALC_HINT + " Assumes the same service and value for each card." : DEFAULT_CALC_HINT;
+  calcHintEl.textContent = DEFAULT_CALC_HINT;
 }
 function applyDiscountAndTotal(subtotal, refValid){
   if(refValid){
@@ -1857,8 +1726,6 @@ function applyDiscountAndTotal(subtotal, refValid){
 calcServiceSelect.addEventListener('change', runCalculator);
 calcValueInput.addEventListener('input', runCalculator);
 calcReferralInput.addEventListener('input', runCalculator);
-calcQtyInput.addEventListener('input', runCalculator);
-calcCrackInput.addEventListener('change', runCalculator);
 runCalculator();
 
 /* ---------- Centering calculator ----------
@@ -2295,11 +2162,7 @@ rvForm.addEventListener('submit', async (e) => {
 /* Populate service dropdown options (shared across all card entries) */
 function serviceOptionsHtml(){
   return '<option value="" disabled selected>Choose a tier</option>' +
-    [...CLEAN_TIERS, ...REPAIR_TIERS, ...ADDON_TIERS].map(t => {
-      const label = t.bulk ? `${t.title} — ${t.price} (bulk: $8 at 21+, $6 at 41+)` : t.type === 'addon' ? `${t.title} only — ${t.price}` : `${t.title} — ${t.price}`;
-      const val = t.type === 'addon' ? `${t.title} only (${t.price})` : `${t.title} (${t.price})`;
-      return `<option value="${val}">${label}</option>`;
-    }).join('');
+    [...CLEAN_TIERS, ...REPAIR_TIERS].map(t => `<option value="${t.title} (${t.price})">${t.title} — ${t.price}</option>`).join('');
 }
 
 /* ---------- Photo handling: compress client-side, then upload to Cloudinary ---------- */
@@ -2380,7 +2243,6 @@ function cardEntryTemplate(id){
       <div class="field">
         <label for="f-service-${id}">Service wanted <span class="req">*</span></label>
         <select id="f-service-${id}" required>${serviceOptionsHtml()}</select>
-        <label class="addon-check" id="f-crack-wrap-${id}"><input type="checkbox" id="f-crack-${id}"> This card is in a graded slab — crack it out (+$10)</label>
       </div>
       <div class="field">
         <label for="f-notes-${id}">Notes on damage / what you'd like done</label>
@@ -2494,12 +2356,6 @@ function addCardEntry(){
   wirePhotoSlot(`f-photo-front-${id}`, `slot-front-${id}`, id, 'front');
   wirePhotoSlot(`f-photo-back-${id}`, `slot-back-${id}`, id, 'back');
   wireDetailPhotos(id);
-  const svcSel = document.getElementById(`f-service-${id}`);
-  svcSel.addEventListener('change', () => {
-    const slabOnly = /^Slab Cracking only/.test(svcSel.value);
-    document.getElementById(`f-crack-wrap-${id}`).style.display = slabOnly ? 'none' : 'flex';
-    if(slabOnly) document.getElementById(`f-crack-${id}`).checked = false;
-  });
   cardsContainer.querySelector(`[data-card-id="${id}"] .remove-card-btn`).addEventListener('click', () => {
     delete cardEntries[id];
     cardsContainer.querySelector(`[data-card-id="${id}"]`).remove();
@@ -2559,9 +2415,7 @@ form.addEventListener('submit', async (e) => {
     const cid = el.dataset.cardId;
     const cardName = document.getElementById(`f-card-${cid}`).value.trim();
     const value = document.getElementById(`f-value-${cid}`).value.trim();
-    let service = document.getElementById(`f-service-${cid}`).value;
-    const crackEl = document.getElementById(`f-crack-${cid}`);
-    if(service && crackEl && crackEl.checked && !/^Slab Cracking only/.test(service)) service += ' + Slab Cracking ($10)';
+    const service = document.getElementById(`f-service-${cid}`).value;
     const notes = document.getElementById(`f-notes-${cid}`).value.trim();
     if(!cardName || !service){
       formMsg.textContent = 'Please fill in the card name and service tier for each card.';
@@ -2594,10 +2448,7 @@ form.addEventListener('submit', async (e) => {
     return;
   }
 
-  const REF_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const rnd = new Uint32Array(6);
-  (window.crypto || window.msCrypto).getRandomValues(rnd);
-  const id = 'RR-' + Array.from(rnd, n => REF_CHARS[n % REF_CHARS.length]).join('');
+  const id = 'sub_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
   const record = {
     id, name, email, phone, deliveryMethod, address, insuredShipping, referralCode,
     cards,
@@ -2619,16 +2470,8 @@ form.addEventListener('submit', async (e) => {
     const result = await response.json();
     if(!result || !result.success){ throw new Error((result && result.error) || 'submit failed'); }
     const cardWord = cards.length > 1 ? `${cards.length} cards` : 'your card';
-    const ref = result.ref || id;
-    formMsg.textContent = email
-      ? `Submitted ${cardWord}! Your reference number is ${ref}. A confirmation email is on its way to ${email} — please don't ship your cards until I contact you. You can check progress anytime in Track Your Submission below.`
-      : `Submitted ${cardWord}! Your reference number is ${ref} — save it. I'll follow up by phone; please don't ship your cards until I contact you.`;
+    formMsg.textContent = `Submitted ${cardWord}! Your reference number is ${id.slice(-8).toUpperCase()}. I'll follow up by ${email ? 'email' : 'phone'}.`;
     formMsg.className = 'form-msg ok';
-    if(email){
-      const tr = document.getElementById('trk-ref'), te = document.getElementById('trk-email');
-      if(tr) tr.value = ref;
-      if(te) te.value = email;
-    }
     form.reset();
     resetTerms();
     referralMsg.textContent = '';
@@ -2647,124 +2490,6 @@ form.addEventListener('submit', async (e) => {
     submitBtn.textContent = 'SUBMIT CARD(S)';
   }
 });
-
-/* Header nav: fade the right edge only when links overflow */
-(function(){
-  const nav = document.querySelector('.header-nav');
-  if(!nav) return;
-  const check = () => {
-    const over = nav.scrollWidth - nav.clientWidth > 2;
-    nav.classList.toggle('is-overflowing', over);
-    nav.classList.toggle('at-end', !over || nav.scrollLeft + nav.clientWidth >= nav.scrollWidth - 2);
-  };
-  nav.addEventListener('scroll', check, {passive:true});
-  window.addEventListener('resize', check);
-  window.addEventListener('load', check);
-  if(document.fonts && document.fonts.ready) document.fonts.ready.then(check);
-  check();
-})();
-
-/* Track Your Submission */
-(function(){
-  const tForm = document.getElementById('track-form');
-  if(!tForm) return;
-  const tRef = document.getElementById('trk-ref');
-  const tEmail = document.getElementById('trk-email');
-  const tBtn = document.getElementById('trk-btn');
-  const tMsg = document.getElementById('trk-msg');
-  const tOut = document.getElementById('trk-result');
-  const fmt = iso => { if(!iso) return ''; const d = new Date(iso); return isNaN(d) ? '' :
-    d.toLocaleDateString(undefined, {month:'short', day:'numeric', year:'numeric'}); };
-  const el = (tag, cls, text) => { const n = document.createElement(tag); if(cls) n.className = cls; if(text != null) n.textContent = text; return n; };
-
-  function render(d){
-    tOut.innerHTML = '';
-    const head = el('div','trk-head');
-    const left = el('div');
-    left.appendChild(el('div','trk-ref', d.ref));
-    left.appendChild(el('div','trk-hello', `Hi ${d.name || 'there'} — here's where your cards are.`));
-    const right = el('div','trk-status');
-    right.appendChild(el('div','lbl','CURRENT STATUS'));
-    right.appendChild(el('div','val', d.status));
-    if(d.updated) right.appendChild(el('div','upd', 'Updated ' + fmt(d.updated)));
-    head.append(left, right); tOut.appendChild(head);
-
-    const stages = Array.isArray(d.stages) ? d.stages : [];
-    const idx = typeof d.stageIndex === 'number' ? d.stageIndex : -1;
-    if(idx < 0){
-      tOut.appendChild(el('div','trk-flag', d.status === 'Cancelled'
-        ? 'This submission has been cancelled. Reach out if you have questions.'
-        : `This submission is currently marked “${d.status}”. I'll be in touch with details.`));
-    }
-    const when = {};
-    (d.history || []).forEach(h => { when[h.status] = h.at; });
-    const lastIdx = idx >= 0 ? idx : stages.reduce((m, s, i) => when[s] ? i : m, -1);
-    const ol = el('ol','trk-steps');
-    stages.forEach((s, i) => {
-      const cls = idx < 0 ? (i <= lastIdx ? 'done' : '')
-                : (i < idx || (i === idx && i === stages.length - 1)) ? 'done' : (i === idx ? 'current' : '');
-      const li = el('li', cls);
-      const dot = el('span','dot', cls === 'done' ? '✓' : '');
-      li.appendChild(dot);
-      li.appendChild(document.createTextNode(s));
-      if(when[s] && i <= lastIdx) li.appendChild(el('span','when', fmt(when[s])));
-      ol.appendChild(li);
-    });
-    tOut.appendChild(ol);
-
-    if(d.tracking){
-      const t = el('div','trk-tracking'); t.append('Return tracking #: ');
-      t.appendChild(el('b', null, d.tracking)); tOut.appendChild(t);
-    }
-    if(d.note){
-      const n = el('div','trk-note'); n.appendChild(el('span','lbl','NOTE FROM RESTORED RARITY'));
-      n.appendChild(document.createTextNode(d.note)); tOut.appendChild(n);
-    }
-    if(d.cards && d.cards.length){
-      tOut.appendChild(el('div','trk-sub', `CARDS (${d.cards.length})`));
-      const ul = el('ul','trk-cards');
-      d.cards.forEach(c => { const li = el('li'); li.append(el('span', null, c.card || 'Card'), el('span', null, c.service || '')); ul.appendChild(li); });
-      tOut.appendChild(ul);
-    }
-    tOut.hidden = false;
-  }
-
-  tForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const ref = tRef.value.trim(), email = tEmail.value.trim();
-    tMsg.className = 'form-msg'; tMsg.textContent = '';
-    if(!ref || !email){ tMsg.className = 'form-msg err'; tMsg.textContent = 'Enter both your reference number and email.'; return; }
-    tBtn.disabled = true; tBtn.textContent = 'CHECKING...';
-    try{
-      const res = await fetch(`${SUBMIT_ENDPOINT}?action=track&ref=${encodeURIComponent(ref)}&email=${encodeURIComponent(email)}`);
-      const data = await res.json();
-      if(!data || !data.success){
-        tOut.hidden = true; tOut.innerHTML = '';
-        tMsg.className = 'form-msg err';
-        tMsg.textContent = (data && data.error && !/Unknown action/i.test(data.error)) ? data.error : "We couldn't look that up right now. Double-check your reference number and email, or reach out on Instagram.";
-        return;
-      }
-      render(data);
-    }catch(err){
-      console.error('Track error:', err);
-      tOut.hidden = true;
-      tMsg.className = 'form-msg err';
-      tMsg.textContent = "We couldn't look that up right now. Please try again in a minute.";
-    }finally{
-      tBtn.disabled = false; tBtn.textContent = 'TRACK';
-    }
-  });
-
-  // Links from emails: /?track=RR-XXXXXX#track
-  try{
-    const q = new URLSearchParams(location.search).get('track');
-    if(q){
-      tRef.value = q.toUpperCase();
-      const go = () => { document.getElementById('track').scrollIntoView({block:'start'}); tEmail.focus({preventScroll:true}); };
-      if(document.readyState === 'complete') go(); else window.addEventListener('load', go);
-    }
-  }catch(_){}
-})();
 
 /* Embedded Terms & Conditions — scroll to the end, then accept inline */
 const termsEmbed     = document.getElementById('terms-embed');
