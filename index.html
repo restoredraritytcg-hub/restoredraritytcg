@@ -1642,6 +1642,7 @@
   </footer>
 </div>
 
+<script src="portal/config.js"></script>
 <script>
 document.getElementById('year').textContent = new Date().getFullYear();
 
@@ -2437,6 +2438,7 @@ function wirePhotoSlot(inputId, slotId, id, key){
       activeUploadCount++; setUploadingState(true);
       const url = await uploadToCloudinary(blob, `${key}-${id}.jpg`);
       cardEntries[id].photos[key] = url;
+      cardEntries[id].blobs[key] = blob;
       slot.querySelector('label').innerHTML = `<img class="photo-preview" src="${previewUrl}">`;
     }catch(err){
       console.error('Photo upload failed:', err);
@@ -2471,12 +2473,13 @@ function wireDetailPhotos(id){
     const files = [...input.files];
     input.value = '';
     for(const file of files){
-      const item = { status: 'uploading', previewUrl: '', url: null };
+      const item = { status: 'uploading', previewUrl: '', url: null, blob: null };
       cardEntries[id].photos.details.push(item);
       render();
       try{
         const { blob, previewUrl } = await compressToBlob(file);
         item.previewUrl = previewUrl;
+        item.blob = blob;
         render();
         activeUploadCount++; setUploadingState(true);
         const url = await uploadToCloudinary(blob, `detail-${id}-${Date.now()}.jpg`);
@@ -2506,7 +2509,7 @@ function renumberCardEntries(){
 function addCardEntry(){
   cardEntryCounter++;
   const id = 'c' + cardEntryCounter;
-  cardEntries[id] = { photos: { front: null, back: null, details: [] } };
+  cardEntries[id] = { photos: { front: null, back: null, details: [] }, blobs: { front: null, back: null } };
   cardsContainer.insertAdjacentHTML('beforeend', cardEntryTemplate(id));
   wirePhotoSlot(`f-photo-front-${id}`, `slot-front-${id}`, id, 'front');
   wirePhotoSlot(`f-photo-back-${id}`, `slot-back-${id}`, id, 'back');
@@ -2547,6 +2550,69 @@ updateDeliveryUI();
 
 /* Detail damage photos are wired per card-entry via wireDetailPhotos() above */
 
+/* ---------- Card portal (Supabase) ----------
+   Runs alongside the Apps Script backend: each submission is also saved to the
+   portal and the customer gets their private link. Until portal/config.js has
+   real Supabase keys this is skipped and the form works exactly as before. */
+const PORTAL_CFG = window.RR_CONFIG || {};
+const PORTAL_ON = !!(PORTAL_CFG.supabaseUrl && PORTAL_CFG.supabaseAnonKey &&
+  !/YOUR-/.test(PORTAL_CFG.supabaseUrl + PORTAL_CFG.supabaseAnonKey));
+let portalClient = null;
+async function portalSb(){
+  if(!portalClient){
+    const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+    portalClient = createClient(PORTAL_CFG.supabaseUrl, PORTAL_CFG.supabaseAnonKey);
+  }
+  return portalClient;
+}
+
+/* Kept between attempts so a retry after an Apps Script error reuses the same
+   portal submission instead of creating a second one. */
+let portalPending = null;
+async function portalIntake(payload){
+  if(!PORTAL_ON) return null;
+  const key = JSON.stringify(payload);
+  if(portalPending && portalPending.key === key) return portalPending.result;
+  try{
+    const sb = await portalSb();
+    const { data, error } = await sb.rpc('intake_submit', { p: payload });
+    if(error) throw error;
+    portalPending = { key, result: data };
+    return data;
+  }catch(err){
+    console.error('Portal intake failed, continuing with Apps Script only:', err);
+    return null;
+  }
+}
+
+/* photoSets[i] = [{blob, caption}, ...] for card i (same order as card_ids). */
+async function portalUploadPhotos(portal, photoSets){
+  const sb = await portalSb();
+  const bucket = PORTAL_CFG.bucket || 'portal';
+  let failed = 0;
+  for(let i = 0; i < photoSets.length; i++){
+    const cardId = (portal.card_ids || [])[i] || null;
+    for(const { blob, caption } of photoSets[i]){
+      try{
+        const path = `u/${portal.storage_key}/${crypto.randomUUID()}.jpg`;
+        const up = await sb.storage.from(bucket).upload(path, blob, { contentType: 'image/jpeg' });
+        if(up.error) throw up.error;
+        const { error } = await sb.rpc('portal_add_photo', {
+          p_token: portal.token, p_path: path, p_caption: caption,
+          p_card_id: cardId, p_submission_code: portal.code, p_source: 'intake'
+        });
+        if(error) throw error;
+      }catch(err){
+        failed++;
+        console.error('Portal photo upload failed:', err);
+      }
+    }
+  }
+  return failed;
+}
+
+function portalLink(token){ return new URL('portal/view.html#t=' + token, location.href).href; }
+
 /* ---------- Submission ---------- */
 const form = document.getElementById('intake-form');
 const formMsg = document.getElementById('form-msg');
@@ -2572,6 +2638,7 @@ form.addEventListener('submit', async (e) => {
 
   const cardEls = [...cardsContainer.querySelectorAll('.card-entry')];
   const cards = [];
+  const photoSets = [];
   for(const el of cardEls){
     const cid = el.dataset.cardId;
     const cardName = document.getElementById(`f-card-${cid}`).value.trim();
@@ -2593,6 +2660,12 @@ form.addEventListener('submit', async (e) => {
         details: cardEntries[cid].photos.details.filter(d => d.status === 'done').map(d => d.url)
       }
     });
+    const n = cards.length, set = [];
+    if(cardEntries[cid].blobs.front) set.push({ blob: cardEntries[cid].blobs.front, caption: `Card ${n} · front` });
+    if(cardEntries[cid].blobs.back) set.push({ blob: cardEntries[cid].blobs.back, caption: `Card ${n} · back` });
+    cardEntries[cid].photos.details.filter(d => d.status === 'done' && d.blob)
+      .forEach(d => set.push({ blob: d.blob, caption: `Card ${n} · detail` }));
+    photoSets.push(set);
   }
 
   if(!name){
@@ -2611,10 +2684,37 @@ form.addEventListener('submit', async (e) => {
     return;
   }
 
-  const REF_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const rnd = new Uint32Array(6);
-  (window.crypto || window.msCrypto).getRandomValues(rnd);
-  const id = 'RR-' + Array.from(rnd, n => REF_CHARS[n % REF_CHARS.length]).join('');
+  const submitBtn = form.querySelector('button[type=submit]');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'SUBMITTING...';
+
+  /* Portal first: its code (RR-1042) becomes the reference everywhere. If the
+     portal isn't set up or is unreachable, fall back to a random reference. */
+  const portal = await portalIntake({
+    name, email, phone,
+    service: [...new Set(cards.map(c => c.service))].join('; '),
+    notes: '',
+    intake_info: [
+      `Delivery: ${deliveryMethod}`,
+      deliveryMethod === 'Ship' && address ? `Return address: ${address}` : '',
+      deliveryMethod === 'Ship' ? `Insured return shipping: ${insuredShipping ? 'Yes' : 'No'}` : '',
+      referralCode ? `Referral code: ${referralCode}` : ''
+    ].filter(Boolean).join('\n'),
+    cards: cards.map(c => ({
+      name: c.card, details: '',
+      notes: [`Service: ${c.service}`, c.value ? `NM value: $${c.value.replace(/^\$/, '')}` : '', c.notes].filter(Boolean).join('\n')
+    }))
+  });
+
+  let id;
+  if(portal){
+    id = portal.code;
+  }else{
+    const REF_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const rnd = new Uint32Array(6);
+    (window.crypto || window.msCrypto).getRandomValues(rnd);
+    id = 'RR-' + Array.from(rnd, n => REF_CHARS[n % REF_CHARS.length]).join('');
+  }
   const record = {
     id, name, email, phone, deliveryMethod, address, insuredShipping, referralCode,
     cards,
@@ -2622,10 +2722,6 @@ form.addEventListener('submit', async (e) => {
     status: 'New',
     createdAt: new Date().toISOString()
   };
-
-  const submitBtn = form.querySelector('button[type=submit]');
-  submitBtn.disabled = true;
-  submitBtn.textContent = 'SUBMITTING...';
 
   try{
     const response = await fetch(SUBMIT_ENDPOINT, {
@@ -2636,10 +2732,32 @@ form.addEventListener('submit', async (e) => {
     const result = await response.json();
     if(!result || !result.success){ throw new Error((result && result.error) || 'submit failed'); }
     const cardWord = cards.length > 1 ? `${cards.length} cards` : 'your card';
-    const ref = result.ref || id;
+    if(portal && result.ref && result.ref !== portal.code){
+      console.warn(`Apps Script saved ref ${result.ref} but the portal code is ${portal.code}`);
+    }
+    const ref = portal ? portal.code : (result.ref || id);
+    let photosFailed = 0;
+    if(portal){
+      portalPending = null;
+      submitBtn.textContent = 'SAVING PHOTOS...';
+      try{ photosFailed = await portalUploadPhotos(portal, photoSets); }
+      catch(err){ photosFailed = 1; console.error('Portal photo upload failed:', err); }
+    }
     formMsg.textContent = email
       ? `Submitted ${cardWord}! Your reference number is ${ref}. A confirmation email is on its way to ${email} — please don't ship your cards until I contact you. You can check progress anytime in Track Your Submission below.`
       : `Submitted ${cardWord}! Your reference number is ${ref} — save it. I'll follow up by phone; please don't ship your cards until I contact you.`;
+    if(portal){
+      const link = portalLink(portal.token);
+      const p = document.createElement('div');
+      p.style.marginTop = '10px';
+      p.append('Your private card page (bookmark it — scans and progress photos will show up here): ');
+      const a = document.createElement('a');
+      a.href = link; a.target = '_blank'; a.rel = 'noopener'; a.textContent = link;
+      a.style.wordBreak = 'break-all';
+      p.appendChild(a);
+      if(photosFailed) p.append(' Some photos didn\'t copy to that page; I still have them with your submission.');
+      formMsg.appendChild(p);
+    }
     formMsg.className = 'form-msg ok';
     if(email){
       const tr = document.getElementById('trk-ref'), te = document.getElementById('trk-email');
