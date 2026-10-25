@@ -105,9 +105,20 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    (via `intake_submit`'s `intake_info`, so it never appears on the customer link). `intake_submit` now also
    returns `card_ids` in input order.
    Unverified: whether Apps Script stores the `id` it's sent (a console warning fires if it returns a different `ref`).
-2. Owner setup (see README.md): create Supabase project, run `schema.sql`, create admin user + `insert into admins`,
+2. **Done: owner setup.** Supabase project `bcozwalfszzuecjjqgam` (free tier), schema run, admin login
+   `restoredraritytcg@gmail.com` works, public sign-ups off, `portal/config.js` filled (publishable key), deployed.
+   The owner updates the site by uploading files on GitHub.com (git on their Mac isn't signed in).
+3. **Done: Google Sheet import.** `tools/import_sheet.py Submissions.csv Cards.csv OUT_DIR [--skip ID ...]`
+   combines the Sheet's Submissions + Cards tabs (customers matched by email, then phone) and writes
+   `combined.csv`, `customers.csv`, `issues.txt` and an idempotent `import.sql` (DO block; skips existing
+   submission codes). Old references (`sub_…`, `RR-XXXXXX`) kept as `submissions.code`; Cloudinary URLs stored
+   as photo paths (`mediaUrl` passes absolute URLs through). Sheet statuses: Submission Received→submitted,
+   In Queue→received, In Progress→in_progress, Ready to Ship / Pick Up→ready. First run (Oct 2026) skipped
+   Tung Ha's duplicate `sub_1790523531181_rh90ar` and 3 cards with no submission. OUT_DIR has customer
+   details — never commit it (repo is public).
+4. Owner setup reference (see README.md): create Supabase project, run `schema.sql`, create admin user + `insert into admins`,
    disable public sign-ups, fill `portal/config.js`, deploy.
-3. Not yet verified on real hardware/OS: Canon LiDE 400 output via Image Capture (Mac) / IJ Scan Utility (Windows);
+5. Not yet verified on real hardware/OS: Canon LiDE 400 output via Image Capture (Mac) / IJ Scan Utility (Windows);
    whether Chrome on macOS lets `showDirectoryPicker` open the Google Drive folder (`~/Library/CloudStorage/...`) —
    README documents a fallback (local folder backed up by Drive).
-4. Free tier: 1 GB storage, project pauses after a week idle.
+6. Free tier: 1 GB storage, project pauses after a week idle.
