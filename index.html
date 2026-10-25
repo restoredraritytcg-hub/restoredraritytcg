@@ -1643,6 +1643,7 @@
 </div>
 
 <script src="portal/config.js"></script>
+<script src="portal/cardsearch.js"></script>
 <script>
 document.getElementById('year').textContent = new Date().getFullYear();
 
@@ -2389,7 +2390,7 @@ function cardEntryTemplate(id){
       </div>
       <div class="field">
         <label for="f-card-${id}">Card name / set <span class="req">*</span></label>
-        <input type="text" id="f-card-${id}" placeholder="e.g. Charizard, Base Set" required>
+        <input type="text" id="f-card-${id}" placeholder="Start typing, e.g. Charizard" required>
       </div>
       <div class="field">
         <label for="f-value-${id}">Estimated near-mint value ($)</label>
@@ -2514,6 +2515,7 @@ function addCardEntry(){
   wirePhotoSlot(`f-photo-front-${id}`, `slot-front-${id}`, id, 'front');
   wirePhotoSlot(`f-photo-back-${id}`, `slot-back-${id}`, id, 'back');
   wireDetailPhotos(id);
+  if(window.RRCardSearch) RRCardSearch.attach(document.getElementById(`f-card-${id}`));
   const svcSel = document.getElementById(`f-service-${id}`);
   svcSel.addEventListener('change', () => {
     const slabOnly = /^Slab Cracking only/.test(svcSel.value);

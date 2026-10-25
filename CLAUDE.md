@@ -15,6 +15,7 @@ grading prep). This adds a card-intake and customer portal to the existing site
 | `portal/scanproc.js` | Browser image processing: card detection, straighten/crop, corner/edge regions, centering measurement, dpi from PNG pHYs / JPEG JFIF/EXIF. Port of `desktop-scanner/cardcrop.py` + `detail.py`. |
 | `portal/centering.js` | Interactive centering tool (plain script, `window.RRCentering`): zoom/pan canvas, draggable markers, save/reset. Used by portal and by the desktop app's local reports. |
 | `portal/common.js` | Shared: data API (`realApi` = Supabase, `demoApi` = in-memory), card report renderer, lightbox, helpers. |
+| `portal/cardsearch.js` + `cards.json` | Card-name suggestions (plain script, `window.RRCardSearch.attach(input[, {details}])`) on the intake form in `index.html` and the admin portal's card fields (add card, card detail, new submission). `cards.json` = 21k English cards from TCGdex, built by `tools/build_card_catalog.py`; pictures load from assets.tcgdex.net. Free typing still allowed. |
 | `portal/config.js` | Supabase URL + anon key (public by design). **Never put the service_role key here.** Placeholder values ⇒ demo mode. |
 | `portal/demo/` | Sample data/images for `?demo` previews (built by `tools/make_demo.py`). Optional to deploy. |
 | `supabase/schema.sql` | Whole database: tables, RLS, RPC functions, storage bucket + policies. Idempotent — re-run safely in the Supabase SQL editor. |
@@ -134,6 +135,12 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    Fixed in `import_sheet.py`: the `submissions_touch` trigger was overwriting the Sheet's "Status Updated"
    time with the import time; the DO block now disables it for the run.
    Limitation: re-running skips submissions that already exist, so later Sheet status changes are not synced.
+
+8. **Done (Oct 24, 2026), not yet uploaded: card-name suggestions.** `tools/build_card_catalog.py` → `portal/cards.json`
+   (21,256 English cards, 201 sets, 0.5 MB; TCG Pocket left out). Tested locally in the admin portal (`?demo`) and the
+   intake form, desktop + phone width. Picking a card in admin fills name + "Set · 4/102 · 1999" details; on the intake
+   form it fills "Name — Set 4/102 (year)". Re-run the builder when a new set releases and upload `portal/cards.json`.
+   Owner's choices: English only for now; Japanese can be added later (TCGdex has it).
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
