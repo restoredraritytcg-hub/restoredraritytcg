@@ -143,5 +143,20 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    form it fills "Name — Set 4/102 (year)". Re-run the builder when a new set releases and upload `portal/cards.json`.
    Owner's choices: English only for now; Japanese can be added later (TCGdex has it).
 
+9. **In progress: status emails from the portal (decided Oct 24, 2026).** Owner wants statuses managed in the
+   portal, with a record of whether the customer was emailed about each status. Decisions: **per submission**
+   (not per card), and **emails are sent by the existing Apps Script** (keeps the owner's Gmail + templates).
+   Built (not yet uploaded): `submissions.emailed_status` / `emailed_at` (in `schema.sql`; owner must run
+   `supabase/2026-10-24_emailed_status.sql` **before** uploading the portal, or every imported submission looks
+   un-emailed). Admin portal: "✉ Needs email" filter + ✉ marker on the list, a banner on each submission
+   ("hasn't been emailed about …") with **Mark as emailed** and, once `RR_CONFIG.emailEndpoint` is set,
+   **Send status email**. `null` emailed_status counts as "submitted" (the intake confirmation email).
+   Send contract (to add to Apps Script `doPost`): body `{type:"statusEmail", token, code}` → Apps Script checks
+   the token with Supabase (`/auth/v1/user` + `rpc/is_admin`), reads the submission/customer/cards over REST
+   with that token, sends the email, returns `{success:true}`; the portal then records emailed_status.
+   Waiting on: the owner pasting the Apps Script code (it lives in the Sheet's Extensions → Apps Script, not in
+   this repo). Also: the website's "Track Your Submission" still reads the Sheet, so it won't show portal-only
+   status changes — needs moving to Supabase.
+
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.

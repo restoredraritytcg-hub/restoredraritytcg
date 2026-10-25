@@ -56,6 +56,10 @@ create table if not exists public.submissions (
   updated_at    timestamptz not null default now()
 );
 create index if not exists submissions_customer_idx on public.submissions (customer_id);
+-- Last status the customer was emailed about (null = only the intake confirmation, i.e. "submitted").
+alter table public.submissions add column if not exists emailed_status text check (emailed_status in
+  ('submitted','received','in_progress','restored','ready','completed'));
+alter table public.submissions add column if not exists emailed_at timestamptz;
 
 -- ----------------------------------------------------------------- cards
 create table if not exists public.cards (
