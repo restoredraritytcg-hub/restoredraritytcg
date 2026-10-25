@@ -20,6 +20,48 @@ const statusSelect = (id, val, extra = "") => `<select id="${id}" ${extra}>${STA
   `<option value="${k}" ${k === val ? "selected" : ""}>${esc(l)}</option>`).join("")}</select>`;
 const cardTitle = (c) => c.name || `Card #${c.card_number}`;
 
+// ---------------------------------------------------------- status emails
+// The intake confirmation email covers "submitted"; every later status needs its own email.
+const emailedStatus = (s) => s.emailed_status || "submitted";
+const needsEmail = (s) => s.status !== emailedStatus(s);
+const statusLabel = (k) => (STATUSES.find(([x]) => x === k) || [k, k])[1];
+const EMAIL_ENDPOINT = window.RR_CONFIG?.emailEndpoint || "";
+
+async function markEmailed(s) {
+  Object.assign(s, await api.update("submissions", s.id, { emailed_status: s.status, emailed_at: new Date().toISOString() }));
+}
+// Asks the Apps Script web app to send the status email from the business Gmail. It gets only the
+// submission code and the signed-in admin's session token, checks that token with Supabase, and reads
+// the submission itself, so nobody else can trigger emails or change what they say.
+async function sendStatusEmail(s) {
+  if (DEMO) return;
+  const token = (await api.session())?.access_token;
+  const res = await fetch(EMAIL_ENDPOINT, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ type: "statusEmail", token, code: s.code }) });
+  const out = await res.json().catch(() => null);
+  if (!out?.success) throw new Error(out?.error || `Email service answered ${res.status}`);
+}
+function emailBar(s) {
+  const last = s.emailed_at ? ` · ${fmtDate(s.emailed_at)}` : "";
+  if (!needsEmail(s)) return `<p class="muted small" style="margin:10px 0 0">✉ Customer emailed about
+    <b>${esc(statusLabel(s.status))}</b>${esc(last)}</p>`;
+  const c = customerOf(s) || {};
+  return `<div class="panel" style="margin-top:12px;border-color:var(--gold)"><div class="row">
+    <div class="grow">✉ <b>${esc(c.name || "Customer")} hasn't been emailed about “${esc(statusLabel(s.status))}”.</b>
+      <div class="muted small">Last email: ${esc(statusLabel(emailedStatus(s)))}${esc(last)}${c.email ? "" : " · no email address on file"}</div></div>
+    ${EMAIL_ENDPOINT && c.email ? `<button class="btn gold sm" id="esend">Send status email</button>` : ""}
+    <button class="btn sm" id="emark" title="You told them another way (text, call, in person)">Mark as emailed</button></div></div>`;
+}
+function wireEmailBar(s) {
+  $("#emark") && ($("#emark").onclick = async () => {
+    try { await markEmailed(s); toast("Marked as emailed."); route(); } catch (e) { toast(e.message, 5000); } });
+  $("#esend") && ($("#esend").onclick = async () => {
+    $("#esend").disabled = true; $("#esend").textContent = "Sending…";
+    try { await sendStatusEmail(s); await markEmailed(s); toast("Email sent."); route(); }
+    catch (e) { toast(`Not sent: ${e.message}`, 6000); $("#esend").disabled = false; $("#esend").textContent = "Send status email"; }
+  });
+}
+
 // -------------------------------------------------------------------- auth
 async function start() {
   if (DEMO) await import("./demo/demo-data.js").catch(() => {});
@@ -72,7 +114,8 @@ function dashboard() {
   let h = `<div class="row"><h1 class="grow">Submissions</h1><a class="btn gold" href="#/new">+ New submission</a></div>
     <div class="row" style="margin:12px 0">${STATUSES.map(([k, l]) =>
       `<button class="btn sm" data-f="${k}">${esc(l)} <b style="color:var(--gold)">${counts[k]}</b></button>`).join("")}
-      <button class="btn sm" data-f="">All <b style="color:var(--gold)">${S.submissions.length}</b></button></div>
+      <button class="btn sm" data-f="">All <b style="color:var(--gold)">${S.submissions.length}</b></button>
+      <button class="btn sm" data-f="email">✉ Needs email <b style="color:var(--gold)">${S.submissions.filter(needsEmail).length}</b></button></div>
     <input type="search" id="q" placeholder="Search code, customer, email, card name…">
     <div class="panel" style="margin-top:12px;padding:0;overflow:auto"><table class="list"><thead><tr>
       <th>Code</th><th>Customer</th><th>Cards</th><th>Status</th><th class="hide-sm">Received</th><th class="hide-sm">Updated</th>
@@ -81,7 +124,7 @@ function dashboard() {
   let filter = "";
   const draw = () => {
     const words = $("#q").value.toLowerCase().split(/\s+/).filter(Boolean);
-    const rows = S.submissions.filter((s) => !filter || s.status === filter).filter((s) => {
+    const rows = S.submissions.filter((s) => !filter || (filter === "email" ? needsEmail(s) : s.status === filter)).filter((s) => {
       const c = customerOf(s) || {};
       const hay = [s.code, c.name, c.email, c.phone, s.service, ...subCards(s.id).map((k) => k.name + " " + k.details)]
         .join(" ").toLowerCase();
@@ -91,7 +134,8 @@ function dashboard() {
       const c = customerOf(s) || {};
       return `<tr class="click" data-go="#/submission/${s.id}"><td><b>${esc(s.code)}</b></td>
         <td>${esc(c.name)}<div class="muted small">${esc(c.email || c.phone || "")}</div></td>
-        <td>${subCards(s.id).length}</td><td>${pill(s.status)}</td>
+        <td>${subCards(s.id).length}</td><td>${pill(s.status)}${needsEmail(s)
+          ? ` <span title="Customer not emailed about this status yet" style="color:var(--gold)">✉</span>` : ""}</td>
         <td class="hide-sm">${esc(fmtDate(s.created_at))}</td><td class="hide-sm">${esc(fmtDate(s.updated_at))}</td></tr>`;
     }).join("") || `<tr><td colspan="6" class="muted">Nothing matches.</td></tr>`;
     $$("[data-go]").forEach((r) => r.onclick = () => go(r.dataset.go));
@@ -272,7 +316,7 @@ function submission(id) {
     <div class="row"><h1 class="grow">${esc(s.code)}</h1>${pill(s.status)}</div>
     <div class="meta"><span>Customer <b><a href="#/customer/${c.id}">${esc(c.name)}</a></b></span>
       <span>Received <b>${esc(fmtDate(s.created_at))}</b></span><span><b>${cards.length}</b> cards</span></div>
-    ${progressSteps(s.status)}
+    ${progressSteps(s.status)}${emailBar(s)}
     <div class="panel" style="margin-top:14px"><div class="grid2">
       <div><label class="f">Status</label>${statusSelect("ss", s.status)}
         <label class="small" style="display:block;margin-top:6px"><input type="checkbox" id="sall" checked> Also set every card to this status</label></div>
@@ -299,6 +343,7 @@ function submission(id) {
     <h2>Photos</h2>${photosAdmin(S.photos.filter((p) => p.submission_id === id), { cards })}`;
   $$("[data-go]").forEach((r) => r.onclick = () => go(r.dataset.go));
   window.RRCardSearch?.attach($("#kn"), { details: $("#kd") });
+  wireEmailBar(s);
   wirePhotosAdmin({ customer: c, cards, submissionId: id });
   $("#ssave").onclick = async () => {
     try {

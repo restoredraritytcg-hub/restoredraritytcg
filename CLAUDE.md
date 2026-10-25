@@ -126,11 +126,12 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    Image Capture (Mac) / IJ Scan Utility (Windows); whether Chrome on macOS lets `showDirectoryPicker` open the
    Google Drive folder (`~/Library/CloudStorage/...`) — README documents a fallback (local folder backed up by Drive).
 6. Free tier: 1 GB storage, project pauses after a week idle.
-7. **Client data import — generated Oct 24, 2026, waiting for the owner to run it.** The earlier "first run" was
-   never applied: Supabase had no Sheet data yet. Built from the "Restored Rarity Intakes" Sheet's Submissions + Cards CSVs with
+7. **Done: client data imported (Oct 24, 2026).** Owner ran `import.sql` in Supabase; customers show in the portal.
+   (The earlier "first run" in step 3 was never applied.) Built from the "Restored Rarity Intakes" Sheet's Submissions + Cards CSVs with
    `--skip sub_1790523531181_rh90ar`: 26 customers, 30 submissions, 74 cards, 171 photos. Output in the owner's
-   `Downloads\RR import 2026-10-24\` (never commit). Owner runs `import.sql` in the Supabase SQL Editor; the
-   scan station reads customers/submissions live from Supabase. Python 3.12 is at
+   `Downloads\RR import 2026-10-24\` (never commit). The scan station reads customers/submissions live from Supabase.
+   Open question: the owner hasn't decided whether statuses get updated in the portal or the Sheet going forward
+   (re-running the import won't sync Sheet changes to existing submissions). Python 3.12 is at
    `%LOCALAPPDATA%\Programs\Python\Python312\python.exe` on the owner's Windows PC.
    Fixed in `import_sheet.py`: the `submissions_touch` trigger was overwriting the Sheet's "Status Updated"
    time with the import time; the DO block now disables it for the run.
@@ -141,6 +142,21 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    intake form, desktop + phone width. Picking a card in admin fills name + "Set · 4/102 · 1999" details; on the intake
    form it fills "Name — Set 4/102 (year)". Re-run the builder when a new set releases and upload `portal/cards.json`.
    Owner's choices: English only for now; Japanese can be added later (TCGdex has it).
+
+9. **In progress: status emails from the portal (decided Oct 24, 2026).** Owner wants statuses managed in the
+   portal, with a record of whether the customer was emailed about each status. Decisions: **per submission**
+   (not per card), and **emails are sent by the existing Apps Script** (keeps the owner's Gmail + templates).
+   Built (not yet uploaded): `submissions.emailed_status` / `emailed_at` (in `schema.sql`; owner must run
+   `supabase/2026-10-24_emailed_status.sql` **before** uploading the portal, or every imported submission looks
+   un-emailed). Admin portal: "✉ Needs email" filter + ✉ marker on the list, a banner on each submission
+   ("hasn't been emailed about …") with **Mark as emailed** and, once `RR_CONFIG.emailEndpoint` is set,
+   **Send status email**. `null` emailed_status counts as "submitted" (the intake confirmation email).
+   Send contract (to add to Apps Script `doPost`): body `{type:"statusEmail", token, code}` → Apps Script checks
+   the token with Supabase (`/auth/v1/user` + `rpc/is_admin`), reads the submission/customer/cards over REST
+   with that token, sends the email, returns `{success:true}`; the portal then records emailed_status.
+   Waiting on: the owner pasting the Apps Script code (it lives in the Sheet's Extensions → Apps Script, not in
+   this repo). Also: the website's "Track Your Submission" still reads the Sheet, so it won't show portal-only
+   status changes — needs moving to Supabase.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
