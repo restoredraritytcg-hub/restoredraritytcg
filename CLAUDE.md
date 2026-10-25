@@ -161,8 +161,12 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    the change into the Cards tab (status, last emailed, pickup clock, history, overall status), so Track Your
    Submission and the pickup reminders keep working. Portal-only submissions (made in admin "+ New") have no
    Sheet rows: they get the email, but the website tracker won't find them.
-   Owner steps left: run `2026-10-24_emailed_status.sql`; add PortalEmails.gs + 2 lines in doPost/doGet and
-   redeploy (new version, same URL); then publish this branch.
+   **Apps Script updated + redeployed (Oct 25, 2026):** project is now `Code.gs` + `Portal Emails.gs` (the old
+   `Emails.gs`, which clashed with Code.gs's globals, was deleted); the 2 routing lines are in doPost/doGet;
+   `setup` was run (onStatusEdit + hourly runPickupReminders triggers, Cards columns J–R, 78 card rows), so
+   pickup clocks for already-Ready cards start Oct 25. Live web app answers `?action=portalEmails`.
+   (A test POST sent before the redeploy created one blank junk row on the Submissions tab — owner told to delete it.)
+   Owner steps left: run `2026-10-24_emailed_status.sql`; publish this branch; test Send status email.
    Gaps vs. the Sheet: the portal has no "Assessment Complete", "On Hold" or "Cancelled" statuses and no return
    tracking # field. `email-logo.jpg` isn't in the repo, so emails fall back to the text header.
 
