@@ -126,11 +126,11 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    Image Capture (Mac) / IJ Scan Utility (Windows); whether Chrome on macOS lets `showDirectoryPicker` open the
    Google Drive folder (`~/Library/CloudStorage/...`) — README documents a fallback (local folder backed up by Drive).
 6. Free tier: 1 GB storage, project pauses after a week idle.
-7. **Client data import — generated Oct 24, 2026, waiting for the owner to run it.** The earlier "first run" was
-   never applied: Supabase had no Sheet data yet. Built from the "Restored Rarity Intakes" Sheet's Submissions + Cards CSVs with
+7. **Done: client data imported (Oct 24, 2026).** Owner ran `import.sql` in Supabase; customers show in the portal.
+   (The earlier "first run" in step 3 was never applied.) Built from the "Restored Rarity Intakes" Sheet's Submissions + Cards CSVs with
    `--skip sub_1790523531181_rh90ar`: 26 customers, 30 submissions, 74 cards, 171 photos. Output in the owner's
-   `Downloads\RR import 2026-10-24\` (never commit). Owner runs `import.sql` in the Supabase SQL Editor; the
-   scan station reads customers/submissions live from Supabase. Python 3.12 is at
+   `Downloads\RR import 2026-10-24\` (never commit). The scan station reads customers/submissions live from Supabase.
+   From now on the portal is the place to add cards/statuses; the Sheet still gets new intakes via Apps Script. Python 3.12 is at
    `%LOCALAPPDATA%\Programs\Python\Python312\python.exe` on the owner's Windows PC.
    Fixed in `import_sheet.py`: the `submissions_touch` trigger was overwriting the Sheet's "Status Updated"
    time with the import time; the DO block now disables it for the run.
