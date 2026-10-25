@@ -166,7 +166,13 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    `setup` was run (onStatusEdit + hourly runPickupReminders triggers, Cards columns J–R, 78 card rows), so
    pickup clocks for already-Ready cards start Oct 25. Live web app answers `?action=portalEmails`.
    (A test POST sent before the redeploy created one blank junk row on the Submissions tab — owner told to delete it.)
-   Owner steps left: run `2026-10-24_emailed_status.sql`; publish this branch; test Send status email.
+   Branch `docs/windows-drive-scan-test` (card suggestions + email tracking + Send status email) is merged and live;
+   the owner sees the Send status email button (needed Ctrl+Shift+R — GitHub Pages caches ~10 min).
+   **Not yet confirmed (end of Oct 25 session):** that `2026-10-24_emailed_status.sql` was run in Supabase, and a
+   real test send to the owner's own email. Ask about both before relying on it with customers.
+   Possible next work: add "Assessment Complete" (the "cleared to ship" email), "On Hold", "Cancelled" and a
+   return-tracking-# field to the portal; move the website's Track Your Submission to Supabase so portal-only
+   submissions show up; upload `email-logo.jpg`.
    Gaps vs. the Sheet: the portal has no "Assessment Complete", "On Hold" or "Cancelled" statuses and no return
    tracking # field. `email-logo.jpg` isn't in the repo, so emails fall back to the text header.
 
