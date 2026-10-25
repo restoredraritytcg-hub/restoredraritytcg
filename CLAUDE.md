@@ -126,7 +126,8 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    Google Drive folder (`~/Library/CloudStorage/...`) — README documents a fallback (local folder backed up by Drive).
 6. Free tier: 1 GB storage, project pauses after a week idle.
 7. **Next: refresh client data.** Export the Submissions + Cards tabs of the "Restored Rarity Intakes" Sheet as CSV
-   and re-run `tools/import_sheet.py` (needs Python, not yet installed on the owner's Windows PC), then run the
+   and re-run `tools/import_sheet.py` (standard library only; Python 3.12 installed on the owner's Windows PC Oct 24, 2026
+   at `%LOCALAPPDATA%\Programs\Python\Python312\python.exe`), then run the
    generated `import.sql` in Supabase. The scan station reads customers/submissions live from Supabase.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
