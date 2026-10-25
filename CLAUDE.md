@@ -118,7 +118,16 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    details — never commit it (repo is public).
 4. Owner setup reference (see README.md): create Supabase project, run `schema.sql`, create admin user + `insert into admins`,
    disable public sign-ups, fill `portal/config.js`, deploy.
-5. Not yet verified on real hardware/OS: Canon LiDE 400 output via Image Capture (Mac) / IJ Scan Utility (Windows);
-   whether Chrome on macOS lets `showDirectoryPicker` open the Google Drive folder (`~/Library/CloudStorage/...`) —
-   README documents a fallback (local folder backed up by Drive).
+5. **Verified on Windows (Oct 24, 2026):** Chrome's `showDirectoryPicker` opens and watches the Google Drive
+   folder `G:\My Drive\Card Scans` (Google Drive for desktop, live site `portal/scan.html?demo` showed
+   "Watching Card Scans"). The `Card Scans` folder was created then; it's empty so far.
+   Not yet verified: a scan actually being picked up/processed from that folder; Canon LiDE 400 output via
+   Image Capture (Mac) / IJ Scan Utility (Windows); whether Chrome on macOS lets `showDirectoryPicker` open the
+   Google Drive folder (`~/Library/CloudStorage/...`) — README documents a fallback (local folder backed up by Drive).
 6. Free tier: 1 GB storage, project pauses after a week idle.
+7. **Next: refresh client data.** Export the Submissions + Cards tabs of the "Restored Rarity Intakes" Sheet as CSV
+   and re-run `tools/import_sheet.py` (needs Python, not yet installed on the owner's Windows PC), then run the
+   generated `import.sql` in Supabase. The scan station reads customers/submissions live from Supabase.
+
+**Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
+next step is decided — do it as part of the work, without being asked.
