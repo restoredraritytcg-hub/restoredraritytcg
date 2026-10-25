@@ -229,6 +229,9 @@ declare
   v_cust uuid; v_sub uuid; v_card uuid;
   n_c int := 0; n_s int := 0; n_k int := 0; n_p int := 0; n_skip int := 0;
 begin
+  -- the touch trigger would replace the Sheet's "Status Updated" time with now();
+  -- off for this run only (the DO block is one transaction, so an error re-enables it)
+  alter table public.submissions disable trigger submissions_touch;
   for cu in select * from jsonb_array_elements(d) loop
     v_cust := null;
     if cu->>'email' is not null then
@@ -269,10 +272,10 @@ begin
           n_p := n_p + 1;
         end loop;
       end loop;
-      -- set last so the touch trigger doesn't overwrite it
       update public.submissions set updated_at = coalesce((su->>'updated_at')::timestamptz, now()) where id = v_sub;
     end loop;
   end loop;
+  alter table public.submissions enable trigger submissions_touch;
   raise notice 'Imported % new customers, % submissions, % cards, % photos (% submissions already there, skipped)',
     n_c, n_s, n_k, n_p, n_skip;
 end

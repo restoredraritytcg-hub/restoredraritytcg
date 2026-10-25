@@ -125,10 +125,15 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    Image Capture (Mac) / IJ Scan Utility (Windows); whether Chrome on macOS lets `showDirectoryPicker` open the
    Google Drive folder (`~/Library/CloudStorage/...`) — README documents a fallback (local folder backed up by Drive).
 6. Free tier: 1 GB storage, project pauses after a week idle.
-7. **Next: refresh client data.** Export the Submissions + Cards tabs of the "Restored Rarity Intakes" Sheet as CSV
-   and re-run `tools/import_sheet.py` (standard library only; Python 3.12 installed on the owner's Windows PC Oct 24, 2026
-   at `%LOCALAPPDATA%\Programs\Python\Python312\python.exe`), then run the
-   generated `import.sql` in Supabase. The scan station reads customers/submissions live from Supabase.
+7. **Client data import — generated Oct 24, 2026, waiting for the owner to run it.** The earlier "first run" was
+   never applied: Supabase had no Sheet data yet. Built from the "Restored Rarity Intakes" Sheet's Submissions + Cards CSVs with
+   `--skip sub_1790523531181_rh90ar`: 26 customers, 30 submissions, 74 cards, 171 photos. Output in the owner's
+   `Downloads\RR import 2026-10-24\` (never commit). Owner runs `import.sql` in the Supabase SQL Editor; the
+   scan station reads customers/submissions live from Supabase. Python 3.12 is at
+   `%LOCALAPPDATA%\Programs\Python\Python312\python.exe` on the owner's Windows PC.
+   Fixed in `import_sheet.py`: the `submissions_touch` trigger was overwriting the Sheet's "Status Updated"
+   time with the import time; the DO block now disables it for the run.
+   Limitation: re-running skips submissions that already exist, so later Sheet status changes are not synced.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
