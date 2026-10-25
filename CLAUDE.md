@@ -15,6 +15,7 @@ grading prep). This adds a card-intake and customer portal to the existing site
 | `portal/scanproc.js` | Browser image processing: card detection, straighten/crop, corner/edge regions, centering measurement, dpi from PNG pHYs / JPEG JFIF/EXIF. Port of `desktop-scanner/cardcrop.py` + `detail.py`. |
 | `portal/centering.js` | Interactive centering tool (plain script, `window.RRCentering`): zoom/pan canvas, draggable markers, save/reset. Used by portal and by the desktop app's local reports. |
 | `portal/common.js` | Shared: data API (`realApi` = Supabase, `demoApi` = in-memory), card report renderer, lightbox, helpers. |
+| `portal/cardsearch.js` + `cards.json` | Card-name suggestions (plain script, `window.RRCardSearch.attach(input[, {details}])`) on the intake form in `index.html` and the admin portal's card fields (add card, card detail, new submission). `cards.json` = 21k English cards from TCGdex, built by `tools/build_card_catalog.py`; pictures load from assets.tcgdex.net. Free typing still allowed. |
 | `portal/config.js` | Supabase URL + anon key (public by design). **Never put the service_role key here.** Placeholder values ⇒ demo mode. |
 | `portal/demo/` | Sample data/images for `?demo` previews (built by `tools/make_demo.py`). Optional to deploy. |
 | `supabase/schema.sql` | Whole database: tables, RLS, RPC functions, storage bucket + policies. Idempotent — re-run safely in the Supabase SQL editor. |
@@ -118,7 +119,28 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    details — never commit it (repo is public).
 4. Owner setup reference (see README.md): create Supabase project, run `schema.sql`, create admin user + `insert into admins`,
    disable public sign-ups, fill `portal/config.js`, deploy.
-5. Not yet verified on real hardware/OS: Canon LiDE 400 output via Image Capture (Mac) / IJ Scan Utility (Windows);
-   whether Chrome on macOS lets `showDirectoryPicker` open the Google Drive folder (`~/Library/CloudStorage/...`) —
-   README documents a fallback (local folder backed up by Drive).
+5. **Verified on Windows (Oct 24, 2026):** Chrome's `showDirectoryPicker` opens and watches the Google Drive
+   folder `G:\My Drive\Card Scans` (Google Drive for desktop, live site `portal/scan.html?demo` showed
+   "Watching Card Scans"). The `Card Scans` folder was created then; it's empty so far.
+   Not yet verified: a scan actually being picked up/processed from that folder; Canon LiDE 400 output via
+   Image Capture (Mac) / IJ Scan Utility (Windows); whether Chrome on macOS lets `showDirectoryPicker` open the
+   Google Drive folder (`~/Library/CloudStorage/...`) — README documents a fallback (local folder backed up by Drive).
 6. Free tier: 1 GB storage, project pauses after a week idle.
+7. **Client data import — generated Oct 24, 2026, waiting for the owner to run it.** The earlier "first run" was
+   never applied: Supabase had no Sheet data yet. Built from the "Restored Rarity Intakes" Sheet's Submissions + Cards CSVs with
+   `--skip sub_1790523531181_rh90ar`: 26 customers, 30 submissions, 74 cards, 171 photos. Output in the owner's
+   `Downloads\RR import 2026-10-24\` (never commit). Owner runs `import.sql` in the Supabase SQL Editor; the
+   scan station reads customers/submissions live from Supabase. Python 3.12 is at
+   `%LOCALAPPDATA%\Programs\Python\Python312\python.exe` on the owner's Windows PC.
+   Fixed in `import_sheet.py`: the `submissions_touch` trigger was overwriting the Sheet's "Status Updated"
+   time with the import time; the DO block now disables it for the run.
+   Limitation: re-running skips submissions that already exist, so later Sheet status changes are not synced.
+
+8. **Done (Oct 24, 2026), not yet uploaded: card-name suggestions.** `tools/build_card_catalog.py` → `portal/cards.json`
+   (21,256 English cards, 201 sets, 0.5 MB; TCG Pocket left out). Tested locally in the admin portal (`?demo`) and the
+   intake form, desktop + phone width. Picking a card in admin fills name + "Set · 4/102 · 1999" details; on the intake
+   form it fills "Name — Set 4/102 (year)". Re-run the builder when a new set releases and upload `portal/cards.json`.
+   Owner's choices: English only for now; Japanese can be added later (TCGdex has it).
+
+**Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
+next step is decided — do it as part of the work, without being asked.

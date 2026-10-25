@@ -298,6 +298,7 @@ function submission(id) {
       <p class="muted small" style="margin:8px 0 0">In the scanner app, use submission <b>${esc(s.code)}</b> and the card number to attach scans.</p></div>
     <h2>Photos</h2>${photosAdmin(S.photos.filter((p) => p.submission_id === id), { cards })}`;
   $$("[data-go]").forEach((r) => r.onclick = () => go(r.dataset.go));
+  window.RRCardSearch?.attach($("#kn"), { details: $("#kd") });
   wirePhotosAdmin({ customer: c, cards, submissionId: id });
   $("#ssave").onclick = async () => {
     try {
@@ -359,6 +360,7 @@ function card(id) {
     onClose: () => route(),
   });
   wirePhotosAdmin({ customer: c, cards: [k], fixedCard: id });
+  window.RRCardSearch?.attach($("#kn"), { details: $("#kd") });
   $("#ksave").onclick = async () => {
     try {
       Object.assign(k, await api.update("cards", id, { name: $("#kn").value.trim(), details: $("#kd").value.trim(),
@@ -390,10 +392,14 @@ function newSubmission(customerId) {
       <h3>Cards</h3><div id="ncards"></div>
       <button class="btn sm" id="nadd">+ Add another card</button>
       <div class="row" style="margin-top:16px"><button class="btn gold" id="ncreate">Create submission</button></div></div>`;
-  const addRow = () => $("#ncards").insertAdjacentHTML("beforeend", `<div class="row" style="margin-bottom:8px">
+  const addRow = () => {
+    $("#ncards").insertAdjacentHTML("beforeend", `<div class="row" style="margin-bottom:8px">
     <span class="muted" style="width:26px">#${$$("#ncards .row").length + 1}</span>
     <input type="text" class="kn grow" placeholder="Card name" style="width:auto">
     <input type="text" class="kd grow" placeholder="Set / number / year" style="width:auto"></div>`);
+    const r = $$("#ncards .row").at(-1);
+    window.RRCardSearch?.attach($(".kn", r), { details: $(".kd", r) });
+  };
   addRow();
   $("#nadd").onclick = addRow;
   const sync = () => { $("#newc").style.display = $("#nc").value ? "none" : ""; };
