@@ -33,13 +33,19 @@ async function markEmailed(s) {
 // Asks the Apps Script web app to send the status email from the business Gmail. It gets only the
 // submission code and the signed-in admin's session token, checks that token with Supabase, and reads
 // the submission itself, so nobody else can trigger emails or change what they say.
+// Returns { sent, cards }. sent:false = the Sheet had already emailed this status.
 async function sendStatusEmail(s) {
-  if (DEMO) return;
+  if (DEMO) return { sent: true, cards: 1 };
+  // An Apps Script without PortalEmails.gs would treat the request as a new website submission,
+  // so check that it's installed first.
+  const ping = await fetch(`${EMAIL_ENDPOINT}?action=portalEmails`).then((r) => r.json()).catch(() => null);
+  if (!ping?.success) throw new Error("the Apps Script hasn't been updated yet (see apps-script/PortalEmails.gs)");
   const token = (await api.session())?.access_token;
   const res = await fetch(EMAIL_ENDPOINT, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify({ type: "statusEmail", token, code: s.code }) });
   const out = await res.json().catch(() => null);
   if (!out?.success) throw new Error(out?.error || `Email service answered ${res.status}`);
+  return out;
 }
 function emailBar(s) {
   const last = s.emailed_at ? ` · ${fmtDate(s.emailed_at)}` : "";
@@ -57,7 +63,12 @@ function wireEmailBar(s) {
     try { await markEmailed(s); toast("Marked as emailed."); route(); } catch (e) { toast(e.message, 5000); } });
   $("#esend") && ($("#esend").onclick = async () => {
     $("#esend").disabled = true; $("#esend").textContent = "Sending…";
-    try { await sendStatusEmail(s); await markEmailed(s); toast("Email sent."); route(); }
+    try {
+      const out = await sendStatusEmail(s); await markEmailed(s);
+      toast(out.sent ? `Email sent (${out.cards} card${out.cards === 1 ? "" : "s"}).`
+        : "Already emailed from the Sheet. Marked as emailed.", 5000);
+      route();
+    }
     catch (e) { toast(`Not sent: ${e.message}`, 6000); $("#esend").disabled = false; $("#esend").textContent = "Send status email"; }
   });
 }

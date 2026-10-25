@@ -151,12 +151,24 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    un-emailed). Admin portal: "✉ Needs email" filter + ✉ marker on the list, a banner on each submission
    ("hasn't been emailed about …") with **Mark as emailed** and, once `RR_CONFIG.emailEndpoint` is set,
    **Send status email**. `null` emailed_status counts as "submitted" (the intake confirmation email).
-   Send contract (to add to Apps Script `doPost`): body `{type:"statusEmail", token, code}` → Apps Script checks
-   the token with Supabase (`/auth/v1/user` + `rpc/is_admin`), reads the submission/customer/cards over REST
-   with that token, sends the email, returns `{success:true}`; the portal then records emailed_status.
-   Waiting on: the owner pasting the Apps Script code (it lives in the Sheet's Extensions → Apps Script, not in
-   this repo). Also: the website's "Track Your Submission" still reads the Sheet, so it won't show portal-only
-   status changes — needs moving to Supabase.
+   **Send path built (Oct 24):** `apps-script/PortalEmails.gs` (a new file for the owner's Apps Script project,
+   which otherwise lives only in the Sheet's Extensions → Apps Script; main file = "Submission backend",
+   version 2026-10-19). Portal pings `?action=portalEmails` (guard: an old script would treat the POST as a new
+   submission), then POSTs `{type:"statusEmail", token, code}`. The script checks the token via `rpc/is_admin`,
+   reads the submission over REST with that token, maps portal → Sheet stage (received→In Queue,
+   in_progress→In Progress, restored→Stabilizing, ready→Ready to Ship / Pick Up, completed→Order Completed…),
+   sends the main file's `sendCardUpdateEmail_` for cards whose Sheet "Last Emailed Status" differs, and mirrors
+   the change into the Cards tab (status, last emailed, pickup clock, history, overall status), so Track Your
+   Submission and the pickup reminders keep working. Portal-only submissions (made in admin "+ New") have no
+   Sheet rows: they get the email, but the website tracker won't find them.
+   **Apps Script updated + redeployed (Oct 25, 2026):** project is now `Code.gs` + `Portal Emails.gs` (the old
+   `Emails.gs`, which clashed with Code.gs's globals, was deleted); the 2 routing lines are in doPost/doGet;
+   `setup` was run (onStatusEdit + hourly runPickupReminders triggers, Cards columns J–R, 78 card rows), so
+   pickup clocks for already-Ready cards start Oct 25. Live web app answers `?action=portalEmails`.
+   (A test POST sent before the redeploy created one blank junk row on the Submissions tab — owner told to delete it.)
+   Owner steps left: run `2026-10-24_emailed_status.sql`; publish this branch; test Send status email.
+   Gaps vs. the Sheet: the portal has no "Assessment Complete", "On Hold" or "Cancelled" statuses and no return
+   tracking # field. `email-logo.jpg` isn't in the repo, so emails fall back to the text header.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
