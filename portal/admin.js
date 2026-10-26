@@ -1,6 +1,6 @@
 // Admin portal: every customer, submission, card, scan and photo.
 import { api, DEMO, esc, $, $$, pill, STATUSES, renderReport, wireReport, thumbOf, mediaUrl, fmtDate,
-  fmtDateTime, installLightbox, toast, customerLink, progressSteps } from "./common.js";
+  fmtDateTime, installLightbox, installHint, toast, customerLink, progressSteps } from "./common.js";
 
 const app = $("#app");
 let S = null; // { customers, submissions, cards, scans, photos }
@@ -76,7 +76,9 @@ function wireEmailBar(s) {
 // -------------------------------------------------------------------- auth
 async function start() {
   if (DEMO) await import("./demo/demo-data.js").catch(() => {});
-  const session = await api.session().catch(() => null);
+  let session = null;
+  try { session = await api.session(); }
+  catch (err) { return loginPage(signInError(err)); }
   if (!session) return loginPage();
   if (!(await api.isAdmin().catch(() => false))) {
     app.innerHTML = `<div class="empty" style="margin-top:40px">Signed in as ${esc(session.user.email)}, but this
@@ -86,24 +88,48 @@ async function start() {
     return;
   }
   $("#topbar").hidden = false;
+  installHint("RR Portal");
   $("#signout").onclick = async () => { await api.signOut(); location.reload(); };
+  // Installed as a phone app there's no browser reload, so offer one here.
+  $("#refresh").onclick = async () => {
+    const b = $("#refresh"); b.disabled = true; b.textContent = "Refreshing…";
+    try { await reload(); route(); toast("Up to date."); }
+    catch (err) { toast("Couldn't refresh: " + err.message); }
+    finally { b.disabled = false; b.textContent = "↻ Refresh"; }
+  };
   await reload();
   window.addEventListener("hashchange", route);
   route();
 }
 
-function loginPage() {
+// Phone-friendly wording for what Supabase / the browser report.
+function signInError(err) {
+  const m = String((err && err.message) || err || "");
+  if (/invalid login credentials/i.test(m)) return "Wrong email or password. Passwords are case-sensitive.";
+  if (/email not confirmed/i.test(m)) return "This login hasn't been confirmed yet. Confirm the user in Supabase → Authentication → Users.";
+  if (/rate limit|too many/i.test(m)) return "Too many tries. Wait a minute and try again.";
+  if (/fetch|network|load|import|module/i.test(m))
+    return "Couldn't reach the sign-in service. Check your connection (turn off any content blocker for this site) and try again.";
+  return m || "Sign-in failed. Please try again.";
+}
+
+function loginPage(initialError = "") {
   app.innerHTML = `<div class="panel" style="max-width:380px;margin:60px auto">
     <div style="color:var(--gold);font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:13px">Restored Rarity</div>
     <h1>Portal sign in</h1>
-    <form id="lf"><label class="f">Email</label><input type="email" id="le" autocomplete="username" required>
-    <label class="f">Password</label><input type="password" id="lp" autocomplete="current-password" required>
-    <div style="margin-top:14px"><button class="btn gold" type="submit">Sign in</button></div>
-    <p class="muted small" id="lerr"></p></form></div>`;
+    <form id="lf"><label class="f">Email</label><input type="email" id="le" autocomplete="username"
+      inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false" required>
+    <label class="f">Password</label><input type="password" id="lp" autocomplete="current-password"
+      autocapitalize="none" autocorrect="off" spellcheck="false" required>
+    <div style="margin-top:14px"><button class="btn gold" type="submit" id="lsub">Sign in</button></div>
+    <p class="login-err" id="lerr" role="alert"></p></form></div>`;
+  $("#lerr").textContent = initialError;
   $("#lf").onsubmit = async (e) => {
     e.preventDefault();
-    try { await api.signIn($("#le").value.trim(), $("#lp").value); location.reload(); }
-    catch (err) { $("#lerr").textContent = err.message; }
+    const btn = $("#lsub");
+    btn.disabled = true; btn.textContent = "Signing in…"; $("#lerr").textContent = "";
+    try { await api.signIn($("#le").value.trim().toLowerCase(), $("#lp").value); location.reload(); }
+    catch (err) { $("#lerr").textContent = signInError(err); btn.disabled = false; btn.textContent = "Sign in"; }
   };
 }
 

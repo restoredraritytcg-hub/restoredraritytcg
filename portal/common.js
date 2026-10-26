@@ -327,3 +327,21 @@ export function customerLink(token) {
   const base = location.origin + location.pathname.replace(/[^/]*$/, "");
   return `${base}view.html${DEMO ? "?demo" : ""}#t=${token}`;
 }
+
+// "Add to Home Screen" tip for iPhone/iPad Safari (they have no install prompt of their own).
+// Shown until dismissed; never inside the installed app.
+export function installHint(appName) {
+  const ios = /iP(hone|od|ad)/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const installed = navigator.standalone || matchMedia("(display-mode: standalone)").matches;
+  let dismissed = false;
+  try { dismissed = localStorage.getItem("rr-install-hint") === "no"; } catch {}
+  if (!ios || installed || dismissed || $("#install-hint")) return;
+  const d = document.createElement("div");
+  d.id = "install-hint"; d.className = "install-hint";
+  d.innerHTML = `<span>Install <b>${esc(appName)}</b> as an app: tap <b>Share</b>
+    <svg width="14" height="16" viewBox="0 0 14 16" aria-label="Share icon" style="vertical-align:-2px"><path d="M7 1v9M3.5 4.5 7 1l3.5 3.5M2 7v7.5h10V7" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+    then <b>Add to Home Screen</b>.</span><button type="button" aria-label="Dismiss">✕</button>`;
+  d.querySelector("button").onclick = () => { d.remove(); try { localStorage.setItem("rr-install-hint", "no"); } catch {} };
+  document.body.prepend(d);
+}

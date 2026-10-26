@@ -75,6 +75,20 @@ Auto-detection flags `found:false` when the border isn't a uniform color (full-a
 measurements differ by > 0.025 in (`summary.check`). Admin can drag markers (constrained to their line), nudge with
 arrow keys (Alt = outer marker), save, or reset to auto.
 
+## Phone app (home-screen web app, no App Store)
+
+- Admin portal installs from Safari → Share → Add to Home Screen as "RR Portal": `portal/manifest.webmanifest`
+  (scope `portal/`, start `admin.html`), icons in `portal/icons/` (cropped from the site's Mewtwo logo), Apple
+  meta tags in `admin.html` / `scan.html`. No service worker on purpose (uploads must never be served stale).
+- Customer page `view.html` has Apple tags + icon ("My Cards") but **no manifest**, so iOS keeps the full private
+  link; `view.js` also remembers the last valid token in localStorage (`rr-view-token`) and uses it when the hash
+  has none.
+- In-app there's no browser reload, so admin has a "↻ Refresh" button (reloads data). `installHint()` in
+  `common.js` shows an install tip on iPhone Safari only (dismiss stored in `rr-install-hint`).
+- Phones: compact sticky header (≤700px), 16px inputs (no iOS zoom), sign-in fields without autocapitalize/
+  autocorrect and readable errors (`signInError`), centering markers use a 28px touch target.
+- iPhone has no folder access, so the scan station falls back to "choose a file" there.
+
 ## Keep in sync
 
 - `portal/centering.js` ⇄ `desktop-scanner/assets/centering.js` (identical copies).
