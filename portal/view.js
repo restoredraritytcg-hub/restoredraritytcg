@@ -1,13 +1,15 @@
 // Customer view: everything under one profile, opened by a private link.
 import { api, DEMO, esc, $, $$, pill, progressSteps, renderReport, wireReport, thumbOf, mediaUrl,
-  fmtDate, installLightbox, toast } from "./common.js";
+  fmtDate, installLightbox, installHint, toast } from "./common.js";
 
 const CFG = window.RR_CONFIG || {};
 const app = $("#app");
 let data = null;
 
 const params = () => new URLSearchParams(location.hash.slice(1));
-const token = () => params().get("t") || "";
+const TOKEN_KEY = "rr-view-token";
+const savedToken = () => { try { return localStorage.getItem(TOKEN_KEY) || ""; } catch { return ""; } };
+const token = () => params().get("t") || savedToken();
 
 if (DEMO && window.RR_CONFIG) {
   $("#demo").innerHTML = '<div class="demo-banner">Demo preview — sample data, nothing is saved.</div>';
@@ -23,7 +25,12 @@ async function load() {
   } catch (e) {
     return fail("We couldn't load your cards right now. Please try again in a minute.");
   }
-  if (!data) return fail("This link isn't valid anymore. Please contact us for a new one.");
+  if (!data) {
+    try { if (savedToken() === token()) localStorage.removeItem(TOKEN_KEY); } catch {}
+    return fail("This link isn't valid anymore. Please contact us for a new one.");
+  }
+  if (!DEMO) { try { localStorage.setItem(TOKEN_KEY, token()); } catch {} }
+  installHint("My Cards");
   route();
 }
 

@@ -75,6 +75,20 @@ Auto-detection flags `found:false` when the border isn't a uniform color (full-a
 measurements differ by > 0.025 in (`summary.check`). Admin can drag markers (constrained to their line), nudge with
 arrow keys (Alt = outer marker), save, or reset to auto.
 
+## Phone app (home-screen web app, no App Store)
+
+- Admin portal installs from Safari → Share → Add to Home Screen as "RR Portal": `portal/manifest.webmanifest`
+  (scope `portal/`, start `admin.html`), icons in `portal/icons/` (cropped from the site's Mewtwo logo), Apple
+  meta tags in `admin.html` / `scan.html`. No service worker on purpose (uploads must never be served stale).
+- Customer page `view.html` has Apple tags + icon ("My Cards") but **no manifest**, so iOS keeps the full private
+  link; `view.js` also remembers the last valid token in localStorage (`rr-view-token`) and uses it when the hash
+  has none.
+- In-app there's no browser reload, so admin has a "↻ Refresh" button (reloads data). `installHint()` in
+  `common.js` shows an install tip on iPhone Safari only (dismiss stored in `rr-install-hint`).
+- Phones: compact sticky header (≤700px), 16px inputs (no iOS zoom), sign-in fields without autocapitalize/
+  autocorrect and readable errors (`signInError`), centering markers use a 28px touch target.
+- iPhone has no folder access, so the scan station falls back to "choose a file" there.
+
 ## Keep in sync
 
 - `portal/centering.js` ⇄ `desktop-scanner/assets/centering.js` (identical copies).
@@ -239,8 +253,17 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    `RR_CUSTOMER_VIEW`); "⤴ Upload a scan or photo" with stage + side pickers. Uploads are cropped/measured like a scan;
    if no card edge is found the owner can save the picture as-is (no close-ups/centering). `files.original` =
    `{file, folder:"uploaded"}`. Replacing deletes the old storage files. Tested in demo with the owner's real scan.
-   **Everything not yet uploaded is in `Downloads\RR portal update 2026-10-27\`**: admin.js, common.js, scan.js,
-   scanproc.js, scanupload.js (supersedes the earlier Downloads folders from Oct 27).
+   All of item 11 went live Oct 27 (owner uploaded the 5 files to `portal/`; a first attempt landed in the repo root
+   and was deleted). The fixed `index.html` from item 10 is live too (main matched this branch).
+
+12. **Customer link broke Oct 27, 2026 — fixed, waiting on upload.** The owner had committed the phone-app work
+   (see "Phone app" above: icons, manifest, `installHint`, Refresh button, `signInError`, touch-size centering markers)
+   straight to main on Oct 25 (`16ab0ab`), and this branch never had it. The `admin.js`/`common.js` handed over on
+   Oct 27 overwrote main's copies, so `view.js` (which imports `installHint`) failed with a module SyntaxError and every
+   customer link stuck on "Loading your cards…" from the first Oct 27 upload (~2:49 PM CT) until the fix. Fixed by
+   merging origin/main into `fix/intake-portal-direct` and re-adding `installHint`, the Refresh handler and the sign-in
+   changes. Upload `portal/admin.js` + `portal/common.js` from `Downloads\RR customer link fix 2026-10-27\`.
+   **Lesson: the owner edits main directly on GitHub — always `git fetch` + merge origin/main before handing out files.**
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.

@@ -220,8 +220,8 @@
     // ------------------------------------------------------ pointer input
     var pointers = {}, drag = null, pinch = null;
     function local(e) { var r = stage.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
-    function hit(sx, sy) {
-      var best = null, bd = 14;
+    function hit(sx, sy, radius) {
+      var best = null, bd = radius || 14; // fingertips need a bigger target than a mouse
       ORDER.forEach(function (k) {
         var l = c.lines[k]; if (!l) return;
         var g = lineGeom(l);
@@ -241,7 +241,7 @@
         pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), s: s, cx: (a[0] + b[0]) / 2, cy: (a[1] + b[1]) / 2 };
         drag = null; return;
       }
-      var h = editable ? hit(p[0], p[1]) : null;
+      var h = editable ? hit(p[0], p[1], e.pointerType === "touch" ? 28 : 14) : null;
       if (h) { active = h.k; drag = { type: "handle", k: h.k, end: h.end }; renderSide(); }
       else { drag = { type: "pan", x: p[0], y: p[1], tx: tx, ty: ty }; stage.classList.add("drag"); }
     });
