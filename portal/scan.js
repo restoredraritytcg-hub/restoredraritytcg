@@ -69,7 +69,7 @@ function skeleton() {
       <div class="grid2" style="gap:10px">
         <div><label class="f">3 · Card #</label><input type="text" id="cardno" inputmode="numeric" value="1"></div>
         <div><label class="f">Cards per scan</label><div class="seg" id="perscan">
-          <button data-v="1" class="${cfg.perScan === 1 ? "on" : ""}">1</button><button data-v="2" class="${cfg.perScan === 2 ? "on" : ""}">2</button></div></div>
+          ${[1, 2, 3].map((n) => `<button data-v="${n}" class="${cfg.perScan === n ? "on" : ""}">${n}</button>`).join("")}</div></div>
       </div>
       <div style="margin-top:14px" class="muted small">Next scan</div>
       <div class="next" id="nextlbl"></div>
@@ -94,7 +94,7 @@ function skeleton() {
   <div>
     <div class="panel"><div class="row" style="margin-bottom:10px"><h2 style="margin:0" class="grow">Current card</h2>
       <button class="btn" id="redoF">Redo front</button><button class="btn" id="redoB">Redo back</button>
-      <button class="btn" id="swap" hidden>⇄ Swap backs</button>
+      <button class="btn" id="swap" hidden title="The backs came out in the opposite order (cards flipped as a row)">⇄ Reverse backs</button>
       <button class="btn" id="discard">Discard</button><button class="btn gold" id="save" disabled>Save to portal</button></div>
       <div id="capture"></div></div>
     <div class="panel" style="margin-top:14px"><h3 style="margin-top:0">Activity</h3><div class="log" id="log"></div></div>
@@ -123,7 +123,7 @@ function skeleton() {
     [...e.dataTransfer.files].filter((f) => IMG_RE.test(f.name)).forEach((f) => enqueue({ file: f, name: f.name })); };
   $("#redoF").onclick = () => { st.side = "front"; renderNext(); toast("Next scan replaces the front."); };
   $("#redoB").onclick = () => { if (!st.cap.front) return; st.side = "back"; renderNext(); toast("Next scan replaces the back."); };
-  $("#swap").onclick = () => { const b = st.cap.back; if (b?.cards.length === 2) { b.cards.reverse(); renderCapture(); } };
+  $("#swap").onclick = () => { const b = st.cap.back; if (b?.cards.length > 1) { b.cards.reverse(); renderCapture(); } };
   $("#discard").onclick = () => { st.cap = { front: null, back: null }; st.side = "front"; renderCapture(); renderNext(); };
   $("#save").onclick = () => save();
   renderWatch(); renderSub(); renderNext(); renderCapture();
@@ -193,8 +193,12 @@ function renderNext() {
   const names = nums.map((n) => { const k = subCards().find((c) => c.card_number === n); return k?.name ? `${k.name}` : ""; })
     .filter(Boolean).join(" + ");
   $("#nextlbl").textContent = s(sub()) ? `Card ${nums.map((n) => "#" + n).join(" + ")} — ${st.side.toUpperCase()}` : "Pick a submission";
+  const last = subCards().at(-1)?.card_number || 0, extra = nums.filter((n) => n > last);
+  const over = sub() && last && extra.length
+    ? (extra.length === nums.length ? `${sub().code} has only ${last} cards — scanning now adds new cards (#${extra.join(", #")}). `
+      : `${sub().code} has ${last} cards, so put only ${nums.length - extra.length} on the glass. `) : "";
   $("#nexthint").textContent = sub()
-    ? `${names ? names + " · " : ""}${st.side === "front" ? "Place the card face-down on the glass and scan" : "Flip the card in place, then scan again"}${st.queue.length ? ` · ${st.queue.length} scan(s) waiting` : ""}`
+    ? `${over}${names ? names + " · " : ""}${st.side === "front" ? "Place the card face-down on the glass and scan" : "Flip the card in place, then scan again"}${st.queue.length ? ` · ${st.queue.length} scan(s) waiting` : ""}`
     : (st.queue.length ? `${st.queue.length} scan(s) waiting for a submission` : "");
   $("#save").disabled = !st.cap.front || st.busy;
 }
@@ -275,7 +279,9 @@ async function pump() {
     setCaptureBusy(`Reading ${item.name}…`);
     const res = await analyze(item.file);
     if (!res.cards.length) throw new Error("No card found. Use a dark backing sheet and close the lid, then scan again.");
-    if (res.cards.length !== cfg.perScan) log(`Found ${res.cards.length} card(s) in ${item.name} (expected ${cfg.perScan}).`, "err");
+    if (res.cards.length > cfg.perScan || (side === "back" && st.cap.front && res.cards.length !== st.cap.front.cards.length))
+      log(`Found ${res.cards.length} card(s) in ${item.name} — check that every card is fully on the black sheet with a gap between them.`, "err");
+    else if (res.cards.length < cfg.perScan) log(`Found ${res.cards.length} card(s) (set for ${cfg.perScan}) — that's fine for the last cards of a submission.`);
     for (const c of st.cap[side]?.cards || []) URL.revokeObjectURL(c.thumbUrl);
     st.cap[side] = { ...res, name: item.name, handle: item.handle || null };
     const sm = res.cards.map((c) => c.centering?.summary).filter(Boolean)
@@ -336,10 +342,10 @@ function setCaptureBusy(msg) { $("#capture").innerHTML = `<div class="big-hint">
 
 function renderCapture() {
   const f = st.cap.front, b = st.cap.back;
-  $("#swap").hidden = !(b && b.cards.length === 2);
+  $("#swap").hidden = !(b && b.cards.length > 1);
   $("#save").disabled = !f || st.busy;
   if (!f && !b) {
-    $("#capture").innerHTML = `<div class="big-hint">Scan the <b>front</b> of the card${cfg.perScan === 2 ? "s" : ""} with your
+    $("#capture").innerHTML = `<div class="big-hint">Scan the <b>front</b> of the card${cfg.perScan > 1 ? "s (left to right = card order)" : ""} with your
       scanner software. It will show up here a few seconds after it's saved.</div>`; return;
   }
   const n = Math.max(f?.cards.length || 0, b?.cards.length || 0);

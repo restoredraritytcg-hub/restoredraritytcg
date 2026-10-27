@@ -217,6 +217,16 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    70/30 back; 8 60/40 & 80/20; 7 65/35 & 90/10; 6 70/30 & 95/5. Anything worse shows "BGS 5.5 or lower" until the
    5-and-below centering lines are added (asked for).
    Files to upload: `portal/admin.js`, `portal/scan.js`, `portal/common.js` (copies in `Downloads\RR scan buttons 2026-10-27\`).
+   Owner uploaded these 3 via GitHub web (Oct 27). **First real scan worked end to end** (IJ Scan Utility/ScanGear →
+   `G:\My Drive\Card Scans` → scan station found, cropped, measured; 1200 dpi PNG 26 MB, sharp at 1:1). That test was at
+   ScanGear Output Size 105% (must be 100%) and showed ⚠ check; ScanGear's "Retouch and save the image" option is what
+   saves each scan (closes ScanGear; reopen with Driver). Suggested to the owner: JPEG instead of PNG, NAPS2 for one-click
+   scanning (not installed).
+   **Built (not yet uploaded): up to 3 cards per scan.** Scan station "Cards per scan" 1/2/3 (`detectCards` already
+   handles any count, ordered by row then left to right); "⇄ Reverse backs" for any multi-card scan; warns when the
+   numbers run past the submission's last card (extra cards would be created) or the back finds a different count than the
+   front. Cards in one scan are consecutive card numbers of the selected submission. Tested with synthetic 3-card scans.
+   Upload: `portal/scan.js` (copy in `Downloads\RR 3 cards per scan 2026-10-27\`).
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
