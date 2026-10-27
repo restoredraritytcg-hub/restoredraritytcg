@@ -184,8 +184,11 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    Fix (branch `fix/intake-portal-direct`, not yet live): index.html now calls Supabase with plain `fetch`
    (`portalRpc`, storage upload via `/storage/v1/object/…`), no CDN; retries connection errors twice; older-Safari
    fallback for `crypto.randomUUID`. Verified locally against the live project with harmless invalid requests only.
-   Missed submissions still need adding: re-export the Sheet tabs and re-run `tools/import_sheet.py` (it skips codes
-   already in the portal). Not yet verified: a real end-to-end submission from a phone after the fix is live.
+   Owner uploaded the fixed `index.html` via GitHub web (Oct 26). Catch-up import built Oct 26 from fresh exports
+   (`Downloads\RR import 2026-10-26\import.sql`): adds RR-PE98Y8 (Alfonso), RR-B37QLP (Tim Franciskovich),
+   RR-AJ3T6A (Ramon Duran), RR-JJMY7X (Houston Trading Society, no email) — 4 customers, 16 cards, 19 photos;
+   the other 30 submissions are skipped as already present. Waiting for the owner to run it.
+   Not yet verified: a real end-to-end submission from a phone after the fix is live.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
