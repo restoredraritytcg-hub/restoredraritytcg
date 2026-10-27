@@ -212,8 +212,9 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    6 75/25; 4.5 85/15; 3.5 90/10; 9.5/8.5/6.5/5.5/5/4 publish no number, so they're skipped). Uses the worse axis,
    rounded. Shown admin-only (hidden when `RR_CUSTOMER_VIEW`) as a panel atop each stage of the card report, with what the
    next grade needs, and as a one-liner in the scan station after each capture. Owner wants **PSA, CGC and Beckett only**.
-   **Beckett not added yet:** beckett.com/grading/scale sits behind a Cloudflare human check and third-party sites
-   disagree on BGS numbers — needs the owner to open the page (or paste the centering lines) before adding `BGS` rules.
+   **Beckett partly added:** beckett.com/grading/scale sits behind a Cloudflare human check; the owner sent screenshots
+   (Oct 27): Pristine 10 (and Black Label) 50/50 front, 55/45 back; 9.5 55/45 both ways front, 60/40 back; 9 55/45 front,
+   70/30 back. Anything worse shows "BGS 8.5 or lower" until the 8-and-below centering lines are added (asked for).
    Files to upload: `portal/admin.js`, `portal/scan.js`, `portal/common.js` (copies in `Downloads\RR scan buttons 2026-10-27\`).
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
