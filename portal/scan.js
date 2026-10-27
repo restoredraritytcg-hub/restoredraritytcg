@@ -4,7 +4,7 @@
 // card(s) in each new scan, straightens them, cuts corner/edge close-ups, measures
 // centering and saves everything to the portal under the chosen submission and card.
 import { api, DEMO, esc, $, $$, pill, toast, STAGE_LABEL, centeringGrades } from "./common.js";
-import * as P from "./scanproc.js";
+import * as U from "./scanupload.js";
 
 const app = $("#app");
 let S = null;
@@ -69,7 +69,7 @@ function skeleton() {
       <div class="grid2" style="gap:10px">
         <div><label class="f">3 · Card #</label><input type="text" id="cardno" inputmode="numeric" value="1"></div>
         <div><label class="f">Cards per scan</label><div class="seg" id="perscan">
-          <button data-v="1" class="${cfg.perScan === 1 ? "on" : ""}">1</button><button data-v="2" class="${cfg.perScan === 2 ? "on" : ""}">2</button></div></div>
+          ${[1, 2, 3].map((n) => `<button data-v="${n}" class="${cfg.perScan === n ? "on" : ""}">${n}</button>`).join("")}</div></div>
       </div>
       <div style="margin-top:14px" class="muted small">Next scan</div>
       <div class="next" id="nextlbl"></div>
@@ -94,7 +94,7 @@ function skeleton() {
   <div>
     <div class="panel"><div class="row" style="margin-bottom:10px"><h2 style="margin:0" class="grow">Current card</h2>
       <button class="btn" id="redoF">Redo front</button><button class="btn" id="redoB">Redo back</button>
-      <button class="btn" id="swap" hidden>⇄ Swap backs</button>
+      <button class="btn" id="swap" hidden title="The backs came out in the opposite order (cards flipped as a row)">⇄ Reverse backs</button>
       <button class="btn" id="discard">Discard</button><button class="btn gold" id="save" disabled>Save to portal</button></div>
       <div id="capture"></div></div>
     <div class="panel" style="margin-top:14px"><h3 style="margin-top:0">Activity</h3><div class="log" id="log"></div></div>
@@ -123,7 +123,7 @@ function skeleton() {
     [...e.dataTransfer.files].filter((f) => IMG_RE.test(f.name)).forEach((f) => enqueue({ file: f, name: f.name })); };
   $("#redoF").onclick = () => { st.side = "front"; renderNext(); toast("Next scan replaces the front."); };
   $("#redoB").onclick = () => { if (!st.cap.front) return; st.side = "back"; renderNext(); toast("Next scan replaces the back."); };
-  $("#swap").onclick = () => { const b = st.cap.back; if (b?.cards.length === 2) { b.cards.reverse(); renderCapture(); } };
+  $("#swap").onclick = () => { const b = st.cap.back; if (b?.cards.length > 1) { b.cards.reverse(); renderCapture(); } };
   $("#discard").onclick = () => { st.cap = { front: null, back: null }; st.side = "front"; renderCapture(); renderNext(); };
   $("#save").onclick = () => save();
   renderWatch(); renderSub(); renderNext(); renderCapture();
@@ -193,8 +193,12 @@ function renderNext() {
   const names = nums.map((n) => { const k = subCards().find((c) => c.card_number === n); return k?.name ? `${k.name}` : ""; })
     .filter(Boolean).join(" + ");
   $("#nextlbl").textContent = s(sub()) ? `Card ${nums.map((n) => "#" + n).join(" + ")} — ${st.side.toUpperCase()}` : "Pick a submission";
+  const last = subCards().at(-1)?.card_number || 0, extra = nums.filter((n) => n > last);
+  const over = sub() && last && extra.length
+    ? (extra.length === nums.length ? `${sub().code} has only ${last} cards — scanning now adds new cards (#${extra.join(", #")}). `
+      : `${sub().code} has ${last} cards, so put only ${nums.length - extra.length} on the glass. `) : "";
   $("#nexthint").textContent = sub()
-    ? `${names ? names + " · " : ""}${st.side === "front" ? "Place the card face-down on the glass and scan" : "Flip the card in place, then scan again"}${st.queue.length ? ` · ${st.queue.length} scan(s) waiting` : ""}`
+    ? `${over}${names ? names + " · " : ""}${st.side === "front" ? "Place the card face-down on the glass and scan" : "Flip the card in place, then scan again"}${st.queue.length ? ` · ${st.queue.length} scan(s) waiting` : ""}`
     : (st.queue.length ? `${st.queue.length} scan(s) waiting for a submission` : "");
   $("#save").disabled = !st.cap.front || st.busy;
 }
@@ -275,7 +279,9 @@ async function pump() {
     setCaptureBusy(`Reading ${item.name}…`);
     const res = await analyze(item.file);
     if (!res.cards.length) throw new Error("No card found. Use a dark backing sheet and close the lid, then scan again.");
-    if (res.cards.length !== cfg.perScan) log(`Found ${res.cards.length} card(s) in ${item.name} (expected ${cfg.perScan}).`, "err");
+    if (res.cards.length > cfg.perScan || (side === "back" && st.cap.front && res.cards.length !== st.cap.front.cards.length))
+      log(`Found ${res.cards.length} card(s) in ${item.name} — check that every card is fully on the black sheet with a gap between them.`, "err");
+    else if (res.cards.length < cfg.perScan) log(`Found ${res.cards.length} card(s) (set for ${cfg.perScan}) — that's fine for the last cards of a submission.`);
     for (const c of st.cap[side]?.cards || []) URL.revokeObjectURL(c.thumbUrl);
     st.cap[side] = { ...res, name: item.name, handle: item.handle || null };
     const sm = res.cards.map((c) => c.centering?.summary).filter(Boolean)
@@ -291,55 +297,17 @@ async function pump() {
   pump();
 }
 
-async function analyze(file) {
-  const meta = await P.fileDpi(file);
-  const bmp = await createImageBitmap(file);
-  try {
-    const { cards, dpi } = P.detectCards(bmp, bmp.width, bmp.height, meta || cfg.defaultDpi, cfg.perScan);
-    const out = [];
-    for (const c of cards) {
-      const m = 0.25 * dpi, [x, y, w, h] = c.box;
-      const x0 = Math.max(0, Math.floor(x - m)), y0 = Math.max(0, Math.floor(y - m));
-      const x1 = Math.min(bmp.width, Math.ceil(x + w + m)), y1 = Math.min(bmp.height, Math.ceil(y + h + m));
-      const reg = P.canvas(x1 - x0, y1 - y0);
-      reg.getContext("2d").drawImage(bmp, x0, y0, x1 - x0, y1 - y0, 0, 0, x1 - x0, y1 - y0);
-      const cr = P.cropCard(reg, x1 - x0, y1 - y0, dpi);
-      const cv = cr.canvas, W = cv.width, H = cv.height;
-      let centering = null, boxes = {}, regions = {};
-      if (cr.ok) {
-        ({ boxes, regions } = P.detailRegions(W, H, dpi));
-        try { centering = P.measureCentering(cv.getContext("2d").getImageData(0, 0, W, H), dpi); } catch { centering = null; }
-      }
-      const thumb = await toBlob(resized(cv, 520), "image/jpeg", 0.85);
-      out.push({ canvas: cv, ok: cr.ok, dpi, centering, boxes, regions, thumbUrl: URL.createObjectURL(thumb) });
-    }
-    return { cards: out, dpi };
-  } finally { bmp.close(); }
-}
-
-function resized(src, maxSide) {
-  const s = Math.min(1, maxSide / Math.max(src.width, src.height));
-  const c = P.canvas(Math.max(1, Math.round(src.width * s)), Math.max(1, Math.round(src.height * s)));
-  const x = c.getContext("2d"); x.imageSmoothingQuality = "high"; x.drawImage(src, 0, 0, c.width, c.height);
-  return c;
-}
-function cropOf(src, [x, y, w, h]) {
-  const c = P.canvas(Math.max(1, w), Math.max(1, h));
-  c.getContext("2d").drawImage(src, x, y, w, h, 0, 0, w, h); return c;
-}
-function toBlob(c, type, q) {
-  return c.convertToBlob ? c.convertToBlob({ type, quality: q }) : new Promise((r) => c.toBlob(r, type, q));
-}
+const analyze = (file) => U.analyze(file, { maxCards: cfg.perScan, defaultDpi: cfg.defaultDpi });
 
 // --------------------------------------------------------------- capture
 function setCaptureBusy(msg) { $("#capture").innerHTML = `<div class="big-hint"><span class="spinner"></span> ${esc(msg)}</div>`; }
 
 function renderCapture() {
   const f = st.cap.front, b = st.cap.back;
-  $("#swap").hidden = !(b && b.cards.length === 2);
+  $("#swap").hidden = !(b && b.cards.length > 1);
   $("#save").disabled = !f || st.busy;
   if (!f && !b) {
-    $("#capture").innerHTML = `<div class="big-hint">Scan the <b>front</b> of the card${cfg.perScan === 2 ? "s" : ""} with your
+    $("#capture").innerHTML = `<div class="big-hint">Scan the <b>front</b> of the card${cfg.perScan > 1 ? "s (left to right = card order)" : ""} with your
       scanner software. It will show up here a few seconds after it's saved.</div>`; return;
   }
   const n = Math.max(f?.cards.length || 0, b?.cards.length || 0);
@@ -389,27 +357,10 @@ async function save() {
       for (const side of ["front", "back"]) {
         const c = cap[side]?.cards[i]; if (!c) continue;
         $("#save").textContent = `Uploading #${num} ${side}…`;
-        const ver = new Date().toISOString().replace(/\D/g, "").slice(0, 14);
-        const base = `s/${cust.storage_key}/${s.code}/C${pad3(num)}/${stage}`;
-        const put = async (name, canvasEl, q = 0.93) => api.putFile(`${base}/${name}_${ver}.jpg`, await toBlob(canvasEl, "image/jpeg", q));
-        const files = { boxes: c.boxes, corners: {}, edges: {}, original: { file: savedAs[side], folder: st.dir?.name || "" } };
-        if (c.centering) files.centering = c.centering;
-        const jobs = [
-          put(`${side}_web`, resized(c.canvas, cfg.webLong), 0.9).then((p) => { files.web = p; }),
-          put(`${side}_thumb`, resized(c.canvas, 420), 0.85).then((p) => { files.thumb = p; }),
-        ];
-        if (c.ok) for (const k of P.CORNERS) jobs.push(put(`corners/${side}_${k}`, cropOf(c.canvas, c.regions[k])).then((p) => { files.corners[k] = p; }));
-        if (c.ok) for (const k of P.EDGES) jobs.push(put(`edges/${side}_${k}`, cropOf(c.canvas, c.regions[k])).then((p) => { files.edges[k] = p; }));
-        await Promise.all(jobs);
         const old = S.scans.find((x) => x.card_id === card.id && x.stage === stage && x.side === side);
-        const row = await api.upsert("scans", { card_id: card.id, stage, side, dpi: c.dpi, files,
-                                                scanned_at: new Date().toISOString() }, "card_id,stage,side");
+        const row = await U.saveSide({ storageKey: cust.storage_key, code: s.code, card, stage, side, c, oldRow: old,
+          original: { file: savedAs[side], folder: st.dir?.name || "" }, webLong: cfg.webLong });
         S.scans = S.scans.filter((x) => !(x.card_id === card.id && x.stage === stage && x.side === side)).concat([row]);
-        if (old?.files) {
-          const f = old.files, keep = new Set([files.web, files.thumb, ...Object.values(files.corners), ...Object.values(files.edges)]);
-          const stale = [f.web, f.thumb, ...Object.values(f.corners || {}), ...Object.values(f.edges || {})].filter((p) => p && !keep.has(p));
-          api.removeFiles(stale).catch(() => {});
-        }
       }
       done.push(`<a href="admin.html${DEMO ? "?demo" : ""}#/card/${card.id}" target="_blank">#${num}</a>`);
     }

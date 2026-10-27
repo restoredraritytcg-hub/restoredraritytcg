@@ -1,6 +1,7 @@
 // Admin portal: every customer, submission, card, scan and photo.
 import { api, DEMO, esc, $, $$, pill, STATUSES, renderReport, wireReport, thumbOf, mediaUrl, fmtDate,
   fmtDateTime, installLightbox, toast, customerLink, progressSteps, STAGE_LABEL } from "./common.js";
+import * as U from "./scanupload.js";
 
 const app = $("#app");
 let S = null; // { customers, submissions, cards, scans, photos }
@@ -416,7 +417,14 @@ function card(id) {
       ${["before", "progress", "after"].map((g) => `<a class="btn sm${g === nextStage(id) ? " gold" : ""}" target="rr-scan"
         href="${esc(scanUrl(s.id, k.card_number, g))}">${esc(STAGE_LABEL[g].split(" (")[0])}</a>`).join("")}</div>
     ${renderReport(cardScans(id))}
-    <p class="muted small">📷 opens the scan station set to ${esc(s.code)} card #${k.card_number}; scan the front, flip, scan the back.</p>
+    <div class="row" style="margin-top:10px;gap:8px"><span class="muted small">⤴ Upload a scan or photo:</span>
+      <select id="upstage" style="width:auto">${["before", "progress", "after"].map((g) =>
+        `<option value="${g}" ${g === nextStage(id) ? "selected" : ""}>${esc(STAGE_LABEL[g].split(" (")[0])}</option>`).join("")}</select>
+      <select id="upside" style="width:auto"><option value="front">Front</option><option value="back">Back</option></select>
+      <button class="btn sm" id="upbtn">Choose file…</button>
+      <input type="file" id="upfile" accept="image/png,image/jpeg,image/webp" hidden><span class="muted small" id="upmsg"></span></div>
+    <p class="muted small">📷 opens the scan station set to ${esc(s.code)} card #${k.card_number}; scan the front, flip, scan the back.
+      An uploaded image is cropped and measured like a scan and replaces that stage/side if there is one.</p>
     <h2>Photos</h2>${photosAdmin(S.photos.filter((p) => p.card_id === id), { cards: [k], fixedCard: id })}`;
   wireReport(app, {
     scans: cardScans(id), editable: true, title: cardTitle(k),
@@ -426,7 +434,34 @@ function card(id) {
       Object.assign(scan, await api.update("scans", scan.id, { files }));
     },
     onClose: () => route(),
+    onScanAction: async (act, stage, side, scan) => {
+      if (act === "rep") { $("#upstage").value = stage; $("#upside").value = side; $("#upfile").click(); return; }
+      if (!scan || !confirm(`Delete the ${side} scan (${STAGE_LABEL[stage]})? Its close-ups and centering go too.`)) return;
+      try { await U.deleteScan(scan); S.scans = S.scans.filter((x) => x.id !== scan.id); toast("Scan deleted."); route(); }
+      catch (e) { toast(e.message, 5000); }
+    },
   });
+  $("#upbtn").onclick = () => $("#upfile").click();
+  $("#upfile").onchange = async () => {
+    const file = $("#upfile").files[0]; $("#upfile").value = ""; if (!file) return;
+    const stage = $("#upstage").value, side = $("#upside").value, msg = $("#upmsg");
+    const old = cardScans(id).find((x) => x.stage === stage && x.side === side);
+    if (old && !confirm(`Replace the ${side} scan (${STAGE_LABEL[stage]}) with ${file.name}?`)) return;
+    try {
+      msg.textContent = "Finding the card…";
+      let cardImg = (await U.analyze(file)).cards[0];
+      if (cardImg) URL.revokeObjectURL(cardImg.thumbUrl);
+      if (!cardImg || !cardImg.ok) {
+        if (!confirm("Couldn't find the card's edges in that image. Save the whole picture as it is (no close-ups or centering)?")) { msg.textContent = ""; return; }
+        cardImg = await U.asIs(file);
+      }
+      msg.textContent = "Uploading…";
+      const row = await U.saveSide({ storageKey: c.storage_key, code: s.code, card: k, stage, side, c: cardImg, oldRow: old,
+        original: { file: file.name, folder: "uploaded" } });
+      S.scans = S.scans.filter((x) => !(x.card_id === id && x.stage === stage && x.side === side)).concat([row]);
+      toast(`${side === "front" ? "Front" : "Back"} saved (${STAGE_LABEL[stage]}).`); route();
+    } catch (e) { msg.textContent = ""; toast(e.message, 5000); }
+  };
   wirePhotosAdmin({ customer: c, cards: [k], fixedCard: id });
   window.RRCardSearch?.attach($("#kn"), { details: $("#kd") });
   $("#ksave").onclick = async () => {

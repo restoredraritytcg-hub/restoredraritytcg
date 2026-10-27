@@ -102,6 +102,12 @@ function sidePanel(scan) {
   const f = scan.files || {}, c = f.corners || {}, e = f.edges || {}, b = f.boxes || {};
   let h = `<div class="panel"><h3>${scan.side === "front" ? "Front" : "Back"}
     <span class="muted small" style="text-transform:none;letter-spacing:0">· ${scan.dpi || ""} dpi · ${esc(fmtDateTime(scan.scanned_at))}</span></h3>`;
+  if (!window.RR_CUSTOMER_VIEW) {
+    const id = `${esc(scan.stage)}|${esc(scan.side)}`;
+    h += `<div class="row" style="margin:-4px 0 10px;gap:6px"><span class="grow"></span>
+      <button class="btn sm" data-scanact="rep|${id}" title="Upload a new image for this side; it's cropped and measured like a scan">⤴ Replace</button>
+      <button class="btn sm danger" data-scanact="del|${id}">🗑 Delete</button></div>`;
+  }
   h += centeringRow(scan);
   h += `<div class="ov">${img(f.web, scan.side)}`;
   for (const [group, cls] of [[e, "e"], [c, "c"]]) {
@@ -215,9 +221,15 @@ export function renderReport(scans) {
   return h + `</div>`;
 }
 
-// opts: { scans, editable, onSaveCentering(scan, centering) }
+// opts: { scans, editable, onSaveCentering(scan, centering), onScanAction("rep"|"del", stage, side, scan) }
 export function wireReport(root, opts = {}) {
   $$(".report", root).forEach((r) => r.addEventListener("click", (e) => {
+    const ab = e.target.closest("[data-scanact]");
+    if (ab) {
+      const [act, stage, side] = ab.dataset.scanact.split("|");
+      opts.onScanAction?.(act, stage, side, (opts.scans || []).find((x) => x.stage === stage && x.side === side));
+      return;
+    }
     const cb = e.target.closest("[data-center]");
     if (cb) {
       const [stage, side] = cb.dataset.center.split("|");
