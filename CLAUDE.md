@@ -204,7 +204,17 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    (Before / In progress / After; suggested stage in gold) link to `scan.html#sub=<id>&card=<n>&stage=<stage>` with
    `target="rr-scan"`; scan.js names its window `rr-scan` and applies the hash on load and on `hashchange`, so an open
    scan tab keeps watching the folder (reloads data if the submission/card is new; asks before discarding an unsaved
-   front). Files to upload: `portal/admin.js`, `portal/scan.js` (copies in `Downloads\RR scan buttons 2026-10-27\`).
+   front).
+   **Built (not yet uploaded): centering grade caps.** `common.js` `CENTERING_RULES` + `centeringGrades(front, back)`:
+   best grade the centering alone allows, from the official pages read Oct 27, 2026 — PSA (psacard.com/gradingstandards:
+   10 55/45 front 75/25 back; 9 60/40 & 90/10; 8 65/35; 7 70/30; 6 80/20; 5–4 85/15; 3–1.5 90/10, all 90/10 back) and
+   CGC (cgccards.com grading scale: Pristine 10 50/50; 10 55/45 & 75/25; 9 60/40 & 90/10; 8 65/35; 7.5 65/35; 7 70/30;
+   6 75/25; 4.5 85/15; 3.5 90/10; 9.5/8.5/6.5/5.5/5/4 publish no number, so they're skipped). Uses the worse axis,
+   rounded. Shown admin-only (hidden when `RR_CUSTOMER_VIEW`) as a panel atop each stage of the card report, with what the
+   next grade needs, and as a one-liner in the scan station after each capture. Owner wants **PSA, CGC and Beckett only**.
+   **Beckett not added yet:** beckett.com/grading/scale sits behind a Cloudflare human check and third-party sites
+   disagree on BGS numbers — needs the owner to open the page (or paste the centering lines) before adding `BGS` rules.
+   Files to upload: `portal/admin.js`, `portal/scan.js`, `portal/common.js` (copies in `Downloads\RR scan buttons 2026-10-27\`).
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.

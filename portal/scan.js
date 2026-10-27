@@ -3,7 +3,7 @@
 // folder so originals sync between computers). This page watches that folder, finds the
 // card(s) in each new scan, straightens them, cuts corner/edge close-ups, measures
 // centering and saves everything to the portal under the chosen submission and card.
-import { api, DEMO, esc, $, $$, pill, toast, STAGE_LABEL } from "./common.js";
+import { api, DEMO, esc, $, $$, pill, toast, STAGE_LABEL, centeringGrades } from "./common.js";
 import * as P from "./scanproc.js";
 
 const app = $("#app");
@@ -353,8 +353,11 @@ function renderCapture() {
   let h = `<div class="slots">`;
   for (let i = 0; i < n; i++) {
     const num = st.next + i, k = subCards().find((c) => c.card_number === num);
+    const g = centeringGrades(window.RRCentering.summary(f?.cards[i]?.centering), window.RRCentering.summary(b?.cards[i]?.centering));
     h += `<div class="slot"><h3>Card #${num}${k?.name ? " · " + esc(k.name) : ""}</h3>
-      <div class="pair">${tile("front", f?.cards[i])}${tile("back", b?.cards[i])}</div></div>`;
+      <div class="pair">${tile("front", f?.cards[i])}${tile("back", b?.cards[i])}</div>
+      ${g ? `<div class="small" style="margin-top:6px">Centering allows ${Object.entries(g.companies).map(([co, r]) =>
+        `<b style="color:var(--gold)">${co} ${esc(r.grade)}</b>`).join(" · ")}${g.back == null ? ' <span class="muted">(front only)</span>' : ""}</div>` : ""}</div>`;
   }
   $("#capture").innerHTML = h + `</div>`;
 }
