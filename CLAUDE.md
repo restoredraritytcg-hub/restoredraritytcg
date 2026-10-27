@@ -233,6 +233,14 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    percentile + 20 (floor 40). Verified on the owner's real back + front scans and the Python tests. No backing-color
    change needed. Upload `portal/scanproc.js` with `scan.js` (same Downloads folder); `desktop-scanner/cardcrop.py`
    only matters for the backup Windows app. The owner's second test scan was still at ~105% Output Size.
+   **Built (not yet uploaded): delete / replace / upload scans in the admin portal.** New `portal/scanupload.js`
+   (shared by scan.js and admin.js): `analyze`, `asIs`, `saveSide`, `deleteScan` — the scan station's processing +
+   upload moved there unchanged. Card page: each scan side has ⤴ Replace and 🗑 Delete (admin only, hidden when
+   `RR_CUSTOMER_VIEW`); "⤴ Upload a scan or photo" with stage + side pickers. Uploads are cropped/measured like a scan;
+   if no card edge is found the owner can save the picture as-is (no close-ups/centering). `files.original` =
+   `{file, folder:"uploaded"}`. Replacing deletes the old storage files. Tested in demo with the owner's real scan.
+   **Everything not yet uploaded is in `Downloads\RR portal update 2026-10-27\`**: admin.js, common.js, scan.js,
+   scanproc.js, scanupload.js (supersedes the earlier Downloads folders from Oct 27).
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
