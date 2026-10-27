@@ -101,7 +101,12 @@ export function foregroundMask(img) {
     const o = i * 3, dist = Math.hypot(L[o] - bg[0], L[o + 1] - bg[1], L[o + 2] - bg[2]);
     d8[i] = Math.min(255, Math.floor(dist * 2));
   }
-  const t = Math.max(otsu(d8), 40);
+  // Otsu alone can land above a dark card border (Pokémon backs on a black sheet), so cap it just above
+  // the backing sheet's own variation, measured on the same outer band.
+  const band = [];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (y < b || y >= h - b || x < b || x >= w - b) band.push(d8[y * w + x]);
+  band.sort((p, q) => p - q);
+  const t = Math.max(40, Math.min(otsu(d8), band[Math.floor(band.length * 0.99)] + 20));
   let m = new Uint8Array(w * h); for (let i = 0; i < w * h; i++) m[i] = d8[i] > t ? 1 : 0;
   const k = Math.max(3, Math.floor(Math.min(h, w) * 0.006)) | 1;
   m = morph(morph(m, w, h, k * 3, true), w, h, k * 3, false);   // close

@@ -227,6 +227,12 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    numbers run past the submission's last card (extra cards would be created) or the back finds a different count than the
    front. Cards in one scan are consecutive card numbers of the selected submission. Tested with synthetic 3-card scans.
    Upload: `portal/scan.js` (copy in `Downloads\RR 3 cards per scan 2026-10-27\`).
+   **Fixed (not yet uploaded): card backs cropped too small.** The black sheet scans as dark gray (RGB ~50) and the
+   Pokémon back's dark-blue border (d8 ~90) fell under the Otsu threshold (134), so detection cut the border off.
+   `foregroundMask` (scanproc.js) / `foreground_mask` (cardcrop.py) now cap the threshold at the outer band's 99th
+   percentile + 20 (floor 40). Verified on the owner's real back + front scans and the Python tests. No backing-color
+   change needed. Upload `portal/scanproc.js` with `scan.js` (same Downloads folder); `desktop-scanner/cardcrop.py`
+   only matters for the backup Windows app. The owner's second test scan was still at ~105% Output Size.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
