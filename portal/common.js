@@ -147,8 +147,9 @@ export const CENTERING_RULES = {
   CGC: { floor: "3 or lower", rules: [["Pristine 10", 50, 50], ["10", 55, 75], ["9", 60, 90], ["8", 65, null], ["7", 70, null],
                                        ["6", 75, null], ["4.5", 85, null], ["3.5", 90, null]] },
   // beckett.com/grading/scale (owner's screenshots, Oct 27, 2026). Black Label 10 has the same centering as Pristine 10.
-  // TODO: 8 and below not added yet.
-  BGS: { floor: "8.5 or lower", rules: [["Pristine 10", 50, 55], ["9.5", 55, 60], ["9", 55, 70]] },
+  // TODO: 5 and below not added yet.
+  BGS: { floor: "5.5 or lower", rules: [["Pristine 10", 50, 55], ["9.5", 55, 60], ["9", 55, 70], ["8", 60, 80],
+                                         ["7", 65, 90], ["6", 70, 95]] },
 };
 const worstShare = (s) => (s?.lr && s?.tb ? Math.round(Math.max(s.lr[0], s.lr[1], s.tb[0], s.tb[1])) : null);
 

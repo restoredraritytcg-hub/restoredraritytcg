@@ -214,7 +214,8 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    next grade needs, and as a one-liner in the scan station after each capture. Owner wants **PSA, CGC and Beckett only**.
    **Beckett partly added:** beckett.com/grading/scale sits behind a Cloudflare human check; the owner sent screenshots
    (Oct 27): Pristine 10 (and Black Label) 50/50 front, 55/45 back; 9.5 55/45 both ways front, 60/40 back; 9 55/45 front,
-   70/30 back. Anything worse shows "BGS 8.5 or lower" until the 8-and-below centering lines are added (asked for).
+   70/30 back; 8 60/40 & 80/20; 7 65/35 & 90/10; 6 70/30 & 95/5. Anything worse shows "BGS 5.5 or lower" until the
+   5-and-below centering lines are added (asked for).
    Files to upload: `portal/admin.js`, `portal/scan.js`, `portal/common.js` (copies in `Downloads\RR scan buttons 2026-10-27\`).
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
