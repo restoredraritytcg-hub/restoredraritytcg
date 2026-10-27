@@ -34,7 +34,12 @@ async function start() {
   skeleton();
   const remembered = await idbGet("dir").catch(() => null);
   if (remembered) offerResume(remembered);
-  window.rrScan = { useDirectory: (d) => startWatching(d), state: st, process: (f) => enqueue({ file: f, name: f.name }) };
+  // Admin "📷 Scan" links open scan.html#sub=<id>&card=<n>&stage=<stage> in the tab named "rr-scan";
+  // only the hash changes when this tab is already open, so folder watching keeps running.
+  window.name = "rr-scan";
+  window.addEventListener("hashchange", applyHash);
+  applyHash();
+  window.rrScan ={ useDirectory: (d) => startWatching(d), state: st, process: (f) => enqueue({ file: f, name: f.name }) };
 }
 
 function login() {
@@ -102,7 +107,7 @@ function skeleton() {
     selectSub(s.id);
   });
   $("#stage").onclick = (e) => { const b = e.target.closest("[data-v]"); if (!b) return;
-    st.stage = b.dataset.v; $$("#stage button").forEach((x) => x.classList.toggle("on", x === b));
+    setStage(b.dataset.v);
     st.next = firstUnscanned(); $("#cardno").value = st.next; renderSub(); renderNext(); };
   $("#perscan").onclick = (e) => { const b = e.target.closest("[data-v]"); if (!b) return;
     cfg.perScan = +b.dataset.v; saveCfg(); $$("#perscan button").forEach((x) => x.classList.toggle("on", x === b)); renderNext(); };
@@ -135,9 +140,37 @@ function firstUnscanned() {
   return c ? c.card_number : (cards.length ? cards[cards.length - 1].card_number + 1 : 1);
 }
 
-function selectSub(id) {
-  st.subId = id; st.next = firstUnscanned(); $("#cardno").value = st.next;
+function selectSub(id, cardNo) {
+  st.subId = id; st.next = cardNo || firstUnscanned(); $("#cardno").value = st.next;
+  const s = sub(), c = S.customers.find((x) => x.id === s.customer_id) || {};
+  $("#subq").value = `${s.code} · ${c.name || ""}`;
   renderSub(); renderNext(); pump();
+}
+
+function setStage(stage) {
+  st.stage = stage; $$("#stage button").forEach((x) => x.classList.toggle("on", x.dataset.v === stage));
+}
+
+// Pick up submission / card / stage from the link (admin's "📷 Scan" buttons).
+async function applyHash() {
+  const h = new URLSearchParams(location.hash.slice(1)), id = h.get("sub");
+  if (!id) return;
+  const cardNo = parseInt(h.get("card"), 10) || null, stage = h.get("stage");
+  if (!S.submissions.some((x) => x.id === id) || (cardNo && !S.cards.some((k) => k.submission_id === id && k.card_number === cardNo))) {
+    S = await api.loadAll();          // added in admin after this tab loaded
+    const cust = (s) => S.customers.find((c) => c.id === s.customer_id) || {};
+    $("#subs").innerHTML = [...S.submissions].sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .map((s) => `<option value="${esc(s.code)} · ${esc(cust(s).name || "")}">`).join("");
+  }
+  if (!S.submissions.some((x) => x.id === id)) return toast("That submission wasn't found.");
+  if (st.cap.front && !confirm("Discard the scan that hasn't been saved yet?")) return;
+  if (st.cap.front || st.cap.back) { st.cap = { front: null, back: null }; renderCapture(); }
+  st.side = "front";
+  if (["before", "progress", "after"].includes(stage)) setStage(stage);
+  selectSub(id, cardNo);
+  const s = sub(), k = subCards().find((c) => c.card_number === st.next);
+  log(`Ready to scan ${s.code} card #${st.next}${k?.name ? " · " + esc(k.name) : ""} (${STAGE_LABEL[st.stage]}).`, "ok");
+  window.focus();
 }
 
 function renderSub() {

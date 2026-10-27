@@ -191,5 +191,20 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    the other 30 submissions are skipped as already present. Waiting for the owner to run it.
    Not yet verified: a real end-to-end submission from a phone after the fix is live.
 
+11. **Scanner arrived (Oct 27, 2026) — setting up on Windows.** Canon LiDE 400 + IJ Scan Utility. Findings: IJ Scan
+   Utility's Custom scan tops out at 600 dpi; 1200 dpi needs **ScanGear** (IJ Scan Utility → Driver; save folder/format
+   under Settings → Driver Settings). ScanGear setup that works: Advanced Mode, Color, 1200 dpi, Output Size 100%,
+   Unsharp Mask OFF; Preferences → Preview → Cropping Frame = **Display Last Frame** (otherwise it auto-crops tight to
+   the card every preview); whole-glass view (not thumbnail view); frame ≈ 3.0 × 4.0 in around a card placed in the
+   top-left corner; **black sheet behind the card** (lid is white). Full-glass uncompressed at 1200 dpi ≈ 408 MB —
+   always crop to the card; JPEG ≈ 3–6 MB per side (≈1,500 cards in 15 GB free Drive). Cloudinary was ruled out for
+   originals (10 MB free-plan file cap). Not yet verified: first real scan picked up by the scan station.
+   Offered, not built: scan station re-saving originals as high-quality JPEG after processing.
+   **Built (not yet uploaded): 📷 Scan buttons.** Admin submission page (per card row + "📷 Scan cards") and card page
+   (Before / In progress / After; suggested stage in gold) link to `scan.html#sub=<id>&card=<n>&stage=<stage>` with
+   `target="rr-scan"`; scan.js names its window `rr-scan` and applies the hash on load and on `hashchange`, so an open
+   scan tab keeps watching the folder (reloads data if the submission/card is new; asks before discarding an unsaved
+   front). Files to upload: `portal/admin.js`, `portal/scan.js` (copies in `Downloads\RR scan buttons 2026-10-27\`).
+
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.

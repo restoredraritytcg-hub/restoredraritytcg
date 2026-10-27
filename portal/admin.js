@@ -1,6 +1,6 @@
 // Admin portal: every customer, submission, card, scan and photo.
 import { api, DEMO, esc, $, $$, pill, STATUSES, renderReport, wireReport, thumbOf, mediaUrl, fmtDate,
-  fmtDateTime, installLightbox, toast, customerLink, progressSteps } from "./common.js";
+  fmtDateTime, installLightbox, toast, customerLink, progressSteps, STAGE_LABEL } from "./common.js";
 
 const app = $("#app");
 let S = null; // { customers, submissions, cards, scans, photos }
@@ -338,21 +338,25 @@ function submission(id) {
     ${s.customer_notes ? `<label class="f">Customer's notes from intake</label><div class="muted">${esc(s.customer_notes)}</div>` : ""}
     <div class="row" style="margin-top:12px"><button class="btn gold" id="ssave">Save</button>
       <span class="grow"></span><button class="btn danger" id="sdel">Delete submission</button></div></div>
-    <h2>Cards</h2>
+    <div class="row"><h2 class="grow">Cards</h2>
+      <a class="btn" target="rr-scan" href="${esc(scanUrl(id))}" title="Open the scan station at the first card without a scan">📷 Scan cards</a></div>
     <div class="panel" style="padding:0;overflow:auto"><table class="list"><thead><tr><th></th><th>#</th><th>Card</th>
-      <th class="hide-sm">Set / number</th><th>Status</th><th class="hide-sm">Scans</th></tr></thead><tbody>
+      <th class="hide-sm">Set / number</th><th>Status</th><th class="hide-sm">Scans</th><th></th></tr></thead><tbody>
     ${cards.map((k) => { const t = thumbOf(cardScans(k.id)); const st = [...new Set(cardScans(k.id).map((x) => x.stage))];
+      const ns = nextStage(k.id);
       return `<tr class="click" data-go="#/card/${k.id}"><td style="width:54px">${t ? `<img src="${esc(mediaUrl(t))}" style="height:52px;border-radius:4px">` : ""}</td>
       <td>${k.card_number}</td><td><b>${esc(k.name || "—")}</b></td><td class="hide-sm">${esc(k.details)}</td>
-      <td>${pill(k.status)}</td><td class="hide-sm muted small">${esc(st.join(", ") || "none")}</td></tr>`; }).join("")
-      || `<tr><td colspan="6" class="muted">No cards.</td></tr>`}</tbody></table></div>
+      <td>${pill(k.status)}</td><td class="hide-sm muted small">${esc(st.join(", ") || "none")}</td>
+      <td><a class="btn sm" target="rr-scan" href="${esc(scanUrl(id, k.card_number, ns))}"
+        title="Scan this card (${esc(STAGE_LABEL[ns])})">📷 Scan</a></td></tr>`; }).join("")
+      || `<tr><td colspan="7" class="muted">No cards.</td></tr>`}</tbody></table></div>
     <div class="panel" style="margin-top:12px"><h3 style="margin-top:0">Add a card</h3><div class="row">
       <input type="text" id="kn" placeholder="Card name" class="grow" style="width:auto">
       <input type="text" id="kd" placeholder="Set / number / year" class="grow" style="width:auto">
       <button class="btn gold" id="kadd">Add card #${(cards.at(-1)?.card_number || 0) + 1}</button></div>
-      <p class="muted small" style="margin:8px 0 0">In the scanner app, use submission <b>${esc(s.code)}</b> and the card number to attach scans.</p></div>
+      <p class="muted small" style="margin:8px 0 0">📷 Scan opens the scan station set to that card. In the Windows app, use submission <b>${esc(s.code)}</b> and the card number.</p></div>
     <h2>Photos</h2>${photosAdmin(S.photos.filter((p) => p.submission_id === id), { cards })}`;
-  $$("[data-go]").forEach((r) => r.onclick = () => go(r.dataset.go));
+  $$("[data-go]").forEach((r) => r.onclick = (e) => { if (!e.target.closest("a")) go(r.dataset.go); });
   window.RRCardSearch?.attach($("#kn"), { details: $("#kd") });
   wireEmailBar(s);
   wirePhotosAdmin({ customer: c, cards, submissionId: id });
@@ -377,6 +381,11 @@ function submission(id) {
     await reload(); go(`#/customer/${c.id}`);
   };
 }
+
+// Opens the scan station (reusing its tab, so folder watching keeps running) set to this card.
+const scanUrl = (subId, cardNo, stage) =>
+  `scan.html${DEMO ? "?demo" : ""}#sub=${subId}${cardNo ? `&card=${cardNo}` : ""}${stage ? `&stage=${stage}` : ""}`;
+const nextStage = (cardId) => (cardScans(cardId).some((x) => x.stage === "before") ? "after" : "before");
 
 function scanPaths(cardId) {
   return cardScans(cardId).flatMap((x) => { const f = x.files || {};
@@ -403,8 +412,11 @@ function card(id) {
     <div class="row" style="margin-top:12px"><button class="btn gold" id="ksave">Save</button>
       <a class="btn" target="_blank" href="${esc(customerLink(c.share_token))}&c=${k.id}">View as customer</a>
       <span class="grow"></span><button class="btn danger" id="kdel">Delete card</button></div></div>
-    <h2>Scans</h2>${renderReport(cardScans(id))}
-    <p class="muted small">Scans arrive from the scanner app using submission <b>${esc(s.code)}</b>, card <b>#${k.card_number}</b>.</p>
+    <div class="row"><h2 class="grow">Scans</h2><span class="muted small">📷 Scan</span>
+      ${["before", "progress", "after"].map((g) => `<a class="btn sm${g === nextStage(id) ? " gold" : ""}" target="rr-scan"
+        href="${esc(scanUrl(s.id, k.card_number, g))}">${esc(STAGE_LABEL[g].split(" (")[0])}</a>`).join("")}</div>
+    ${renderReport(cardScans(id))}
+    <p class="muted small">📷 opens the scan station set to ${esc(s.code)} card #${k.card_number}; scan the front, flip, scan the back.</p>
     <h2>Photos</h2>${photosAdmin(S.photos.filter((p) => p.card_id === id), { cards: [k], fixedCard: id })}`;
   wireReport(app, {
     scans: cardScans(id), editable: true, title: cardTitle(k),
