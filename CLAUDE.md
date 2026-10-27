@@ -184,7 +184,8 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    Fix (branch `fix/intake-portal-direct`, not yet live): index.html now calls Supabase with plain `fetch`
    (`portalRpc`, storage upload via `/storage/v1/object/…`), no CDN; retries connection errors twice; older-Safari
    fallback for `crypto.randomUUID`. Verified locally against the live project with harmless invalid requests only.
-   Owner uploaded the fixed `index.html` via GitHub web (Oct 26). Catch-up import built Oct 26 from fresh exports
+   Fixed `index.html` handed to the owner (`Downloads\RR website fix 2026-10-26\`) to upload via GitHub web —
+   not yet confirmed live. Catch-up import built Oct 26 from fresh exports
    (`Downloads\RR import 2026-10-26\import.sql`): adds RR-PE98Y8 (Alfonso), RR-B37QLP (Tim Franciskovich),
    RR-AJ3T6A (Ramon Duran), RR-JJMY7X (Houston Trading Society, no email) — 4 customers, 16 cards, 19 photos;
    the other 30 submissions are skipped as already present. Waiting for the owner to run it.
