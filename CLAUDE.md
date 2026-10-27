@@ -176,5 +176,16 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    Gaps vs. the Sheet: the portal has no "Assessment Complete", "On Hold" or "Cancelled" statuses and no return
    tracking # field. `email-logo.jpg` isn't in the repo, so emails fall back to the text header.
 
+10. **Bug found Oct 26, 2026: website intakes were silently skipping the portal.** Several submissions (e.g.
+   `RR-B37QLP`) reached only the Sheet: the form's `portalIntake` loaded supabase-js from jsdelivr
+   (`@supabase/supabase-js@2/+esm`, unpinned) at submit time; when that failed, it fell back to a random
+   `RR-XXXXXX` code with only a console error. Worked from desktop Chromium, so likely phones/Safari or blockers.
+   **Rule of thumb: a 6-character code (`RR-B37QLP`) = not in the portal; `RR-` + digits = in the portal.**
+   Fix (branch `fix/intake-portal-direct`, not yet live): index.html now calls Supabase with plain `fetch`
+   (`portalRpc`, storage upload via `/storage/v1/object/…`), no CDN; retries connection errors twice; older-Safari
+   fallback for `crypto.randomUUID`. Verified locally against the live project with harmless invalid requests only.
+   Missed submissions still need adding: re-export the Sheet tabs and re-run `tools/import_sheet.py` (it skips codes
+   already in the portal). Not yet verified: a real end-to-end submission from a phone after the fix is live.
+
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.

@@ -2559,14 +2559,22 @@ updateDeliveryUI();
 const PORTAL_CFG = window.RR_CONFIG || {};
 const PORTAL_ON = !!(PORTAL_CFG.supabaseUrl && PORTAL_CFG.supabaseAnonKey &&
   !/YOUR-/.test(PORTAL_CFG.supabaseUrl + PORTAL_CFG.supabaseAnonKey));
-let portalClient = null;
-async function portalSb(){
-  if(!portalClient){
-    const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
-    portalClient = createClient(PORTAL_CFG.supabaseUrl, PORTAL_CFG.supabaseAnonKey);
-  }
-  return portalClient;
+/* Talks to Supabase with plain fetch() rather than loading supabase-js from a CDN:
+   ad blockers, privacy browsers and flaky phone connections sometimes blocked that
+   download, and the submission then silently skipped the portal (RR-B37QLP, Oct 2026). */
+function portalHeaders(extra){
+  const k = PORTAL_CFG.supabaseAnonKey;
+  return Object.assign({ apikey: k, Authorization: 'Bearer ' + k }, extra);
 }
+async function portalRpc(fn, args){
+  const r = await fetch(`${PORTAL_CFG.supabaseUrl}/rest/v1/rpc/${fn}`, {
+    method: 'POST', headers: portalHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify(args)
+  });
+  const body = await r.json().catch(() => null);
+  if(!r.ok) throw new Error((body && body.message) || `portal answered ${r.status}`);
+  return body;
+}
+const portalWait = (ms) => new Promise(res => setTimeout(res, ms));
 
 /* Kept between attempts so a retry after an Apps Script error reuses the same
    portal submission instead of creating a second one. */
@@ -2575,35 +2583,44 @@ async function portalIntake(payload){
   if(!PORTAL_ON) return null;
   const key = JSON.stringify(payload);
   if(portalPending && portalPending.key === key) return portalPending.result;
-  try{
-    const sb = await portalSb();
-    const { data, error } = await sb.rpc('intake_submit', { p: payload });
-    if(error) throw error;
-    portalPending = { key, result: data };
-    return data;
-  }catch(err){
-    console.error('Portal intake failed, continuing with Apps Script only:', err);
-    return null;
+  for(let attempt = 1; attempt <= 3; attempt++){
+    try{
+      const data = await portalRpc('intake_submit', { p: payload });
+      portalPending = { key, result: data };
+      return data;
+    }catch(err){
+      console.error(`Portal intake attempt ${attempt} failed:`, err);
+      // Only connection failures are worth retrying; a refusal from the database won't change.
+      if(!(err instanceof TypeError) || attempt === 3) break;
+      await portalWait(1500 * attempt);
+    }
   }
+  console.error('Portal intake failed, continuing with Apps Script only.');
+  return null;
 }
 
 /* photoSets[i] = [{blob, caption}, ...] for card i (same order as card_ids). */
+function portalFileName(){
+  if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  const b = new Uint8Array(16); crypto.getRandomValues(b);   // older Safari has no randomUUID
+  return Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
+}
 async function portalUploadPhotos(portal, photoSets){
-  const sb = await portalSb();
   const bucket = PORTAL_CFG.bucket || 'portal';
   let failed = 0;
   for(let i = 0; i < photoSets.length; i++){
     const cardId = (portal.card_ids || [])[i] || null;
     for(const { blob, caption } of photoSets[i]){
       try{
-        const path = `u/${portal.storage_key}/${crypto.randomUUID()}.jpg`;
-        const up = await sb.storage.from(bucket).upload(path, blob, { contentType: 'image/jpeg' });
-        if(up.error) throw up.error;
-        const { error } = await sb.rpc('portal_add_photo', {
+        const path = `u/${portal.storage_key}/${portalFileName()}.jpg`;
+        const up = await fetch(`${PORTAL_CFG.supabaseUrl}/storage/v1/object/${bucket}/${path}`, {
+          method: 'POST', headers: portalHeaders({ 'Content-Type': 'image/jpeg' }), body: blob
+        });
+        if(!up.ok) throw new Error(`photo upload answered ${up.status}: ${await up.text()}`);
+        await portalRpc('portal_add_photo', {
           p_token: portal.token, p_path: path, p_caption: caption,
           p_card_id: cardId, p_submission_code: portal.code, p_source: 'intake'
         });
-        if(error) throw error;
       }catch(err){
         failed++;
         console.error('Portal photo upload failed:', err);
