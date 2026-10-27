@@ -137,6 +137,57 @@ function compare(stA, stB, byStage) {
   return h;
 }
 
+// ------------------------------------------------- centering → grade caps
+// Best grade the centering alone allows, from each company's published standards
+// (psacard.com/gradingstandards and cgccards.com/card-grading/grading-scale, read Oct 27, 2026).
+// [grade, front, back]: the larger share of the worse axis, rounded, may be at most this (55 = 55/45).
+// back null = not stated. CGC publishes numbers for only some grades, so the ones in between are left out.
+export const CENTERING_RULES = {
+  PSA: { floor: "1", rules: [["10", 55, 75], ["9", 60, 90], ["8", 65, 90], ["7", 70, 90], ["6", 80, 90], ["5", 85, 90], ["3", 90, 90]] },
+  CGC: { floor: "3 or lower", rules: [["Pristine 10", 50, 50], ["10", 55, 75], ["9", 60, 90], ["8", 65, null], ["7", 70, null],
+                                       ["6", 75, null], ["4.5", 85, null], ["3.5", 90, null]] },
+  // beckett.com/grading/scale (owner's screenshots, Oct 27, 2026). Black Label 10 has the same centering as Pristine 10.
+  // TODO: 5 and below not added yet.
+  BGS: { floor: "5.5 or lower", rules: [["Pristine 10", 50, 55], ["9.5", 55, 60], ["9", 55, 70], ["8", 60, 80],
+                                         ["7", 65, 90], ["6", 70, 95]] },
+};
+const worstShare = (s) => (s?.lr && s?.tb ? Math.round(Math.max(s.lr[0], s.lr[1], s.tb[0], s.tb[1])) : null);
+
+// front/back: RRCentering.summary() results (back may be null). Returns null without a front.
+export function centeringGrades(front, back) {
+  const f = worstShare(front), b = worstShare(back);
+  if (f == null) return null;
+  const fits = (r) => f <= r[1] && (b == null || r[2] == null || b <= r[2]);
+  const companies = {};
+  for (const [co, { floor, rules }] of Object.entries(CENTERING_RULES)) {
+    const i = rules.findIndex(fits), up = i < 0 ? rules.at(-1) : rules[i - 1];
+    companies[co] = { grade: i < 0 ? floor : rules[i][0],
+      next: up && { grade: up[0], front: f > up[1] ? up[1] : null, back: b != null && up[2] != null && b > up[2] ? up[2] : null } };
+  }
+  return { front: f, back: b, companies };
+}
+
+// Admin-only panel above a stage's scans: "PSA 9 · a 10 needs front 55/45 (now 57/43)".
+function gradePanel(bySide) {
+  if (window.RR_CUSTOMER_VIEW || !window.RRCentering) return "";
+  const cen = (s) => (s?.files?.centering?.lines ? s.files.centering : null);
+  const fc = cen(bySide.front), bc = cen(bySide.back);
+  const g = centeringGrades(window.RRCentering.summary(fc), window.RRCentering.summary(bc));
+  if (!g) return "";
+  const pair = (x) => `${x}/${100 - x}`;
+  const rows = Object.entries(g.companies).map(([co, r]) => {
+    const need = r.next && [r.next.front && `front ${pair(r.next.front)} (now ${pair(g.front)})`,
+      r.next.back && `back ${pair(r.next.back)} (now ${pair(g.back)})`].filter(Boolean).join(" and ");
+    return `<div><b style="color:var(--gold)">${co} ${esc(r.grade)}</b>${need ? `<span class="muted small"> · a ${esc(r.next.grade)} needs ${need}</span>` : ""}</div>`;
+  }).join("");
+  const unsure = [fc, bc].some((c) => c && c.auto !== false && (Object.values(c.lines).some((l) => l.found === false)
+    || window.RRCentering.summary(c).check.length));
+  return `<div class="panel grades"><h3 style="margin-top:0">Best grade the centering allows</h3>${rows}
+    <p class="muted small" style="margin:8px 0 0">Front ${pair(g.front)}${g.back != null ? ` · back ${pair(g.back)}` : " · back not scanned, so back limits aren't applied"}
+    (worse direction). Centering only — corners, edges and surface can still lower the grade.</p>
+    ${unsure ? `<p class="small" style="color:var(--gold);margin:6px 0 0">⚠ Some borders weren't measured cleanly — check them with 📐 before trusting this.</p>` : ""}</div>`;
+}
+
 // Returns HTML for one card's scans; call wireReport(root) after inserting it.
 function centeringRow(scan) {
   const c = scan.files?.centering;
@@ -157,7 +208,7 @@ export function renderReport(scans) {
   let h = `<div class="report"><div class="stagebar">${tabs.map(([k, l]) =>
     `<button data-tab="${k}" class="${k === first ? "on" : ""}">${esc(l)}</button>`).join("")}</div>`;
   for (const k of stages) {
-    h += `<section data-pane="${k}" ${k === first ? "" : "hidden"}><div class="sides">${
+    h += `<section data-pane="${k}" ${k === first ? "" : "hidden"}>${gradePanel(byStage[k])}<div class="sides">${
       ["front", "back"].filter((s) => byStage[k][s]).map((s) => sidePanel(byStage[k][s])).join("")}</div></section>`;
   }
   if (cmp) h += `<section data-pane="compare" ${first === "compare" ? "" : "hidden"}>${compare("before", cmp, byStage)}</section>`;
@@ -326,22 +377,4 @@ export const api = DEMO ? demoApi : realApi;
 export function customerLink(token) {
   const base = location.origin + location.pathname.replace(/[^/]*$/, "");
   return `${base}view.html${DEMO ? "?demo" : ""}#t=${token}`;
-}
-
-// "Add to Home Screen" tip for iPhone/iPad Safari (they have no install prompt of their own).
-// Shown until dismissed; never inside the installed app.
-export function installHint(appName) {
-  const ios = /iP(hone|od|ad)/.test(navigator.userAgent) ||
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  const installed = navigator.standalone || matchMedia("(display-mode: standalone)").matches;
-  let dismissed = false;
-  try { dismissed = localStorage.getItem("rr-install-hint") === "no"; } catch {}
-  if (!ios || installed || dismissed || $("#install-hint")) return;
-  const d = document.createElement("div");
-  d.id = "install-hint"; d.className = "install-hint";
-  d.innerHTML = `<span>Install <b>${esc(appName)}</b> as an app: tap <b>Share</b>
-    <svg width="14" height="16" viewBox="0 0 14 16" aria-label="Share icon" style="vertical-align:-2px"><path d="M7 1v9M3.5 4.5 7 1l3.5 3.5M2 7v7.5h10V7" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
-    then <b>Add to Home Screen</b>.</span><button type="button" aria-label="Dismiss">✕</button>`;
-  d.querySelector("button").onclick = () => { d.remove(); try { localStorage.setItem("rr-install-hint", "no"); } catch {} };
-  document.body.prepend(d);
 }
