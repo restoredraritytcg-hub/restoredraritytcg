@@ -275,6 +275,8 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    (≈1500 px wide = 2.5 in) and the Python tests. Cards that truly run off the scan are still cut, so the owner was
    told to make the frame ≈ 4.2 in tall and keep cards pushed to the top. Upload `admin.js`, `common.js`,
    `scanproc.js` from `Downloads\RR portal fixes 2026-10-27 night\` (includes item 12's fix).
+   The owner then switched to a different backing color, which fixed the backs for them (color not recorded).
+   The code fix still helps when a card touches the scan edge.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
