@@ -292,6 +292,9 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    Upload together (also fixes the still-broken customer links from items 12–13): `portal/admin.js`, `common.js`,
    `scanproc.js`, `check.html`, `check.js`, `photoproc.js` from `Downloads\RR card check 2026-10-28\`.
    Not built yet: live camera guide with auto-capture, accounts/payments, eBay API listing drafts, Beckett 5-and-below.
+   **Uploaded Oct 28 (~2:11 PM CT, `ad479af`), verified live:** all 6 files in `portal/`; view.html loads again (fake
+   token → "link isn't valid" message via Supabase), so the customer-link outage from items 12–13 is over;
+   check.html loads. Waiting on the owner's real phone-photo test.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
