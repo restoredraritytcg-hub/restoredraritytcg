@@ -264,6 +264,17 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    merging origin/main into `fix/intake-portal-direct` and re-adding `installHint`, the Refresh handler and the sign-in
    changes. Upload `portal/admin.js` + `portal/common.js` from `Downloads\RR customer link fix 2026-10-27\`.
    **Lesson: the owner edits main directly on GitHub — always `git fetch` + merge origin/main before handing out files.**
+   Still not uploaded as of the evening of Oct 27 (live `common.js` had no `installHint`).
+
+13. **3-card backs cut off again (Oct 27 evening).** The owner switched to 3 cards per scan at **600 dpi** with a
+   frame ≈ 8.5 × 3.8 in (5104 × 2288 px). Cards are 3.5 in, so there's < 0.15 in spare; after flipping, the backs sat
+   lower and ran off the bottom edge. That put card border into the bottom band, the band's 99th percentile jumped
+   (117 vs ~26), and the Otsu threshold (137–145) cut every back's blue border again. Fix: `foregroundMask` /
+   `foreground_mask` now take the noise as the **quietest side's** 99th percentile (per-side strips), so one edge
+   touching a card no longer raises the threshold. Verified on the owner's RR-JJMY7X and RR-45KCTP 3-card backs
+   (≈1500 px wide = 2.5 in) and the Python tests. Cards that truly run off the scan are still cut, so the owner was
+   told to make the frame ≈ 4.2 in tall and keep cards pushed to the top. Upload `admin.js`, `common.js`,
+   `scanproc.js` from `Downloads\RR portal fixes 2026-10-27 night\` (includes item 12's fix).
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
