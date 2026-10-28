@@ -116,7 +116,7 @@ export function foregroundMask(img) {
 }
 
 // ------------------------------------------------------------- geometry
-function components(mask, w, h) {
+export function components(mask, w, h) {
   const label = new Int32Array(w * h), comps = [];
   for (let s = 0; s < w * h; s++) {
     if (!mask[s] || label[s]) continue;

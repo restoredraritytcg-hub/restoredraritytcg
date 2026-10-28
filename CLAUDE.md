@@ -13,6 +13,7 @@ grading prep). This adds a card-intake and customer portal to the existing site
 | `portal/view.html` + `view.js` | Customer view opened by a private link `view.html#t=<share_token>` (no login). Shows everything on that customer's profile; customer can upload/delete their own photos. |
 | `portal/scan.html` + `scan.js` | **Scan station** (Mac or Windows, Chrome/Edge): watches a scan folder via the File System Access API, processes each new scan in the browser and saves it to the portal. Front → back → auto-save → next card. Moves originals into `<folder>/<code>/<code>_C001_<stage>_<side>.<ext>`. Folder handle remembered in IndexedDB. |
 | `portal/scanproc.js` | Browser image processing: card detection, straighten/crop, corner/edge regions, centering measurement, dpi from PNG pHYs / JPEG JFIF/EXIF. Port of `desktop-scanner/cardcrop.py` + `detail.py`. |
+| `portal/check.html` + `check.js` + `photoproc.js` | **Card Check**: public, no-login tool (no Supabase, nothing uploaded). Phone photo or scanner file → straightened card, centering (editable), corners/edges, surface relief view, PSA/CGC/BGS centering caps, eBay listing photos + text. `photoproc.js` flattens tilted phone photos (edge line fits → homography); files with ≥150 dpi metadata use the scan path (`scanupload.analyze`, up to 3 cards). |
 | `portal/centering.js` | Interactive centering tool (plain script, `window.RRCentering`): zoom/pan canvas, draggable markers, save/reset. Used by portal and by the desktop app's local reports. |
 | `portal/common.js` | Shared: data API (`realApi` = Supabase, `demoApi` = in-memory), card report renderer, lightbox, helpers. |
 | `portal/cardsearch.js` + `cards.json` | Card-name suggestions (plain script, `window.RRCardSearch.attach(input[, {details}])`) on the intake form in `index.html` and the admin portal's card fields (add card, card detail, new submission). `cards.json` = 21k English cards from TCGdex, built by `tools/build_card_catalog.py`; pictures load from assets.tcgdex.net. Free typing still allowed. |
@@ -277,6 +278,20 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    `scanproc.js` from `Downloads\RR portal fixes 2026-10-27 night\` (includes item 12's fix).
    The owner then switched to a different backing color, which fixed the backs for them (color not recorded).
    The code fix still helps when a card touches the scan edge.
+
+14. **Card Check built (Oct 28, 2026), not yet uploaded: first piece of a standalone product.** Owner wants to
+   monetize the image processing: a standalone tool for eBay sellers, working from phone photos (owner sent a
+   screen recording of the "gradevalue" app: centering lines, corner loupe, surface relief view) and from computer
+   uploads/scans. Proposed plan (not yet agreed): free tool → Pro (~$5–10/mo) → Shop tier (the portal as SaaS),
+   with a "Send to Restored Rarity" funnel; interview raw-card eBay/Whatnot sellers, people deciding whether to
+   grade, card shops, other restorers (start with existing customers). Built `portal/check.html` (see table).
+   Test (synthetic phone photos made from a real 600 dpi scan, flat/tilted/steep, 72 dpi JPEG): card edges land
+   within ~0.008 in of where they should after flattening; T/B matched the scan within 0.2; L/R differed by up to
+   2 points on that card because its right border is crowded (the scan itself flags ⚠ check there). Not yet
+   tested with real phone photos. `scanproc.js` now exports `components` (no behavior change).
+   Upload together (also fixes the still-broken customer links from items 12–13): `portal/admin.js`, `common.js`,
+   `scanproc.js`, `check.html`, `check.js`, `photoproc.js` from `Downloads\RR card check 2026-10-28\`.
+   Not built yet: live camera guide with auto-capture, accounts/payments, eBay API listing drafts, Beckett 5-and-below.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.

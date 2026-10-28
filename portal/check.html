@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Card Check — Restored Rarity</title>
+<meta name="description" content="Check a trading card's centering, corners and edges from a phone photo or a scan, and get listing photos for eBay.">
+<meta name="theme-color" content="#0f1626">
+<meta name="apple-mobile-web-app-title" content="Card Check">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="stylesheet" href="portal.css">
+<script src="centering.js"></script>
+<style>
+  .hero h1{margin:0 0 4px;font-size:26px}
+  .hero p{margin:0 0 12px}
+  .tips{margin:10px 0 0;padding-left:18px;color:var(--muted);font-size:14px;line-height:1.5}
+  .cardbox{margin-top:16px}
+  .cardbox h2{margin:0;font-size:18px}
+  .grades{display:flex;flex-wrap:wrap;gap:6px 18px;margin:8px 0 2px}
+  .grades b{color:var(--gold)}
+  .slots2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px}
+  @media(max-width:700px){.slots2{grid-template-columns:1fr}}
+  .slot{background:var(--panel2);border:2px dashed var(--line);border-radius:10px;padding:10px;min-width:0}
+  .slot.over{border-color:var(--gold)}
+  .slot.full{border-style:solid}
+  .slot h3{margin:0 0 6px;font-size:14px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  .slot .pick{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;aspect-ratio:5/7;
+    max-height:340px;margin:0 auto;color:var(--muted);font-size:14px;text-align:center}
+  .slot .img{max-width:300px;margin:0 auto}
+  .slot .img img{width:100%;display:block;border-radius:4px;cursor:zoom-in}
+  .ratio{font-size:14px;margin:6px 0}
+  .close8{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:6px}
+  .close8 img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:4px;cursor:zoom-in;background:#000}
+  .warn{color:var(--gold);font-size:13px;margin:6px 0 0}
+  .busy{padding:40px 10px;text-align:center;color:var(--muted)}
+  .viewer{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:50;display:flex;flex-direction:column}
+  .viewer .bar{display:flex;gap:8px;padding:10px;align-items:center}
+  .viewer .body{flex:1;overflow:auto;display:flex;align-items:flex-start;justify-content:center;padding:0 10px 20px}
+  .viewer img{max-width:100%;height:auto}
+  .viewer.zoom img{max-width:none;width:250%}
+  .kit textarea{width:100%;min-height:90px;background:var(--panel2);color:var(--fg);border:1px solid var(--line);
+    border-radius:8px;padding:8px;font:inherit;font-size:14px}
+  .cta{margin-top:24px;text-align:center}
+</style>
+</head>
+<body>
+<header class="top"><span class="brand">Restored Rarity</span><span class="muted small">Card Check</span></header>
+<main class="wrap">
+  <section class="hero panel">
+    <h1>Card Check</h1>
+    <p class="muted">Take a photo or upload a scan. You get the card straightened, its centering measured, close-ups of all
+      four corners and edges, the best grade the centering allows at PSA, CGC and Beckett, and photos ready for an eBay listing.
+      Everything runs on your device. Your pictures aren't uploaded anywhere.</p>
+    <div class="row"><button class="btn gold" id="add">＋ Add a card</button>
+      <span class="muted small">Or drop photos/scans onto a Front or Back box.</span></div>
+    <ul class="tips">
+      <li>Lay the card flat on a plain, dark surface that's a different color from the card's border.</li>
+      <li>Hold the phone directly above the card, close enough that the card fills most of the picture.</li>
+      <li>Take it out of the sleeve or toploader, and avoid glare from overhead lights.</li>
+      <li>Scanner files work too. A scan with up to 3 cards fills this card and the next ones.</li>
+    </ul>
+  </section>
+  <div id="cards"></div>
+  <p class="cta muted">Want the card cleaned or restored before you grade or sell it?
+    <a href="../#intake-form" style="color:var(--gold)">Send it to Restored Rarity →</a></p>
+  <p class="footer">Centering is measured from your picture: a guide, not a grade. Corners, edges and surface also count.</p>
+</main>
+<input type="file" id="file" accept="image/*" multiple hidden>
+<div class="toast" id="toast"></div>
+<script type="module" src="check.js"></script>
+</body>
+</html>
