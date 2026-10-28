@@ -102,11 +102,12 @@ export function foregroundMask(img) {
     d8[i] = Math.min(255, Math.floor(dist * 2));
   }
   // Otsu alone can land above a dark card border (Pokémon backs on a black sheet), so cap it just above
-  // the backing sheet's own variation, measured on the same outer band.
-  const band = [];
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (y < b || y >= h - b || x < b || x >= w - b) band.push(d8[y * w + x]);
-  band.sort((p, q) => p - q);
-  const t = Math.max(40, Math.min(otsu(d8), band[Math.floor(band.length * 0.99)] + 20));
+  // the backing sheet's own variation, measured on the same outer band. Each side is measured on its own
+  // and the quietest one wins, so a card touching one edge of the scan doesn't count as "background".
+  const p99 = (vals) => { vals.sort((p, q) => p - q); return vals[Math.floor(vals.length * 0.99)]; };
+  const strip = (x0, y0, x1, y1) => { const v = []; for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) v.push(d8[y * w + x]); return v; };
+  const noise = Math.min(p99(strip(0, 0, w, b)), p99(strip(0, h - b, w, h)), p99(strip(0, 0, b, h)), p99(strip(w - b, 0, w, h)));
+  const t = Math.max(40, Math.min(otsu(d8), noise + 20));
   let m = new Uint8Array(w * h); for (let i = 0; i < w * h; i++) m[i] = d8[i] > t ? 1 : 0;
   const k = Math.max(3, Math.floor(Math.min(h, w) * 0.006)) | 1;
   m = morph(morph(m, w, h, k * 3, true), w, h, k * 3, false);   // close

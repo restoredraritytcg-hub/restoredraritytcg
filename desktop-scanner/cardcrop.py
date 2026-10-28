@@ -30,8 +30,11 @@ def foreground_mask(img):
     d8 = np.clip(dist * 2.0, 0, 255).astype(np.uint8)
     t, _ = cv2.threshold(d8, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     # Otsu alone can land above a dark card border (Pokémon backs on a black sheet), so cap it just above
-    # the backing sheet's own variation, measured on the same outer band.
-    t = max(40, min(t, float(np.percentile(_border_pixels(d8), 99)) + 20))
+    # the backing sheet's own variation, measured on the same outer band. Each side is measured on its own
+    # and the quietest one wins, so a card touching one edge of the scan doesn't count as "background".
+    b = max(2, int(min(d8.shape[:2]) * 0.02))
+    noise = min(float(np.percentile(s, 99)) for s in (d8[:b], d8[-b:], d8[:, :b], d8[:, -b:]))
+    t = max(40, min(t, noise + 20))
     mask = (d8 > t).astype(np.uint8) * 255
     k = max(3, int(min(img.shape[:2]) * 0.006)) | 1
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE,
