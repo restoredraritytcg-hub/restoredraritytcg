@@ -1,0 +1,16 @@
+{
+  "name": "Scan Station by Restored Rarity",
+  "short_name": "Scan Station",
+  "description": "Photograph trading cards, measure centering and download eBay-ready photos.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b1220",
+  "theme_color": "#0f1626",
+  "icons": [
+    { "src": "../portal/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "../portal/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

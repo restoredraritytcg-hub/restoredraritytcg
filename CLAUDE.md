@@ -20,6 +20,7 @@ grading prep). This adds a card-intake and customer portal to the existing site
 | `portal/config.js` | Supabase URL + anon key (public by design). **Never put the service_role key here.** Placeholder values ⇒ demo mode. |
 | `portal/demo/` | Sample data/images for `?demo` previews (built by `tools/make_demo.py`). Optional to deploy. |
 | `supabase/schema.sql` | Whole database: tables, RLS, RPC functions, storage bucket + policies. Idempotent — re-run safely in the Supabase SQL editor. |
+| `scanner/` | **Scan Station by Restored Rarity** (public app; not the admin-only `portal/scan.html`): a standalone public app at `/scanner/` (its own accounts, its **own Supabase project** + `scanner/schema.sql`, config `scanner/config.js` → `window.SCANNER_CONFIG`). Bulk "Add cards" queue (continuous camera with bubble level/auto-capture in `camera.js`, multi-pick, drag & drop, watched folder; front/back pairing; auto-save) + "To finish" list, perspective-correcting crop (`photo.js`, reuses `portal/scanproc.js` for close-ups + centering), private `cards` bucket at `<user id>/<card id>/<side>_<kind>_<ver>.jpg`, eBay .zip download (`zip.js`, `listing.txt`). See `scanner/README.md`. |
 | `desktop-scanner/` | Windows Python/Tk app (backup scanning path) for the Canon CanoScan LiDE 400 via WIA. Same processing in Python; pushes to Supabase with the service_role key stored locally in `config.json`. |
 | `tools/make_demo.py` | Rebuilds `portal/demo/` from a desktop-scanner output folder. |
 | `tests/` | `make_parity_images.py` (synthetic scans + Python results) and `parity.html` (runs `scanproc.js` on them). |
@@ -305,6 +306,23 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    memory on the Windows PC (its one lesson — merge origin/main before handing out files — is in item 12).
    Habits that also apply on the Mac: `git pull` before starting (the owner edits main on GitHub's website), and
    prefer committing + pushing over handing files to upload once git is signed in there.
+
+16. **Built (Oct 31, 2026), not yet set up/uploaded: standalone "Scan Station by Restored Rarity" (`scanner/`,
+   URL stays `/scanner/`).** Goal: a paid product, so ease of use comes first. Any browser/device. Adding is bulk and
+   automatic (camera card-after-card, multi-pick, drag & drop, watched scanner/sync folder; front/back pairing;
+   each card auto-saves; cards missing a name or a usable photo show under "To finish" with Save & next).
+   Owner's decisions:
+   anyone can sign up (email + password, email confirmation); images saved **in the cloud with a per-user cap**
+   (`profiles.card_limit`, default 200; ~1–1.5 MB per card, so Supabase Pro is needed for real use);
+   **separate Supabase project** (keeps sign-ups off on the business portal); lives at
+   **restoredraritytcg.com/scanner/**; eBay package = straightened front/back (1600 px), corner + edge close-ups
+   (corners enlarged to 800 px), and `listing.txt` (title ≤ 80 chars + description with centering + notes).
+   Photo path: find card quad (hull → 4 corners → line fit per side, skipping rounded corners) → homography warp
+   at the photo's own resolution (150–800 dpi) → `detailRegions` + `measureCentering`. Synthetic tilted photos
+   measure within 0.5 points of truth. Schema tested on local Postgres with stand-ins (own rows only, quota,
+   no `card_limit` self-edit, no cross-folder storage, `delete_me`). Not yet tested on a real phone or real photos.
+   Owner steps: create the project, run `scanner/schema.sql`, auth URL settings, fill `scanner/config.js`, upload
+   `scanner/` (see `scanner/README.md`). Open: custom SMTP before public launch; pricing/payments (not built: e.g. Stripe subscription raising `card_limit`).
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.

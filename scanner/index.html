@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Scan Station by Restored Rarity</title>
+<meta name="description" content="Photograph a trading card with your phone: auto-straighten, corner and edge close-ups, centering, and eBay-ready photo downloads.">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-title" content="Scan Station">
+<meta name="theme-color" content="#0f1626">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="apple-touch-icon" href="../portal/icons/icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="../portal/icons/icon-192.png">
+<link rel="stylesheet" href="../portal/portal.css">
+<link rel="stylesheet" href="app.css">
+<script src="config.js"></script>
+<script src="../portal/centering.js"></script>
+<script src="../portal/cardsearch.js"></script>
+</head>
+<body>
+<div id="demo"></div>
+<header class="top" id="topbar" hidden>
+  <div class="brand">Scan Station · Restored Rarity</div>
+  <nav>
+    <a href="#/">My cards</a>
+    <a href="#/add">＋ Add cards</a>
+    <a href="#/todo">To finish</a>
+    <a href="#/account">Account</a>
+  </nav>
+  <button class="btn sm" id="signout">Sign out</button>
+</header>
+<main class="wrap" id="app"><div class="loading">Loading…</div></main>
+<div class="footer wrap">Scan Station by <a href="https://restoredraritytcg.com/">Restored Rarity</a> · centering from photos is an estimate, not a grade.</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
