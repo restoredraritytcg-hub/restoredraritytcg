@@ -9,8 +9,8 @@ Writes to OUT_DIR (keep it out of the repo, it has customer details):
   issues.txt     rows that didn't line up
   import.sql     paste into Supabase SQL Editor and Run (safe to re-run)
 
-Customers are matched by email, then by phone (so "Tung Ha" with and without
-an email is one person). Original references (sub_... / RR-XXXXXX) are kept as
+Customers are matched by email, then by phone (so a customer who left out
+their email once is still one person). Original references (sub_... / RR-XXXXXX) are kept as
 the submission code so existing emails and tracking links still match.
 """
 import csv, json, os, re, sys

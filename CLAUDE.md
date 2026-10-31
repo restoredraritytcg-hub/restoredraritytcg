@@ -130,8 +130,9 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    submission codes). Old references (`sub_…`, `RR-XXXXXX`) kept as `submissions.code`; Cloudinary URLs stored
    as photo paths (`mediaUrl` passes absolute URLs through). Sheet statuses: Submission Received→submitted,
    In Queue→received, In Progress→in_progress, Ready to Ship / Pick Up→ready. First run (Oct 2026) skipped
-   Tung Ha's duplicate `sub_1790523531181_rh90ar` and 3 cards with no submission. OUT_DIR has customer
-   details — never commit it (repo is public).
+   a customer's duplicate `sub_1790523531181_rh90ar` and 3 cards with no submission. OUT_DIR has customer
+   details — never commit it (repo is public). **No customer names in this file or code comments** — use
+   submission codes (RR-…) instead.
 4. Owner setup reference (see README.md): create Supabase project, run `schema.sql`, create admin user + `insert into admins`,
    disable public sign-ups, fill `portal/config.js`, deploy.
 5. **Verified on Windows (Oct 24, 2026):** Chrome's `showDirectoryPicker` opens and watches the Google Drive
@@ -201,8 +202,8 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    fallback for `crypto.randomUUID`. Verified locally against the live project with harmless invalid requests only.
    Fixed `index.html` handed to the owner (`Downloads\RR website fix 2026-10-26\`) to upload via GitHub web —
    not yet confirmed live. Catch-up import built Oct 26 from fresh exports
-   (`Downloads\RR import 2026-10-26\import.sql`): adds RR-PE98Y8 (Alfonso), RR-B37QLP (Tim Franciskovich),
-   RR-AJ3T6A (Ramon Duran), RR-JJMY7X (Houston Trading Society, no email) — 4 customers, 16 cards, 19 photos;
+   (`Downloads\RR import 2026-10-26\import.sql`): adds RR-PE98Y8, RR-B37QLP,
+   RR-AJ3T6A, RR-JJMY7X (no email) — 4 customers, 16 cards, 19 photos;
    the other 30 submissions are skipped as already present. Waiting for the owner to run it.
    Not yet verified: a real end-to-end submission from a phone after the fix is live.
 
@@ -295,6 +296,15 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    **Uploaded Oct 28 (~2:11 PM CT, `ad479af`), verified live:** all 6 files in `portal/`; view.html loads again (fake
    token → "link isn't valid" message via Supabase), so the customer-link outage from items 12–13 is over;
    check.html loads. Waiting on the owner's real phone-photo test.
+
+15. **Oct 30, 2026: everything moved to GitHub `main`** so the owner can work from their other computer (Mac).
+   Before this, the work lived on the Windows PC's local branch `fix/intake-portal-direct`; only `CLAUDE.md` and
+   `desktop-scanner/cardcrop.py` differed from main (the portal files were already uploaded). Customer names were
+   removed from `CLAUDE.md` and `tools/import_sheet.py` first (one name was already public in older commits).
+   Not in the repo on purpose: the owner's `Downloads\RR import …` folders (customer data) and Claude's local
+   memory on the Windows PC (its one lesson — merge origin/main before handing out files — is in item 12).
+   Habits that also apply on the Mac: `git pull` before starting (the owner edits main on GitHub's website), and
+   prefer committing + pushing over handing files to upload once git is signed in there.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
