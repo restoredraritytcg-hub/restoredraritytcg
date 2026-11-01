@@ -24,7 +24,7 @@ function lab(r, g, b, out, o) {
   out[o + 1] = 500 * (f3(X) - fy) + 128;
   out[o + 2] = 200 * (fy - f3(Z)) + 128;
 }
-function toLab(img) {
+export function toLab(img) {
   const n = img.width * img.height, out = new Float32Array(n * 3), d = img.data;
   for (let i = 0, j = 0; i < n; i++, j += 4) lab(d[j], d[j + 1], d[j + 2], out, i * 3);
   return out;
@@ -49,7 +49,7 @@ function boxCount(src, w, h, r, horizontal) {
   }
   return out;
 }
-function morph(mask, w, h, size, dilate) {
+export function morph(mask, w, h, size, dilate) {
   const r = (size - 1) >> 1;
   const pass = (m, horizontal) => {
     const c = boxCount(m, w, h, r, horizontal), out = new Uint8Array(w * h);
@@ -62,7 +62,7 @@ function morph(mask, w, h, size, dilate) {
   };
   return pass(pass(mask, true), false);
 }
-function fillHoles(mask, w, h) {
+export function fillHoles(mask, w, h) {
   const seen = new Uint8Array(w * h), stack = [];
   const push = (i) => { if (!mask[i] && !seen[i]) { seen[i] = 1; stack.push(i); } };
   for (let x = 0; x < w; x++) { push(x); push((h - 1) * w + x); }
@@ -76,7 +76,7 @@ function fillHoles(mask, w, h) {
   for (let i = 0; i < w * h; i++) out[i] = seen[i] ? 0 : 1;
   return out;
 }
-function otsu(v) {
+export function otsu(v) {
   const hist = new Float64Array(256); for (const x of v) hist[x]++;
   const n = v.length; let sum = 0; for (let i = 0; i < 256; i++) sum += i * hist[i];
   let wB = 0, sB = 0, best = 0, t = 0;
