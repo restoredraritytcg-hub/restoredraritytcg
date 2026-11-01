@@ -17,6 +17,7 @@ const SIDES = [["front", "Front"], ["back", "Back"]];
 const CORNERS = P.CORNERS, EDGES = P.EDGES;
 const CLOSEUP_MIN = 800;            // eBay wants >= 500 px; close-ups are enlarged to this
 const WEB_LONG = 1600;              // eBay's recommended photo size
+const ORIG_LONG = 2400;             // copy of the original photo kept so the card edges can be re-done any time
 const app = () => $("#app");
 const st = { session: null, profile: null, cards: null, ed: null, gen: 0 };
 // Views await data; if the user has moved on meanwhile, they must not draw over the new page.
@@ -41,7 +42,7 @@ function cropOf(src, [x, y, w, h]) {
   const c = P.canvas(Math.max(1, w), Math.max(1, h));
   c.getContext("2d").drawImage(src, x, y, w, h, 0, 0, w, h); return c;
 }
-const filesOf = (f) => (f ? [f.web, f.thumb, ...Object.values(f.corners || {}), ...Object.values(f.edges || {})].filter(Boolean) : []);
+const filesOf = (f) => (f ? [f.web, f.thumb, f.original, ...Object.values(f.corners || {}), ...Object.values(f.edges || {})].filter(Boolean) : []);
 const badge = (c) => (c && window.RRCentering ? window.RRCentering.badge(c) : "");
 const slug = (s) => String(s || "card").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9]+/g, "-")
   .replace(/^-|-$/g, "").slice(0, 50) || "card";
@@ -271,19 +272,21 @@ async function renderSide(side) {
     const r = pend.res;
     img = `<img class="cardimg" src="${esc(pend.preview)}" alt="">`;
     info = r.ok ? `<span class="muted small">${r.dpi} dpi · not saved yet</span> ${badge(r.centering)}`
-      : `<span class="warn">⚠ Couldn't find the card's edges. Use <b>Adjust corners</b> to place them.</span>`;
+      : `<span class="warn">⚠ Couldn't find the card's edges. Tap <b>⌖ Edges</b> and drag the 4 dots onto its corners.</span>`;
     tools = `${r.ok ? `<button class="btn sm" data-a="turn">↻ Turn upside down</button>` : ""}
-      <button class="btn sm" data-a="corners">⌖ Adjust corners</button>
-      ${r.ok ? `<button class="btn sm" data-a="center">📐 Centering</button>` : ""}
+      <button class="btn sm ${r.ok ? "" : "gold"}" data-a="corners" title="Drag the card's 4 corners; the card is straightened and measured again">⌖ Edges</button>
+      ${r.ok ? `<button class="btn sm" data-a="center" title="Drag the border lines (centering)">📐 Borders</button>` : ""}
       <button class="btn sm danger" data-a="drop">✕ Discard</button>`;
     if (r.ok) close = closeups(Object.fromEntries([...CORNERS].map((c) => [c, pend.closeUrls[c]])));
   } else if (saved) {
     const urls = await api.urls([saved.web, ...CORNERS.map((c) => saved.corners?.[c])]);
     if (st.ed !== ed) return;
     img = `<img class="cardimg" src="${esc(urls[saved.web])}" alt="">`;
-    info = saved.ok === false ? `<span class="warn">⚠ The card's edges weren't found in this photo. Retake it with the card on a plain, dark surface.</span>`
+    info = saved.ok === false ? `<span class="warn">⚠ The card's edges weren't found. Tap <b>⌖ Edges</b> and drag the 4 dots onto its corners, or retake the photo.</span>`
       : `<span class="muted small">${saved.dpi ? saved.dpi + " dpi" : ""}</span> ${badge(saved.centering)}`;
-    tools = `${saved.centering ? '<button class="btn sm" data-a="center">📐 Centering</button>' : ""}
+    tools = `<button class="btn sm ${saved.ok === false ? "gold" : ""}" data-a="edges" title="Drag the card's 4 corners; the card is straightened and measured again">⌖ Edges</button>
+      ${saved.original && saved.ok !== false ? '<button class="btn sm" data-a="turnsaved">↻ Turn upside down</button>' : ""}
+      ${saved.centering ? '<button class="btn sm" data-a="center" title="Drag the border lines (centering)">📐 Borders</button>' : ""}
       <button class="btn sm danger" data-a="remove">🗑 Remove</button>`;
     close = closeups(Object.fromEntries(CORNERS.map((c) => [c, urls[saved.corners?.[c]]])));
   } else {
@@ -322,6 +325,22 @@ async function sideAction(side, a, file) {
       await refreshPending(side);
     }
     if (a === "center") openCentering(side);
+    if (a === "edges" || a === "turnsaved") {
+      // Re-do a saved side from its kept original photo (older cards, or ones saved without a card edge,
+      // only have the saved picture: then the corners are placed on that).
+      const f = ed.saved[side];
+      busy(side, "Opening the photo…");
+      const bmp = await createImageBitmap(await api.getFile(f.original || f.web));
+      let q = f.original && f.quad ? f.quad.map(([x, y]) => [x * bmp.width, y * bmp.height]) : null;
+      if (a === "turnsaved") q = Ph.rotateQuad(q, 2);
+      else q = await adjustCorners(bmp, q);
+      if (!q) { bmp.close(); renderSide(side); return; }
+      busy(side, "Straightening…"); await tick();
+      dropPending(side);
+      ed.pending[side] = { bmp, res: await Ph.processImage(bmp, q), preview: "", closeUrls: {} };
+      await refreshPending(side);
+      toast("Looks right? Tap Save card.", 4000);
+    }
   } catch (e) {
     toast(a === "file" ? "Couldn't read that picture (" + e.message + "). Try a JPG or PNG." : e.message, 6000);
     if (st.ed === ed) renderSide(side);
@@ -454,7 +473,8 @@ function adjustCorners(bmp, quad) {
 }
 
 // One side's processed images go to <user>/<card>/<side>_*_<version>.jpg in the private bucket.
-async function uploadSide(base, side, r, ver) {
+// src = the photo the card was found in: a reduced copy is kept, with the card's corners, for re-doing edges.
+async function uploadSide(base, side, r, ver, src = null) {
   const put = async (name, c, q = 0.92) => api.putFile(`${base}/${side}_${name}_${ver}.jpg`, await toBlob(c, "image/jpeg", q));
   const f = { ok: r.ok, dpi: r.dpi, boxes: r.boxes, corners: {}, edges: {}, source: "photo" };
   if (r.centering) f.centering = r.centering;
@@ -464,6 +484,11 @@ async function uploadSide(base, side, r, ver) {
   if (r.ok) {
     for (const k of CORNERS) jobs.push(put(`corner-${k}`, cropOf(r.canvas, r.regions[k])).then((p) => { f.corners[k] = p; }));
     for (const k of EDGES) jobs.push(put(`edge-${k}`, cropOf(r.canvas, r.regions[k])).then((p) => { f.edges[k] = p; }));
+  }
+  if (src) {
+    const o = resized(src, ORIG_LONG);
+    jobs.push(put("original", o, 0.85).then((p) => { f.original = p; }));
+    if (r.quad) f.quad = r.quad.map(([x, y]) => [Math.round(x / src.width * 1e5) / 1e5, Math.round(y / src.height * 1e5) / 1e5]);
   }
   await Promise.all(jobs);
   return f;
@@ -485,7 +510,7 @@ async function saveCard(btn, next = false) {
     const sides = structuredClone(ed.saved);
     for (const [k] of SIDES) {
       if (ed.pending[k]) {
-        const f = await uploadSide(base, k, ed.pending[k].res, ver);
+        const f = await uploadSide(base, k, ed.pending[k].res, ver, ed.pending[k].bmp);
         uploaded.push(...filesOf(f)); stale.push(...filesOf(sides[k])); sides[k] = f;
       } else if (ed.removed[k]) { stale.push(...filesOf(sides[k])); delete sides[k]; }
     }
@@ -556,8 +581,10 @@ async function addOne(it) {
   try { bmp = await createImageBitmap(it.file, { imageOrientation: "from-image" }); }
   catch { try { bmp = await createImageBitmap(it.file); } catch { throw new Error("This picture type can't be opened here — save it as JPG or PNG."); } }
   await tick();
-  let res;
-  try { res = await Ph.processImage(bmp); } finally { bmp.close(); }
+  try { await addProcessed(it, bmp); } finally { bmp.close(); }
+}
+async function addProcessed(it, bmp) {
+  const res = await Ph.processImage(bmp);
   it.thumb = URL.createObjectURL(await toBlob(resized(res.canvas, 200), "image/jpeg", 0.8));
   it.ok = res.ok;
   const ver = new Date().toISOString().replace(/\D/g, "").slice(0, 14);
@@ -565,14 +592,14 @@ async function addOne(it) {
   if (it.fresh) q.open = null;
   if (q.pairs && q.open) {                                  // the back of the card we just started
     const card = q.open; q.open = null;
-    const f = await uploadSide(`${user}/${card.id}`, "back", res, ver);
+    const f = await uploadSide(`${user}/${card.id}`, "back", res, ver, bmp);
     try { await api.updateCard(card.id, { sides: { ...card.sides, back: f } }); }
     catch (e) { api.removeFiles(filesOf(f)).catch(() => {}); throw e; }
     it.side = "back"; it.cardNo = card.no; it.cardId = card.id;
     return;
   }
   const id = uid();
-  const f = await uploadSide(`${user}/${id}`, "front", res, ver);
+  const f = await uploadSide(`${user}/${id}`, "front", res, ver, bmp);
   let row;
   try { row = await api.insertCard({ id, sides: { front: f } }); }
   catch (e) { api.removeFiles(filesOf(f)).catch(() => {}); throw e; }

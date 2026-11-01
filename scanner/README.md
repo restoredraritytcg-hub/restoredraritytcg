@@ -17,9 +17,14 @@ A standalone web app for anyone (not just Restored Rarity customers). It works o
 3. **Finish** (`#/todo`): cards without a name, or whose card edge wasn't found, are listed under **To finish**.
    Start typing a name, pick the card from the list, then **Save & next**. The app finds the card, undoes the
    camera angle (perspective), crops it to an exact 2.5 × 3.5 in card, cuts **close-ups of all 4 corners and
-   4 edges**, and **measures centering** (the same 8-point method as the portal). Users can fine-tune the
-   centering lines, swap front and back, or retake a side. "Add a single card" (`#/new`) also lets them drag
-   the corner dots and turn the card upside down before saving.
+   4 edges**, and **measures centering** (the same 8-point method as the portal).
+   Everything can be corrected by hand, on any card, at any time:
+   - **⌖ Edges**: drag the 4 dots onto the card's corners (a magnifier shows what's under your finger). The
+     card is then straightened, cropped and measured again from those corners. This works on saved cards
+     because a reduced copy of the original photo (2400 px, about 0.3–0.5 MB) is kept with the card's
+     corners (`files.original`, `files.quad`).
+   - **📐 Borders**: drag the centering lines (gold = card edge, cyan = inner edge of the border).
+   - **↻ Turn upside down** and **⇄ Swap front/back**.
 4. **Download for eBay**: a .zip per card (or one .zip for several cards, a folder each) with:
    - `01_front.jpg`, `02_back.jpg`: straightened, 1600 px (eBay's recommended size)
    - `03…10`: corner close-ups (enlarged to 800 px; eBay needs at least 500)
@@ -73,9 +78,9 @@ example Gmail or Resend.
 
 - Each account can hold **200 cards** (`profiles.card_limit`). To raise one person's limit, run in the SQL editor:
   `update profiles set card_limit = 500 where id = (select id from auth.users where email = 'them@example.com');`
-- A card uses roughly **1–1.5 MB** of storage (front + back + 16 close-ups), so a full 200-card account is
-  about 300 MB. The free tier's 1 GB fills after a few active users. **Supabase Pro ($25/month)** includes
-  100 GB, enough for a few hundred full accounts.
+- A card uses roughly **2 MB** of storage (front + back, 16 close-ups and the kept original photos), so a full
+  200-card account is about 400 MB. The free tier's 1 GB fills after a couple of active users. **Supabase Pro ($25/month)** includes
+  100 GB, enough for about 250 full accounts.
 - Photos are in a **private** bucket. Each user can only read, add or delete files under their own folder,
   and the app shows them through links that expire after an hour.
 

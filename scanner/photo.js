@@ -90,12 +90,79 @@ export function orderQuad(q) {
 }
 export const rotateQuad = (q, quarterTurns) => { const k = ((quarterTurns % 4) + 4) % 4; return [...q.slice(k), ...q.slice(0, k)]; };
 
-// Finds the card in a bitmap. Returns its 4 corners in full-resolution px (TL, TR, BR, BL) or null.
-export function findQuad(bmp) {
-  const s = Math.min(1, P.DETECT_MAX_SIDE / Math.max(bmp.width, bmp.height));
-  const img = P.getData(bmp, Math.max(1, Math.round(bmp.width * s)), Math.max(1, Math.round(bmp.height * s)));
-  const comps = P.components(P.foregroundMask(img), img.width, img.height)
-    .filter((c) => c.area > img.width * img.height * 0.03 && c.pts.length >= 20);
+// Phone photos are rarely evenly lit: a window or lamp makes one side of the table brighter and lenses
+// darken the corners. The scan mask compares every pixel with ONE background colour, so on such photos
+// the bright side of the table looks like "card". Here the background is a smooth surface (quadratic in
+// x and y, per Lab channel) fitted to the photo's outer band, refitted without outliers (a card that
+// touches the edge), and each pixel is compared with the background expected at its own position.
+function solve(A, B) {                                   // small dense system, Gaussian elimination
+  const n = B.length;
+  for (let c = 0; c < n; c++) {
+    let piv = c; for (let r = c + 1; r < n; r++) if (Math.abs(A[r][c]) > Math.abs(A[piv][c])) piv = r;
+    [A[c], A[piv]] = [A[piv], A[c]]; [B[c], B[piv]] = [B[piv], B[c]];
+    if (Math.abs(A[c][c]) < 1e-12) return null;
+    for (let r = 0; r < n; r++) {
+      if (r === c) continue;
+      const f = A[r][c] / A[c][c];
+      for (let k = c; k < n; k++) A[r][k] -= f * A[c][k];
+      B[r] -= f * B[c];
+    }
+  }
+  return B.map((v, i) => v / A[i][i]);
+}
+export function photoMask(img) {
+  const { width: w, height: h } = img, L = P.toLab(img);
+  const b = Math.max(3, Math.floor(Math.min(w, h) * 0.03));
+  const feat = (x, y) => { const u = x / w - 0.5, v = y / h - 0.5; return [1, u, v, u * u, v * v, u * v]; };
+  let samples = [];
+  for (let y = 0; y < h; y += 2) for (let x = 0; x < w; x += 2)
+    if (y < b || y >= h - b || x < b || x >= w - b) samples.push([x, y]);
+  let coef = null;
+  for (let pass = 0; pass < 3; pass++) {
+    const AtA = [...Array(6)].map(() => new Float64Array(6)), Atb = [0, 1, 2].map(() => new Float64Array(6));
+    for (const [x, y] of samples) {
+      const f = feat(x, y), o = (y * w + x) * 3;
+      for (let i = 0; i < 6; i++) { for (let j = 0; j < 6; j++) AtA[i][j] += f[i] * f[j]; for (let c = 0; c < 3; c++) Atb[c][i] += f[i] * L[o + c]; }
+    }
+    const next = [0, 1, 2].map((c) => solve(AtA.map((r) => Array.from(r)), Array.from(Atb[c])));
+    if (next.some((x) => !x)) break;
+    coef = next;
+    const res = samples.map(([x, y]) => { const f = feat(x, y), o = (y * w + x) * 3;
+      return Math.hypot(...[0, 1, 2].map((c) => L[o + c] - f.reduce((s2, fi, i) => s2 + fi * coef[c][i], 0))); });
+    const med = Float32Array.from(res).sort()[res.length >> 1];
+    const keep = samples.filter((_, i) => res[i] <= Math.max(4, 3 * med));
+    if (keep.length < 50 || keep.length === samples.length) break;
+    samples = keep;
+  }
+  if (!coef) return P.foregroundMask(img);
+  const d8 = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const f = feat(x, y), i = y * w + x, o = i * 3;
+    let s2 = 0;
+    for (let c = 0; c < 3; c++) { const e = L[o + c] - (f[0] * coef[c][0] + f[1] * coef[c][1] + f[2] * coef[c][2] + f[3] * coef[c][3] + f[4] * coef[c][4] + f[5] * coef[c][5]); s2 += e * e; }
+    d8[i] = Math.min(255, Math.floor(Math.sqrt(s2) * 2));
+  }
+  // Threshold: Otsu, capped just above the table's own variation. A textured table under uneven light
+  // varies more on its bright side, so use the second-busiest side of the outer band (one side may
+  // touch the card, so not the busiest).
+  const p99 = (vals) => { vals.sort((p, q) => p - q); return vals[Math.floor(vals.length * 0.99)]; };
+  const strip = (x0, y0, x1, y1) => { const v = []; for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) v.push(d8[y * w + x]); return v; };
+  const sides = [p99(strip(0, 0, w, b)), p99(strip(0, h - b, w, h)), p99(strip(0, 0, b, h)), p99(strip(w - b, 0, w, h))].sort((p, q) => p - q);
+  return finishMask(d8, w, h, Math.max(30, Math.min(P.otsu(d8), sides[2] + 20)));
+}
+function finishMask(d8, w, h, t) {
+  let m = new Uint8Array(w * h); for (let i = 0; i < w * h; i++) m[i] = d8[i] > t ? 1 : 0;
+  const k = Math.max(3, Math.floor(Math.min(h, w) * 0.006)) | 1;
+  m = P.morph(P.morph(m, w, h, k * 3, true), w, h, k * 3, false);   // close
+  m = P.morph(P.morph(m, w, h, k, false), w, h, k, true);           // open
+  return P.fillHoles(m, w, h);
+}
+
+// Largest card-shaped object in a mask: four straight sides that cover the shape, roughly 5:7 even
+// when seen at an angle. Returns its rough quad + edge pixels, or null.
+function bestCard(mask, w, h) {
+  // not almost the whole frame: that's a busy background (playmat, noise) mistaken for one big shape
+  const comps = P.components(mask, w, h).filter((c) => c.area > w * h * 0.03 && c.area < w * h * 0.85 && c.pts.length >= 20);
   let best = null;
   for (const c of comps) {
     const H = hull(c.pts); if (H.length < 4) continue;
@@ -104,10 +171,18 @@ export function findQuad(bmp) {
     const hullArea = H.reduce((acc, a, i) => { const b = H[(i + 1) % H.length]; return acc + a[0] * b[1] - b[0] * a[1]; }, 0) / 2;
     const o = orderQuad(q);
     const ar = ((dist(o[1], o[2]) + dist(o[3], o[0])) / 2) / ((dist(o[0], o[1]) + dist(o[2], o[3])) / 2);
-    // card-like: four straight sides that cover the shape, roughly 5:7 even when seen at an angle
     if (quadArea < Math.abs(hullArea) * 0.9 || ar < 1.1 || ar > 1.9) continue;
     if (!best || c.area > best.c.area) best = { c, q };
   }
+  return best;
+}
+
+// Finds the card in a bitmap. Returns its 4 corners in full-resolution px (TL, TR, BR, BL) or null.
+// Tries the lighting-aware photo mask first, then the scan mask (one flat background colour).
+export function findQuad(bmp) {
+  const s = Math.min(1, P.DETECT_MAX_SIDE / Math.max(bmp.width, bmp.height));
+  const img = P.getData(bmp, Math.max(1, Math.round(bmp.width * s)), Math.max(1, Math.round(bmp.height * s)));
+  const best = bestCard(photoMask(img), img.width, img.height) || bestCard(P.foregroundMask(img), img.width, img.height);
   if (!best) return null;
   return orderQuad(refineQuad(best.q, best.c.pts)).map(([x, y]) => [(x + 0.5) / s, (y + 0.5) / s]);
 }
