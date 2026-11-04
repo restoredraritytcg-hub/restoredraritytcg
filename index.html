@@ -583,6 +583,35 @@
     border:1px dashed var(--line); border-radius:var(--radius); margin-top:14px;
   }
 
+  /* Announcement bar (edited in the admin portal) */
+  .announce{display:flex; align-items:center; gap:8px; background:linear-gradient(135deg, var(--orange), var(--yellow)); color:#20140a;
+    font-size:13px; font-weight:600; line-height:1.45; padding:8px 12px 8px 16px;}
+  .announce-inner{flex:1; min-width:0; max-width:var(--maxw); margin:0 auto; text-align:center;}
+  .announce a{color:#20140a; font-weight:800; text-decoration:underline; margin-left:6px; white-space:nowrap;}
+  .announce-x{flex-shrink:0; background:transparent; border:none; color:#20140a; font-size:20px; line-height:1; cursor:pointer; padding:4px 6px; opacity:.7;}
+  .announce-x:hover{opacity:1;}
+
+  /* News (edited in the admin portal) */
+  .news-list{display:grid; gap:14px;}
+  .news-card{background:var(--bg-panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;}
+  .news-card.pinned{border-color:var(--yellow);}
+  .news-card img{width:100%; max-height:340px; object-fit:cover; background:#000;}
+  .news-body{padding:16px;}
+  .news-date{font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--orange); font-weight:700;}
+  .news-card h3{font-size:16px; margin:6px 0 8px; color:var(--white); line-height:1.4;}
+  .news-text{font-size:14px; color:var(--muted); line-height:1.65; white-space:pre-line; margin:0;}
+  .news-link{display:inline-block; margin-top:12px; font-size:13px; font-weight:700; color:var(--cyan); text-decoration:none;}
+  .news-link:hover{text-decoration:underline;}
+  .news-more{margin-top:16px;}
+
+  /* Instagram (posts picked in the admin portal) */
+  .ig-grid{display:grid; gap:16px; justify-items:center;}
+  .ig-grid .instagram-media{margin:0 auto !important; min-width:0 !important; width:100% !important; max-width:420px !important;
+    background:var(--white) !important; border-radius:var(--radius) !important;}
+  .ig-follow{display:flex; align-items:center; justify-content:center; gap:10px; margin:20px auto 0; max-width:420px; text-decoration:none;}
+  .ig-follow svg{width:18px; height:18px; flex-shrink:0;}
+  .ig-fallback{display:block; padding:18px; text-align:center; color:#20140a; font-weight:700; text-decoration:none;}
+
   /* FAQ */
   .faq-item{
     background:var(--bg-panel); border:1px solid var(--line); border-radius:var(--radius);
@@ -920,6 +949,8 @@
 
     /* Reviews */
     .rv-list{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px;}
+    .news-list{grid-template-columns:repeat(2, minmax(0,1fr));}
+    .ig-grid{grid-template-columns:repeat(2, minmax(0,1fr));}
     .rv-text{font-size:14px;}
     .rv-form-wrap{max-width:720px;}
 
@@ -939,6 +970,8 @@
   @media (min-width:1200px){
     #gallery{grid-template-columns:repeat(3, minmax(0,1fr));}
     .rv-list{grid-template-columns:repeat(3, minmax(0,1fr));}
+    .news-list{grid-template-columns:repeat(3, minmax(0,1fr)); align-items:start;}
+    .ig-grid{grid-template-columns:repeat(3, minmax(0,1fr)); align-items:start;}
   }
   /* Hover affordances only where there is a mouse */
   @media (hover:hover) and (min-width:900px){
@@ -950,11 +983,16 @@
 
 <div id="site-root">
   <header>
+    <div class="announce" id="announce" role="status" hidden>
+      <div class="announce-inner"><span id="announce-text"></span><a id="announce-link" hidden></a></div>
+      <button type="button" class="announce-x" id="announce-x" aria-label="Dismiss announcement">&times;</button>
+    </div>
     <div class="header-inner">
       <a href="#top" class="brand">
         <span class="brand-name"><span class="r1">RESTORED</span><span class="r2">RARITY</span></span>
       </a>
       <nav class="header-nav">
+        <a href="#news" id="nav-news" hidden>News</a>
         <a href="#about">About</a>
         <a href="#gallery">Gallery</a>
         <a href="#pricing">Pricing</a>
@@ -1009,6 +1047,18 @@
     </div>
     <div id="shows-list"><div class="shows-empty">No upcoming shows scheduled right now — check back soon, or follow on Instagram for updates.</div></div>
   </section>
+
+  <div id="news-wrap" hidden>
+    <div class="divider wrap"></div>
+    <section id="news" class="wrap">
+      <div class="section-head">
+        <h2 class="pixel" style="font-size:15px;">News</h2>
+        <p>Updates from the bench.</p>
+      </div>
+      <div class="news-list" id="news-list"></div>
+      <button type="button" class="btn btn-outline btn-block news-more" id="news-more" hidden>SHOW OLDER POSTS</button>
+    </section>
+  </div>
 
   <div class="divider wrap"></div>
 
@@ -1199,10 +1249,10 @@
     </div></div>
 
     <div class="ladder-group-label" style="margin-top:36px;">Card value surcharge</div>
-    <p style="font-size:13px; color:var(--muted); margin:0 0 12px; line-height:1.6;">
+    <p id="surcharge-free-text" style="font-size:13px; color:var(--muted); margin:0 0 12px; line-height:1.6;">
       For cards with a card value of $250 or less, no value surcharge applies.
     </p>
-    <p style="font-size:13px; color:var(--muted); margin:0 0 4px; line-height:1.6;">
+    <p id="surcharge-text" style="font-size:13px; color:var(--muted); margin:0 0 4px; line-height:1.6;">
       For repair services, a surcharge is added to the selected service price based on the card's estimated value (based on natural wear, excluding any damage; see below): 10% for cards between $251 and $1,500, and 12% for cards between $1,501 and $3,000, rounded up to the nearest dollar. Cards valued above $3,000 require a custom quote. Cleaning and evaluation services are never subject to a value surcharge.
     </p>
     <div class="surcharge-table" id="surcharge-table"><div class="surcharge-row surcharge-header"><span class="val">Card Value</span><span class="fee">Surcharge</span></div>
@@ -1228,7 +1278,7 @@
         <label for="calc-service">Service</label>
         <select id="calc-service"><option value="0">Card Cleaning — $10</option><option value="1">Card Cleaning + Scratch Repair — $15</option><option value="2">Grade-Ready Evaluation + Deep Clean — $20</option><option value="3">Base Repair — $35</option><option value="4">Major Repair — $50</option><option value="5">Slab Cracking — $15</option></select>
       </div>
-      <label class="addon-check" id="calc-crack-wrap" style="margin:-4px 0 16px;"><input type="checkbox" id="calc-crack"> Also crack the card out of a graded slab (+$10)</label>
+      <label class="addon-check" id="calc-crack-wrap" style="margin:-4px 0 16px;"><input type="checkbox" id="calc-crack"> Also crack the card out of a graded slab (+<span class="slab-addon-amt">$10</span>)</label>
       <div class="field">
         <label for="calc-qty">Number of cards</label>
         <input type="text" id="calc-qty" inputmode="numeric" placeholder="1" value="1">
@@ -1245,7 +1295,7 @@
         <div class="calc-line"><span id="calc-base-label">Base service</span><span id="calc-base">—</span></div>
         <div class="calc-line" id="calc-crack-line" style="display:none;"><span>Slab cracking add-on</span><span id="calc-crack-amt">—</span></div>
         <div class="calc-line" id="calc-surcharge-line" style="display:none;"><span id="calc-surcharge-label">Value surcharge</span><span id="calc-surcharge">—</span></div>
-        <div class="calc-line" id="calc-discount-line" style="display:none;"><span>Referral discount (10%)</span><span id="calc-discount">—</span></div>
+        <div class="calc-line" id="calc-discount-line" style="display:none;"><span>Referral discount (<span class="ref-pct">10%</span>)</span><span id="calc-discount">—</span></div>
         <div class="calc-line calc-total"><span>Estimated total</span><span id="calc-total">—</span></div>
       </div>
       <div class="calc-hint" id="calc-hint">This is an estimate. Final pricing is confirmed after evaluation.</div>
@@ -1659,6 +1709,21 @@
     </details>
   </section>
 
+  <div id="instagram-wrap" hidden>
+    <div class="divider wrap"></div>
+    <section id="instagram" class="wrap">
+      <div class="section-head">
+        <h2 class="pixel" style="font-size:15px;" id="ig-heading">On Instagram</h2>
+        <p id="ig-sub">Before-and-afters, works in progress and show updates.</p>
+      </div>
+      <div class="ig-grid" id="ig-grid"></div>
+      <a class="btn btn-primary ig-follow" id="ig-follow" href="https://instagram.com/restored.raritytcg" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>
+        <span id="ig-follow-text">FOLLOW @RESTORED.RARITYTCG</span>
+      </a>
+    </section>
+  </div>
+
   <div class="divider wrap"></div>
 
   <section id="faq" class="wrap">
@@ -1812,7 +1877,7 @@
 
   <footer>
     <div class="fname pixel" style="font-size:10px; color:var(--muted);">RESTORED RARITY</div>
-    <div class="fyear">© <span id="year"></span> · Card cleaning, repair &amp; grading prep <span style="opacity:.55;">· build v10-06b</span></div>
+    <div class="fyear">© <span id="year"></span> · Card cleaning, repair &amp; grading prep <span style="opacity:.55;">· build v11-04a</span></div>
   </footer>
 </div>
 
@@ -1825,7 +1890,7 @@ document.getElementById('year').textContent = new Date().getFullYear();
 const SUBMIT_ENDPOINT = "https://script.google.com/macros/s/AKfycbyB3lWxsrKg0hfSh4YvHG319jyenpPE1uljsiW1AcrQ328kDO6npH9mncOkellCYJVM/exec";
 
 /* ---------- Referral codes ---------- */
-const REFERRAL_DISCOUNT = 0.10;
+let REFERRAL_DISCOUNT = 0.10;
 let validReferralCodes = new Set();
 let referralCodesLoaded = false;
 
@@ -1854,7 +1919,7 @@ function checkReferralInput(){
     return;
   }
   if(validReferralCodes.has(code)){
-    referralMsg.textContent = '✓ Code applied — 10% off your first use.';
+    referralMsg.textContent = `✓ Code applied — ${Math.round(REFERRAL_DISCOUNT * 100)}% off your first use.`;
     referralMsg.className = 'referral-msg ok';
   } else {
     referralMsg.textContent = "Code not recognized — you can still submit, we'll double check on our end.";
@@ -1870,7 +1935,7 @@ referralInput.addEventListener('blur', checkReferralInput);
 /* Upcoming shows. Add one per line, e.g.
    { date: "2026-11-14", endDate: "2026-11-15", name: "Show name", location: "Venue, address", time: "Sat 9 AM – 5 PM", link: "https://..." },
    Shows disappear automatically the day after their end date. */
-const SHOWS = [
+let SHOWS = [
 ];
 
 function formatShowDate(dateStr, endDateStr){
@@ -1885,6 +1950,10 @@ function formatShowDate(dateStr, endDateStr){
   }
   return { month, day: d };
 }
+
+/* Escaping + link check for text that comes from the admin portal */
+function siteEsc(v){ return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function siteUrl(u){ u = String(u || '').trim(); return /^https?:\/\//i.test(u) ? u : (u ? 'https://' + u.replace(/^\/+/, '') : ''); }
 
 function renderShows(){
   const el = document.getElementById('shows-list');
@@ -1903,44 +1972,57 @@ function renderShows(){
     const inner = `
       <div class="show-date"><span class="month">${month}</span><span class="day">${day}</span></div>
       <div class="show-info">
-        <div class="name">${s.name}</div>
-        <div class="loc">${s.location}</div>
-        ${s.time ? `<div class="loc">${s.time}</div>` : ''}
+        <div class="name">${siteEsc(s.name)}</div>
+        <div class="loc">${siteEsc(s.location)}</div>
+        ${s.time ? `<div class="loc">${siteEsc(s.time)}</div>` : ''}
         ${s.link ? `<div class="link-label">Details / directions →</div>` : ''}
       </div>
     `;
     return s.link
-      ? `<a class="show-card" href="${s.link}" target="_blank" rel="noopener">${inner}</a>`
+      ? `<a class="show-card" href="${siteEsc(siteUrl(s.link))}" target="_blank" rel="noopener">${inner}</a>`
       : `<div class="show-card">${inner}</div>`;
   }).join('');
 }
 renderShows();
 
 /* ---------- Pricing data (edit here to change prices/text) ---------- */
-const CLEAN_TIERS = [
+let CLEAN_TIERS = [
   {price:"$10", title:"Card Cleaning", type:"clean", bulk:true, sub:"Bulk pricing: $8/card for 21–40 cards, $6/card for 41+ cards.", desc:"A meticulous cleaning performed under magnification to safely lift dirt, grime, fingerprints, and surface buildup while restoring the card's natural presentation and holo brilliance. Does not include scratch repair or buffing."},
   {price:"$15", title:"Card Cleaning + Scratch Repair", type:"clean", desc:"Everything included in our Card Cleaning service, with additional surface refinement and precision buffing to reduce visible scratches, scuffs, and holo wear while preserving the card's original finish."},
   {price:"$20", title:"Grade-Ready Evaluation + Deep Clean", type:"clean", desc:"Our most comprehensive grading-prep service. Includes a detailed evaluation under magnification, deep cleaning, scratch and surface refinement, identification and correction of addressable surface defects, and minor corner or edge flattening where appropriate. Your card is cleaned, evaluated, refined, and ready to submit."}
 ];
-const REPAIR_TIERS = [
+let REPAIR_TIERS = [
   {price:"$35", title:"Base Repair", type:"repair", desc:"Targeted restoration for localized damage, including minor corner or edge lifting, dents or gouges under \u00bc inch, and creases under \u00bd inch. Each repair is carefully addressed to stabilize the affected area and restore the card as close as possible to its original appearance."},
   {price:"$50", title:"Major Repair", type:"repair", desc:"Advanced restoration for significant damage, including major corner or edge lifting, delamination or layer separation, dents or gouges over \u00bc inch, and creases over \u00bd inch. Designed for cards requiring more extensive techniques, additional working time, or multiple rounds of restoration to achieve the best result possible."}
 ];
-const ADDON_TIERS = [
+let ADDON_TIERS = [
   {price:"$15", title:"Slab Cracking", type:"addon", sub:"Only $10 when combined with another service.", desc:"Careful removal of your card from a graded slab so it can be cleaned, restored, or resubmitted. The slab is opened with care to protect the card's surface, edges, and corners."}
 ];
 /* Bulk Card Cleaning: $10/card (1–20), $8/card (21–40), $6/card (41+) */
-function bulkCleaningPrice(qty){ return qty > 40 ? 6 : qty > 20 ? 8 : 10; }
-const SLAB_CRACK_SOLO = 15, SLAB_CRACK_ADDON = 10;
+/* Rules the admin portal can change (Website → Prices). These are the defaults. */
+let PRICE_RULES = {
+  bulk: [{ min: 21, price: 8 }, { min: 41, price: 6 }],      // per-card price for the bulk cleaning tier
+  slabAddon: 10,                                              // slab cracking added to another service
+  surcharge: [{ upTo: 250, rate: 0 }, { upTo: 1500, rate: 10 }, { upTo: 3000, rate: 12 }],  // % of card value; above the last = custom quote
+  referral: 10                                                // referral code discount, %
+};
+function bulkCleaningPrice(qty){
+  const t = CLEAN_TIERS.find(x => x.bulk);
+  let p = t ? Number(t.price.replace(/[^0-9.]/g, '')) : 10;
+  [...PRICE_RULES.bulk].sort((a, b) => a.min - b.min).forEach(b => { if(qty >= b.min) p = b.price; });
+  return p;
+}
+let SLAB_CRACK_SOLO = 15, SLAB_CRACK_ADDON = 10;
 /* Surcharge policy: 0 at $250 or under; 10% of card value (rounded up) for $251\u2013$1,500;
    12% for $1,501\u2013$3,000; custom quote above $3,000. */
 function surchargeForValue(value){
-  if(!value || value <= 250) return 0;
-  if(value > 3000) return null;
-  const rate = value > 1500 ? 0.12 : 0.10;
-  return Math.ceil(value * rate);
+  const tiers = PRICE_RULES.surcharge;
+  if(!value) return 0;
+  if(value > tiers[tiers.length - 1].upTo) return null;
+  const t = tiers.find(x => value <= x.upTo);
+  return t && t.rate ? Math.ceil(value * t.rate / 100) : 0;
 }
-const SURCHARGE_DISPLAY_ROWS = [
+let SURCHARGE_DISPLAY_ROWS = [
   {range:"$250 or less", fee:"No Surcharge"},
   {range:"$251 – $1,500", fee:"10% of card value"},
   {range:"$1,501 – $3,000", fee:"12% of card value"},
@@ -1971,7 +2053,7 @@ document.getElementById('surcharge-table').innerHTML = surchargeHeaderRow + SURC
 document.getElementById('surcharge-note').textContent = SURCHARGE_NOTE;
 
 /* ---------- Price calculator ---------- */
-const ALL_TIERS = [...CLEAN_TIERS, ...REPAIR_TIERS, ...ADDON_TIERS];
+let ALL_TIERS = [...CLEAN_TIERS, ...REPAIR_TIERS, ...ADDON_TIERS];
 const calcServiceSelect = document.getElementById('calc-service');
 calcServiceSelect.innerHTML = ALL_TIERS.map((t, i) => `<option value="${i}">${t.title} — ${t.price}</option>`).join('');
 
@@ -2495,7 +2577,7 @@ rvForm.addEventListener('submit', async (e) => {
 function serviceOptionsHtml(){
   return '<option value="" disabled selected>Choose a tier</option>' +
     [...CLEAN_TIERS, ...REPAIR_TIERS, ...ADDON_TIERS].map(t => {
-      const label = t.bulk ? `${t.title} — ${t.price} (bulk: $8 at 21+, $6 at 41+)` : t.type === 'addon' ? `${t.title} only — ${t.price}` : `${t.title} — ${t.price}`;
+      const label = t.bulk ? `${t.title} — ${t.price}${bulkShortText()}` : t.type === 'addon' ? `${t.title} only — ${t.price}` : `${t.title} — ${t.price}`;
       const val = t.type === 'addon' ? `${t.title} only (${t.price})` : `${t.title} (${t.price})`;
       return `<option value="${val}">${label}</option>`;
     }).join('');
@@ -2579,7 +2661,7 @@ function cardEntryTemplate(id){
       <div class="field">
         <label for="f-service-${id}">Service wanted <span class="req">*</span></label>
         <select id="f-service-${id}" required>${serviceOptionsHtml()}</select>
-        <label class="addon-check" id="f-crack-wrap-${id}"><input type="checkbox" id="f-crack-${id}"> This card is in a graded slab — crack it out (+$10)</label>
+        <label class="addon-check" id="f-crack-wrap-${id}"><input type="checkbox" id="f-crack-${id}"> This card is in a graded slab — crack it out (+<span class="slab-addon-amt">$${SLAB_CRACK_ADDON}</span>)</label>
       </div>
       <div class="field">
         <label for="f-notes-${id}">Notes on damage / what you'd like done</label>
@@ -3216,6 +3298,222 @@ termsAgreeBtn.addEventListener('click', acceptTerms);
 termsUndoBtn.addEventListener('click', resetTerms);
 window.addEventListener('resize', checkTermsScroll);
 checkTermsScroll();
+/* =====================================================================
+   Website content from the admin portal (Website section).
+   Prices, announcement bar, news, shows and Instagram posts are saved in
+   Supabase (site_content) and read here with the public site_get() call.
+   The values written in this file stay as the defaults, so the site still
+   works if that call fails. The last copy is kept in this browser so the
+   next visit shows it straight away.
+   ===================================================================== */
+const SITE_CACHE_KEY = 'rr-site-content-v1';
+function money(n){ return '$' + Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 }); }  // a function so the order form can use it before this point
+
+function bulkShortText(){
+  const b = [...PRICE_RULES.bulk].sort((x, y) => x.min - y.min);
+  return b.length ? ' (bulk: ' + b.map(r => `${money(r.price)} at ${r.min}+`).join(', ') + ')' : '';
+}
+function bulkLongText(){
+  const b = [...PRICE_RULES.bulk].sort((x, y) => x.min - y.min);
+  if(!b.length) return '';
+  return 'Bulk pricing: ' + b.map((r, i) => {
+    const next = b[i + 1];
+    return `${money(r.price)}/card for ${next ? `${r.min}–${next.min - 1}` : `${r.min}+`} cards`;
+  }).join(', ') + '.';
+}
+function surchargeRowsFromRules(){
+  const t = PRICE_RULES.surcharge, rows = [];
+  t.forEach((x, i) => {
+    const from = i === 0 ? null : t[i - 1].upTo + 1;
+    rows.push({ range: from === null ? `${money(x.upTo)} or less` : `${money(from)} – ${money(x.upTo)}`,
+                fee: x.rate ? `${x.rate}% of card value` : 'No Surcharge' });
+  });
+  rows.push({ range: `Over ${money(t[t.length - 1].upTo)}`, fee: 'Custom Quote' });
+  return rows;
+}
+function surchargeSentence(){
+  const t = PRICE_RULES.surcharge, last = t[t.length - 1];
+  const parts = t.map((x, i) => x.rate ? `${x.rate}% for cards between ${money(i ? t[i - 1].upTo + 1 : 0)} and ${money(x.upTo)}` : null).filter(Boolean);
+  const list = parts.length > 1 ? parts.slice(0, -1).join(', ') + ', and ' + parts[parts.length - 1] : (parts[0] || 'no surcharge');
+  return `For repair services, a surcharge is added to the selected service price based on the card's estimated value (based on natural wear, excluding any damage; see below): ${list}, rounded up to the nearest dollar. Cards valued above ${money(last.upTo)} require a custom quote. Cleaning and evaluation services are never subject to a value surcharge.`;
+}
+
+/* Apply the "prices" section: { services:[{title,price,type,desc,sub,bulk}], bulk, slabAddon, surcharge, referral } */
+function applyPrices(pr){
+  if(!pr || !Array.isArray(pr.services) || !pr.services.length) return;
+  const clean = v => Math.max(0, Number(v) || 0);
+  if(Array.isArray(pr.bulk)) PRICE_RULES.bulk = pr.bulk.map(b => ({ min: Math.max(2, Math.round(clean(b.min))), price: clean(b.price) })).filter(b => b.min);
+  if(pr.slabAddon != null) PRICE_RULES.slabAddon = clean(pr.slabAddon);
+  if(Array.isArray(pr.surcharge) && pr.surcharge.length) PRICE_RULES.surcharge = pr.surcharge.map(x => ({ upTo: clean(x.upTo), rate: clean(x.rate) })).sort((a, b) => a.upTo - b.upTo);
+  if(pr.referral != null) PRICE_RULES.referral = clean(pr.referral);
+
+  const tier = x => ({ price: money(clean(x.price)), title: String(x.title || '').trim(), type: x.type,
+                       bulk: !!x.bulk, sub: x.sub ? String(x.sub) : '', desc: String(x.desc || '') });
+  const svc = pr.services.filter(x => x && x.title && ['clean', 'repair', 'addon'].includes(x.type)).map(tier);
+  CLEAN_TIERS = svc.filter(x => x.type === 'clean');
+  REPAIR_TIERS = svc.filter(x => x.type === 'repair');
+  ADDON_TIERS = svc.filter(x => x.type === 'addon');
+  SLAB_CRACK_ADDON = PRICE_RULES.slabAddon;
+  const slab = ADDON_TIERS[0];
+  SLAB_CRACK_SOLO = slab ? Number(slab.price.replace(/[^0-9.]/g, '')) : SLAB_CRACK_SOLO;
+  REFERRAL_DISCOUNT = PRICE_RULES.referral / 100;
+  // Automatic notes under the bulk tier and the slab add-on (typed notes are kept after them)
+  CLEAN_TIERS.forEach(t => { if(t.bulk) t.sub = [bulkLongText(), t.sub].filter(Boolean).join(' '); });
+  if(slab) slab.sub = [`Only ${money(SLAB_CRACK_ADDON)} when combined with another service.`, slab.sub].filter(Boolean).join(' ');
+  [...CLEAN_TIERS, ...REPAIR_TIERS, ...ADDON_TIERS].forEach(t => { t.title = siteEsc(t.title); t.desc = siteEsc(t.desc); t.sub = siteEsc(t.sub); });
+
+  renderLadder('ladder-clean', CLEAN_TIERS);
+  renderLadder('ladder-repair', REPAIR_TIERS);
+  renderLadder('ladder-addon', ADDON_TIERS);
+  SURCHARGE_DISPLAY_ROWS = surchargeRowsFromRules();
+  document.getElementById('surcharge-table').innerHTML = surchargeHeaderRow + SURCHARGE_DISPLAY_ROWS.map(r =>
+    `<div class="surcharge-row"><span class="val">${r.range}</span><span class="fee">${r.fee}</span></div>`).join('');
+  const first = PRICE_RULES.surcharge[0];
+  const freeP = document.getElementById('surcharge-free-text');
+  if(freeP){ freeP.hidden = !!first.rate; freeP.textContent = `For cards with a card value of ${money(first.upTo)} or less, no value surcharge applies.`; }
+  const sP = document.getElementById('surcharge-text'); if(sP) sP.textContent = surchargeSentence();
+  document.querySelectorAll('.slab-addon-amt').forEach(el => { el.textContent = money(SLAB_CRACK_ADDON); });
+  document.querySelectorAll('.ref-pct').forEach(el => { el.textContent = PRICE_RULES.referral + '%'; });
+
+  // Calculator: keep the same service picked if it still exists
+  const prevCalc = (ALL_TIERS[Number(calcServiceSelect.value)] || {}).title;
+  ALL_TIERS = [...CLEAN_TIERS, ...REPAIR_TIERS, ...ADDON_TIERS];
+  calcServiceSelect.innerHTML = ALL_TIERS.map((t, i) => `<option value="${i}">${t.title} — ${t.price}</option>`).join('');
+  const keep = ALL_TIERS.findIndex(t => t.title === prevCalc);
+  calcServiceSelect.value = String(keep >= 0 ? keep : 0);
+  runCalculator();
+
+  // Order form: refresh every card's service list, keeping the choice where possible
+  document.querySelectorAll('select[id^="f-service-"]').forEach(sel => {
+    const prevTitle = (sel.value || '').replace(/ only \(.*$| \(.*$/, '');
+    sel.innerHTML = serviceOptionsHtml();
+    const match = [...sel.options].find(o => o.value && o.value.replace(/ only \(.*$| \(.*$/, '') === prevTitle);
+    if(match) sel.value = match.value;
+  });
+}
+
+/* Announcement bar: { on, text, link, linkText, until:"YYYY-MM-DD" } */
+function applyAnnouncement(a){
+  const bar = document.getElementById('announce');
+  const today = new Date().toISOString().slice(0, 10);
+  const live = a && a.on && String(a.text || '').trim() && !(a.until && a.until < today);
+  let dismissed = '';
+  try{ dismissed = localStorage.getItem('rr-announce-dismissed') || ''; }catch(_){}
+  const sig = live ? String(a.text).trim() + '|' + (a.link || '') : '';
+  if(!live || dismissed === sig){ bar.hidden = true; return; }
+  document.getElementById('announce-text').textContent = String(a.text).trim();
+  const link = document.getElementById('announce-link');
+  const url = siteUrl(a.link);
+  link.hidden = !url;
+  if(url){
+    link.href = url;
+    link.textContent = (a.linkText || 'Learn more') + ' →';
+    if(/^#/.test(String(a.link).trim())) link.href = String(a.link).trim();
+    else { link.target = '_blank'; link.rel = 'noopener'; }
+  }
+  bar.hidden = false;
+  document.getElementById('announce-x').onclick = () => {
+    bar.hidden = true;
+    try{ localStorage.setItem('rr-announce-dismissed', sig); }catch(_){}
+  };
+}
+
+/* News: [{ id, date, title, body, image, link, linkText, published, pinned }] */
+function applyNews(items){
+  const wrap = document.getElementById('news-wrap');
+  const posts = (Array.isArray(items) ? items : []).filter(n => n && n.published !== false && (n.title || n.body))
+    .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || String(b.date || '').localeCompare(String(a.date || '')));
+  wrap.hidden = !posts.length;
+  document.getElementById('nav-news').hidden = !posts.length;
+  if(!posts.length) return;
+  const fmt = d => { const [y, m, dd] = String(d || '').split('-').map(Number); return y ? new Date(y, m - 1, dd).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : ''; };
+  const card = n => {
+    const url = siteUrl(n.link);
+    const img = /^https:\/\//i.test(n.image || '') ? `<img src="${siteEsc(n.image)}" alt="" loading="lazy">` : '';
+    return `<article class="news-card${n.pinned ? ' pinned' : ''}">${img}<div class="news-body">
+      <div class="news-date">${n.pinned ? '📌 ' : ''}${siteEsc(fmt(n.date))}</div>
+      ${n.title ? `<h3>${siteEsc(n.title)}</h3>` : ''}
+      ${n.body ? `<p class="news-text">${siteEsc(n.body)}</p>` : ''}
+      ${url ? `<a class="news-link" href="${siteEsc(url)}" target="_blank" rel="noopener">${siteEsc(n.linkText || 'Read more')} →</a>` : ''}
+    </div></article>`;
+  };
+  const list = document.getElementById('news-list'), more = document.getElementById('news-more');
+  const SHOW = 3;
+  list.innerHTML = posts.slice(0, SHOW).map(card).join('');
+  more.hidden = posts.length <= SHOW;
+  more.onclick = () => { list.innerHTML = posts.map(card).join(''); more.hidden = true; };
+}
+
+/* Shows: same fields as SHOWS above */
+function applyShows(list){
+  if(!Array.isArray(list)) return;
+  SHOWS = list.filter(s => s && s.date && s.name);
+  renderShows();
+}
+
+/* Instagram: { on, handle, heading, sub, posts:["https://www.instagram.com/p/…/", …] } */
+let igScriptRequested = false;
+function applyInstagram(ig){
+  const wrap = document.getElementById('instagram-wrap');
+  if(!ig || !ig.on){ wrap.hidden = true; return; }
+  const handle = String(ig.handle || 'restored.raritytcg').replace(/^@/, '').trim();
+  const posts = (Array.isArray(ig.posts) ? ig.posts : []).map(u => {
+    const m = String(u || '').match(/instagram\.com\/(?:[A-Za-z0-9_.]+\/)?(p|reel|tv)\/([A-Za-z0-9_-]+)/);
+    return m ? `https://www.instagram.com/${m[1]}/${m[2]}/` : null;
+  }).filter(Boolean).slice(0, 6);
+  document.getElementById('ig-heading').textContent = ig.heading || 'On Instagram';
+  document.getElementById('ig-sub').textContent = ig.sub || 'Before-and-afters, works in progress and show updates.';
+  const follow = document.getElementById('ig-follow');
+  follow.href = 'https://instagram.com/' + encodeURIComponent(handle);
+  document.getElementById('ig-follow-text').textContent = 'FOLLOW @' + handle.toUpperCase();
+  const grid = document.getElementById('ig-grid');
+  grid.innerHTML = posts.map(u => `<blockquote class="instagram-media" data-instgrm-permalink="${u}?utm_source=ig_embed" data-instgrm-version="14">
+    <a class="ig-fallback" href="${u}" target="_blank" rel="noopener">View this post on Instagram →</a></blockquote>`).join('');
+  grid.hidden = !posts.length;
+  wrap.hidden = false;
+  if(!posts.length) return;
+  const load = () => {
+    if(window.instgrm && window.instgrm.Embeds){ window.instgrm.Embeds.process(); return; }
+    if(igScriptRequested) return;
+    igScriptRequested = true;
+    const sc = document.createElement('script'); sc.async = true; sc.src = 'https://www.instagram.com/embed.js';
+    document.body.appendChild(sc);
+  };
+  if('IntersectionObserver' in window){
+    const io = new IntersectionObserver(es => { if(es.some(e => e.isIntersecting)){ io.disconnect(); load(); } }, { rootMargin: '600px' });
+    io.observe(wrap);
+  } else load();
+}
+
+function applySiteContent(c){
+  if(!c || typeof c !== 'object') return;
+  const run = (name, fn, v) => { try{ fn(v); }catch(e){ console.warn('Site content: ' + name + ' skipped', e); } };
+  if(c.prices) run('prices', applyPrices, c.prices);
+  run('announcement', applyAnnouncement, c.announcement);
+  run('news', applyNews, c.news);
+  if(c.shows) run('shows', applyShows, c.shows);
+  run('instagram', applyInstagram, c.instagram);
+}
+
+(function loadSiteContent(){
+  if(/[?&]nocms\b/.test(location.search)) return;   // ?nocms shows the built-in defaults only
+  let cached = null;
+  try{ cached = JSON.parse(localStorage.getItem(SITE_CACHE_KEY) || 'null'); }catch(_){}
+  if(cached) applySiteContent(cached);
+  const cfg = window.RR_CONFIG || {};
+  if(!cfg.supabaseUrl || !cfg.supabaseAnonKey || /YOUR-/.test(cfg.supabaseUrl + cfg.supabaseAnonKey)) return;
+  fetch(cfg.supabaseUrl.replace(/\/$/, '') + '/rest/v1/rpc/site_get', {
+    method: 'POST',
+    headers: { apikey: cfg.supabaseAnonKey, Authorization: 'Bearer ' + cfg.supabaseAnonKey, 'Content-Type': 'application/json' },
+    body: '{}'
+  }).then(r => r.ok ? r.json() : null).then(c => {
+    if(!c || typeof c !== 'object') return;
+    const fresh = JSON.stringify(c);
+    try{ localStorage.setItem(SITE_CACHE_KEY, fresh); }catch(_){}
+    if(!cached || JSON.stringify(cached) !== fresh) applySiteContent(c);
+  }).catch(err => console.warn('Site content not loaded (using built-in content)', err));
+})();
+
 </script>
 </body>
 </html>
