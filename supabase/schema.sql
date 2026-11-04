@@ -60,6 +60,8 @@ create index if not exists submissions_customer_idx on public.submissions (custo
 alter table public.submissions add column if not exists emailed_status text check (emailed_status in
   ('submitted','received','in_progress','restored','ready','completed'));
 alter table public.submissions add column if not exists emailed_at timestamptz;
+-- Your discount on the order's quote ("10%" or "15"), set in the admin portal's Quote panel.
+alter table public.submissions add column if not exists quote_discount text not null default '';
 
 -- ----------------------------------------------------------------- cards
 create table if not exists public.cards (

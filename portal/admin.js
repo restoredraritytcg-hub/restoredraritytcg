@@ -2,6 +2,7 @@
 import { api, DEMO, esc, $, $$, pill, STATUSES, renderReport, wireReport, thumbOf, mediaUrl, fmtDate,
   fmtDateTime, installLightbox, installHint, toast, customerLink, progressSteps, STAGE_LABEL } from "./common.js";
 import * as U from "./scanupload.js";
+import { sitePage, quotePanel, wireQuote } from "./site.js";
 
 const app = $("#app");
 let S = null; // { customers, submissions, cards, scans, photos }
@@ -140,7 +141,10 @@ async function reload() { S = await api.loadAll(); }
 function route() {
   const [page, id] = location.hash.replace(/^#\/?/, "").split("/");
   $$("[data-nav]").forEach((a) => a.classList.toggle("on", a.dataset.nav === (page || "")));
-  const pages = { "": dashboard, cards: allCards, customers, customer, submission, card, new: newSubmission };
+  // On phones the tabs are one swipeable row: keep the current one in view.
+  $("[data-nav].on")?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  const pages = { "": dashboard, cards: allCards, customers, customer, submission, card, new: newSubmission,
+    site: (tab) => sitePage(app, tab) };
   (pages[page] || dashboard)(decodeURIComponent(id || ""));
 }
 const go = (h) => { if (location.hash === h) route(); else location.hash = h; };
@@ -354,7 +358,7 @@ function submission(id) {
     <div class="row"><h1 class="grow">${esc(s.code)}</h1>${pill(s.status)}</div>
     <div class="meta"><span>Customer <b><a href="#/customer/${c.id}">${esc(c.name)}</a></b></span>
       <span>Received <b>${esc(fmtDate(s.created_at))}</b></span><span><b>${cards.length}</b> cards</span></div>
-    ${progressSteps(s.status)}${emailBar(s)}
+    ${progressSteps(s.status)}${emailBar(s)}${quotePanel()}
     <div class="panel" style="margin-top:14px"><div class="grid2">
       <div><label class="f">Status</label>${statusSelect("ss", s.status)}
         <label class="small" style="display:block;margin-top:6px"><input type="checkbox" id="sall" checked> Also set every card to this status</label></div>
@@ -386,6 +390,7 @@ function submission(id) {
   $$("[data-go]").forEach((r) => r.onclick = (e) => { if (!e.target.closest("a")) go(r.dataset.go); });
   window.RRCardSearch?.attach($("#kn"), { details: $("#kd") });
   wireEmailBar(s);
+  wireQuote(s, cards);
   wirePhotosAdmin({ customer: c, cards, submissionId: id });
   $("#ssave").onclick = async () => {
     try {

@@ -1219,7 +1219,9 @@ function portalQuote_(record) {
     if (!row) {
       // Order made in the portal only: price the cards the portal sends ({num, card, service, value, status, override}).
       if (record.cards && record.cards.length) {
-        var q = computeQuote_(record.cards, { referral: !!record.referral, discount: record.discount || '' });
+        var disc = record.discount !== undefined ? record.discount : (record.savedDiscount || '');
+        var refOk = record.referralCode ? isValidReferralCode(record.referralCode) : !!record.referral;
+        var q = computeQuote_(record.cards, { referral: refOk, discount: disc || '' });
         q.cards.forEach(function (l, k) { l.card = String(record.cards[k].card || 'Card'); });
         return { success: true, quote: q, onSheet: false };
       }

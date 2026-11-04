@@ -35,4 +35,7 @@ returns jsonb language sql stable security definer set search_path = public as $
 $$;
 grant execute on function public.site_get() to anon, authenticated;
 
+-- Your discount on an order's quote (e.g. "10%" or "15"), set from the order's Quote panel.
+alter table public.submissions add column if not exists quote_discount text not null default '';
+
 select key, updated_at, updated_by from public.site_content order by key;

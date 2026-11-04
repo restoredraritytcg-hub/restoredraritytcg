@@ -328,6 +328,7 @@ export const realApi = {
     return must(await (await sb()).from(table).upsert(row, { onConflict }).select().single());
   },
   async newLink(customerId) { return must(await (await sb()).rpc("admin_new_link", { p_customer: customerId })); },
+  async select(table) { return fetchAll(await sb(), table); },
 };
 
 // Demo backend: in-memory copy of demo/demo-data.js so the portal can be
@@ -376,12 +377,14 @@ export const demoApi = {
   async putFile(path, blob) { return URL.createObjectURL(blob); },
   async upsert(table, row, onConflict) {
     const d = demoStore(), keys = onConflict.split(",");
+    d[table] ||= [];
     const ex = d[table].find((r) => keys.every((k) => r[k] === row[k]));
     if (ex) { Object.assign(ex, row); return ex; }
     const r = { id: uid(), ...row }; d[table].push(r); return r;
   },
   async newLink(customerId) { const c = demoStore().customers.find((x) => x.id === customerId);
     c.share_token = uid().replace(/-/g, ""); return c.share_token; },
+  async select(table) { return [...(demoStore()[table] || [])]; },
 };
 
 export const api = DEMO ? demoApi : realApi;
