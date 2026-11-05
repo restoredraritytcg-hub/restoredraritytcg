@@ -130,3 +130,36 @@ img.zoom{cursor:zoom-in}
   .top nav::-webkit-scrollbar{display:none}
   .top nav a{white-space:nowrap;padding:6px 10px}
 }
+
+/* ---- Website section (site.js) ---- */
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 16px;border-bottom:1px solid var(--line);padding-bottom:10px}
+.tabs a{padding:6px 12px;border-radius:999px;text-decoration:none;color:var(--fg);font-size:14px;border:1px solid transparent}
+.tabs a.on{background:var(--panel);color:var(--gold);border-color:var(--line)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-wrap:wrap}
+.seg button{background:transparent;border:0;padding:7px 12px;color:var(--muted);cursor:pointer;font-size:14px}
+.seg button.on{background:var(--panel);color:var(--gold)}
+.switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none;font-size:14px}
+.switch input{position:absolute;opacity:0;width:1px;height:1px}
+.switch .track{width:42px;height:24px;border-radius:999px;background:#2a3753;position:relative;flex-shrink:0;transition:background .15s}
+.switch .track::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#cfd8e6;transition:left .15s}
+.switch input:checked + .track{background:var(--green)}
+.switch input:checked + .track::after{left:21px;background:#fff}
+.switch input:focus-visible + .track{outline:2px solid var(--cyan);outline-offset:2px}
+.switch input:disabled + .track{opacity:.5}
+.panel.rv.is-on{border-color:rgba(74,222,128,.55)}
+.stars{color:var(--gold);letter-spacing:1px;font-size:14px}
+.stars .off{color:#3a4866}
+.money{display:inline-flex;align-items:center;gap:2px}
+.money span{color:var(--muted)}
+.money input{width:90px}
+.sticky-save{position:sticky;bottom:0;background:var(--bg);padding:12px 0;margin-top:16px;border-top:1px solid var(--line);z-index:2}
+.ann-preview{background:linear-gradient(135deg,#f68a1e,#ffd23f);color:#20140a;font-weight:600;font-size:13px;padding:9px 14px;
+  border-radius:8px;text-align:center;line-height:1.45}
+.qline{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px}
+.qline > span:last-child{white-space:nowrap;font-weight:600}
+.qline.sub{color:var(--muted);border-bottom:0}
+.qline.minus > span:last-child{color:var(--green)}
+.qline.total{border-top:2px solid var(--line);border-bottom:0;font-size:18px;margin-top:2px}
+.qline.total > span:last-child{color:var(--gold)}
+.qnotes{margin:8px 0 0;padding-left:18px;color:var(--gold);font-size:13px}
+

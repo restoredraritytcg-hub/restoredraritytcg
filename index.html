@@ -199,6 +199,10 @@
   .tier-body .tier-sub{display:block; margin-top:6px; font-size:12px; color:var(--cyan);}
   .addon-check{display:flex; align-items:center; gap:10px; font-size:13px; color:var(--white); cursor:pointer; margin-top:10px;}
   .addon-check input{width:17px; height:17px; accent-color:var(--cyan); flex-shrink:0; cursor:pointer;}
+  .value-basis-note{margin-top:16px; padding:14px 16px; border-radius:var(--radius); border:1px solid var(--cyan); background:rgba(73,219,232,.07); font-size:13px; line-height:1.6; color:var(--muted);}
+  .value-basis-note .vb-title{color:var(--cyan); font-weight:700; font-size:13px; margin-bottom:6px;}
+  .value-basis-note p{margin:0 0 8px;}
+  .value-basis-note p:last-child{margin-bottom:0;}
   .calc-panel{
     background:var(--bg-panel); border:1px solid var(--line); border-radius:var(--radius);
     padding:20px; margin-top:16px;
@@ -579,6 +583,35 @@
     border:1px dashed var(--line); border-radius:var(--radius); margin-top:14px;
   }
 
+  /* Announcement bar (edited in the admin portal) */
+  .announce{display:flex; align-items:center; gap:8px; background:linear-gradient(135deg, var(--orange), var(--yellow)); color:#20140a;
+    font-size:13px; font-weight:600; line-height:1.45; padding:8px 12px 8px 16px;}
+  .announce-inner{flex:1; min-width:0; max-width:var(--maxw); margin:0 auto; text-align:center;}
+  .announce a{color:#20140a; font-weight:800; text-decoration:underline; margin-left:6px; white-space:nowrap;}
+  .announce-x{flex-shrink:0; background:transparent; border:none; color:#20140a; font-size:20px; line-height:1; cursor:pointer; padding:4px 6px; opacity:.7;}
+  .announce-x:hover{opacity:1;}
+
+  /* News (edited in the admin portal) */
+  .news-list{display:grid; gap:14px;}
+  .news-card{background:var(--bg-panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;}
+  .news-card.pinned{border-color:var(--yellow);}
+  .news-card img{width:100%; max-height:340px; object-fit:cover; background:#000;}
+  .news-body{padding:16px;}
+  .news-date{font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--orange); font-weight:700;}
+  .news-card h3{font-size:16px; margin:6px 0 8px; color:var(--white); line-height:1.4;}
+  .news-text{font-size:14px; color:var(--muted); line-height:1.65; white-space:pre-line; margin:0;}
+  .news-link{display:inline-block; margin-top:12px; font-size:13px; font-weight:700; color:var(--cyan); text-decoration:none;}
+  .news-link:hover{text-decoration:underline;}
+  .news-more{margin-top:16px;}
+
+  /* Instagram (posts picked in the admin portal) */
+  .ig-grid{display:grid; gap:16px; justify-items:center;}
+  .ig-grid .instagram-media{margin:0 auto !important; min-width:0 !important; width:100% !important; max-width:420px !important;
+    background:var(--white) !important; border-radius:var(--radius) !important;}
+  .ig-follow{display:flex; align-items:center; justify-content:center; gap:10px; margin:20px auto 0; max-width:420px; text-decoration:none;}
+  .ig-follow svg{width:18px; height:18px; flex-shrink:0;}
+  .ig-fallback{display:block; padding:18px; text-align:center; color:#20140a; font-weight:700; text-decoration:none;}
+
   /* FAQ */
   .faq-item{
     background:var(--bg-panel); border:1px solid var(--line); border-radius:var(--radius);
@@ -835,17 +868,131 @@
   @media (min-width:600px){
     .hero-ctas{flex-wrap:nowrap;}
   }
+
+  /* ================= Desktop & tablet layout (phones unchanged) ================= */
+  @media (min-width:900px){
+    :root{--maxw:1120px;}
+    .wrap{padding:0 32px;}
+    section{padding:64px 0 8px;}
+    .divider{margin-top:56px;}
+
+    /* Header */
+    .header-inner{padding:14px 32px;}
+    .brand-name{font-size:12px;}
+    .header-nav{gap:26px; overflow:visible;}
+    .header-nav a{font-size:13px;}
+
+    /* Section headings */
+    .section-head{margin-bottom:28px;}
+    .section-head h2{font-size:20px !important;}
+    .section-head p{font-size:15px; max-width:680px;}
+
+    /* Hero: image beside the headline */
+    .hero{
+      display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); align-items:center; gap:48px;
+      max-width:var(--maxw); margin:0 auto; padding:32px 32px 8px; text-align:left;
+    }
+    .hero-frame{
+      /* soft fade on all four edges so the artwork melts into the page background */
+      -webkit-mask-image:
+        linear-gradient(to right, transparent 0%, #000 11%, #000 89%, transparent 100%),
+        linear-gradient(to bottom, transparent 0%, #000 11%, #000 91%, transparent 100%);
+      -webkit-mask-composite:source-in;
+              mask-image:
+        linear-gradient(to right, transparent 0%, #000 11%, #000 89%, transparent 100%),
+        linear-gradient(to bottom, transparent 0%, #000 11%, #000 91%, transparent 100%);
+              mask-composite:intersect;
+    }
+    .hero-frame{mix-blend-mode:lighten;}
+    .hero-text{padding:0; margin:0; max-width:none;}
+    .hero-headline{font-size:26px; line-height:1.7;}
+    .intro-text{font-size:18px; max-width:none; margin:16px 0 0;}
+    .hero-ctas{justify-content:flex-start; margin-top:32px; gap:14px;}
+    .btn{font-size:12px; padding:15px 22px;}
+    .btn-block{display:block;}
+
+    /* Promo strip keeps the page gutter */
+    .cc-promo{width:calc(100% - 64px); max-width:calc(var(--maxw) - 64px); margin-top:32px; padding:18px 22px;}
+    .cc-promo-title{font-size:12px;}
+    .cc-promo-sub{font-size:14px;}
+
+    /* Shows */
+    #shows-list{display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:16px;}
+    #shows-list .show-card{margin-top:0;}
+
+    /* About: two readable columns */
+    .about-copy{column-count:2; column-gap:56px;}
+    .about-copy p{font-size:15px; break-inside:avoid;}
+    .about-copy .closing{column-span:all; margin-top:8px;}
+
+    /* Gallery grid */
+    #gallery{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px; align-items:start;}
+    #gallery > .section-head, #gallery > .gallery-note{grid-column:1 / -1;}
+    #gallery .gallery-card{margin-top:0;}
+
+    /* Pricing: list on the left, calculator pinned on the right */
+    .pricing-layout{display:grid; grid-template-columns:minmax(0,1fr) 380px; gap:48px; align-items:start;}
+    .pricing-aside{position:sticky; top:110px;}
+    .pricing-aside .ladder-group-label{margin-top:0 !important;}
+    .tier-body h3{font-size:15px;}
+    .tier-body p{font-size:14px;}
+    .bulk-table{max-width:460px;}
+
+    /* Submission form: contact details | cards */
+    .form-grid{display:grid; grid-template-columns:minmax(0,0.85fr) minmax(0,1.15fr); gap:36px; align-items:start;}
+    .form-col-cards .card-entry:first-child{margin-top:0;}
+    .card-panel{padding:28px 32px;}
+    .terms-embed-scroll{max-height:380px;}
+
+    /* Tracker */
+    #track .card-panel{max-width:880px;}
+
+    /* Reviews */
+    .rv-list{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px;}
+    .news-list{grid-template-columns:repeat(2, minmax(0,1fr));}
+    .ig-grid{grid-template-columns:repeat(2, minmax(0,1fr));}
+    .rv-text{font-size:14px;}
+    .rv-form-wrap{max-width:720px;}
+
+    /* FAQ: two columns */
+    #faq{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px; align-items:start;}
+    #faq > .section-head{grid-column:1 / -1;}
+    #faq .faq-item{margin-top:0;}
+    .faq-answer{font-size:14px;}
+
+    /* Contact: Instagram + email/phone side by side */
+    #contact{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:16px 24px; align-items:stretch;}
+    #contact > .section-head{grid-column:1 / -1; margin-bottom:8px;}
+    #contact .ig-block, #contact .contact-list{margin-top:0;}
+
+    footer{padding:56px 32px 40px;}
+  }
+  @media (min-width:1200px){
+    #gallery{grid-template-columns:repeat(3, minmax(0,1fr));}
+    .rv-list{grid-template-columns:repeat(3, minmax(0,1fr));}
+    .news-list{grid-template-columns:repeat(3, minmax(0,1fr)); align-items:start;}
+    .ig-grid{grid-template-columns:repeat(3, minmax(0,1fr)); align-items:start;}
+  }
+  /* Hover affordances only where there is a mouse */
+  @media (hover:hover) and (min-width:900px){
+    .gallery-card:hover, .faq-item:hover, .rv-card:hover{border-color:var(--blue-light);}
+  }
 </style>
 </head>
 <body>
 
 <div id="site-root">
   <header>
+    <div class="announce" id="announce" role="status" hidden>
+      <div class="announce-inner"><span id="announce-text"></span><a id="announce-link" hidden></a></div>
+      <button type="button" class="announce-x" id="announce-x" aria-label="Dismiss announcement">&times;</button>
+    </div>
     <div class="header-inner">
       <a href="#top" class="brand">
         <span class="brand-name"><span class="r1">RESTORED</span><span class="r2">RARITY</span></span>
       </a>
       <nav class="header-nav">
+        <a href="#news" id="nav-news" hidden>News</a>
         <a href="#about">About</a>
         <a href="#gallery">Gallery</a>
         <a href="#pricing">Pricing</a>
@@ -898,8 +1045,20 @@
       <h2 class="pixel" style="font-size:15px;">Upcoming shows</h2>
       <p>Connect with me in person to hand off your card for restoration.</p>
     </div>
-    <div id="shows-list"></div>
+    <div id="shows-list"><div class="shows-empty">No upcoming shows scheduled right now — check back soon, or follow on Instagram for updates.</div></div>
   </section>
+
+  <div id="news-wrap" hidden>
+    <div class="divider wrap"></div>
+    <section id="news" class="wrap">
+      <div class="section-head">
+        <h2 class="pixel" style="font-size:15px;">News</h2>
+        <p>Updates from the bench.</p>
+      </div>
+      <div class="news-list" id="news-list"></div>
+      <button type="button" class="btn btn-outline btn-block news-more" id="news-more" hidden>SHOW OLDER POSTS</button>
+    </section>
+  </div>
 
   <div class="divider wrap"></div>
 
@@ -1019,19 +1178,43 @@
       <p>Every tier below builds on services offered from the previous. Pick the one that matches how far your card needs to go.</p>
     </div>
 
+    <div class="pricing-layout">
+    <div class="pricing-main">
     <div class="price-notice" role="note">
       <span class="pn-tag">NOTICE</span>
       <div>
         <b>Pricing update, effective October 1, 2026:</b> repair tier prices have increased, and card-value surcharge thresholds have been adjusted.
         <ul>
           <li>Base Repair is now <b>$35</b> and Major Repair is now <b>$50</b>.</li>
-          <li>Repair surcharges now start at <b>$251</b> Near Mint value, with a new <b>8%</b> tier for cards valued $251–$500.</li>
+          <li>Repair surcharges now start at a card value of <b>$251</b>: <b>10%</b> up to $1,500 and <b>12%</b> from $1,501 to $3,000.</li>
         </ul>
       </div>
     </div>
 
     <div class="ladder-group-label">Cleaning &amp; grading prep</div>
-    <div class="ladder" id="ladder-clean"></div>
+    <div class="ladder" id="ladder-clean"><div class="tier">
+      <div class="tier-price pixel">$10</div>
+      <div class="tier-body">
+        <h3>Card Cleaning</h3>
+        <p>A meticulous cleaning performed under magnification to safely lift dirt, grime, fingerprints, and surface buildup while restoring the card's natural presentation and holo brilliance. Does not include scratch repair or buffing.<span class="tier-sub">Bulk pricing: $8/card for 21–40 cards, $6/card for 41+ cards.</span></p>
+      </div>
+    </div>
+  
+    <div class="tier">
+      <div class="tier-price pixel">$15</div>
+      <div class="tier-body">
+        <h3>Card Cleaning + Scratch Repair</h3>
+        <p>Everything included in our Card Cleaning service, with additional surface refinement and precision buffing to reduce visible scratches, scuffs, and holo wear while preserving the card's original finish.</p>
+      </div>
+    </div>
+  
+    <div class="tier">
+      <div class="tier-price pixel">$20</div>
+      <div class="tier-body">
+        <h3>Grade-Ready Evaluation + Deep Clean</h3>
+        <p>Our most comprehensive grading-prep service. Includes a detailed evaluation under magnification, deep cleaning, scratch and surface refinement, identification and correction of addressable surface defects, and minor corner or edge flattening where appropriate. Your card is cleaned, evaluated, refined, and ready to submit.</p>
+      </div>
+    </div></div>
     <div class="bulk-table" aria-label="Bulk cleaning pricing">
       <div class="surcharge-row surcharge-header"><span class="val">Bulk Card Cleaning</span><span class="fee">Per card</span></div>
       <div class="surcharge-row"><span class="val">1–20 cards</span><span class="fee">$10</span></div>
@@ -1040,34 +1223,68 @@
     </div>
 
     <div class="ladder-group-label" style="margin-top:36px;">Repairs</div>
-    <div class="ladder" id="ladder-repair"></div>
+    <div class="ladder" id="ladder-repair"><div class="tier">
+      <div class="tier-price pixel">$35</div>
+      <div class="tier-body">
+        <h3>Base Repair</h3>
+        <p>Targeted restoration for localized damage, including minor corner or edge lifting, dents or gouges under ¼ inch, and creases under ½ inch. Each repair is carefully addressed to stabilize the affected area and restore the card as close as possible to its original appearance.</p>
+      </div>
+    </div>
+  
+    <div class="tier">
+      <div class="tier-price pixel">$50</div>
+      <div class="tier-body">
+        <h3>Major Repair</h3>
+        <p>Advanced restoration for significant damage, including major corner or edge lifting, delamination or layer separation, dents or gouges over ¼ inch, and creases over ½ inch. Designed for cards requiring more extensive techniques, additional working time, or multiple rounds of restoration to achieve the best result possible.</p>
+      </div>
+    </div></div>
 
     <div class="ladder-group-label" style="margin-top:36px;">Additional services</div>
-    <div class="ladder" id="ladder-addon"></div>
+    <div class="ladder" id="ladder-addon"><div class="tier">
+      <div class="tier-price pixel">$15</div>
+      <div class="tier-body">
+        <h3>Slab Cracking</h3>
+        <p>Careful removal of your card from a graded slab so it can be cleaned, restored, or resubmitted. The slab is opened with care to protect the card's surface, edges, and corners.<span class="tier-sub">Only $10 when combined with another service.</span></p>
+      </div>
+    </div></div>
 
     <div class="ladder-group-label" style="margin-top:36px;">Card value surcharge</div>
-    <p style="font-size:13px; color:var(--muted); margin:0 0 12px; line-height:1.6;">
-      For cards valued at $250 or less in Near Mint condition, no value surcharge applies.
+    <p id="surcharge-free-text" style="font-size:13px; color:var(--muted); margin:0 0 12px; line-height:1.6;">
+      For cards with a card value of $250 or less, no value surcharge applies.
     </p>
-    <p style="font-size:13px; color:var(--muted); margin:0 0 4px; line-height:1.6;">
-      For repair services, a surcharge is added to the selected service price based on the card's current Near Mint TCG market value: 8% for cards between $251 and $500, 10% for cards between $501 and $1,500, and 12% for cards between $1,501 and $2,500, rounded up to the nearest dollar. Cards valued above $2,500 require a custom quote. Cleaning and evaluation services are never subject to a value surcharge.
+    <p id="surcharge-text" style="font-size:13px; color:var(--muted); margin:0 0 4px; line-height:1.6;">
+      For repair services, a surcharge is added to the selected service price based on the card's estimated value (based on natural wear, excluding any damage; see below): 10% for cards between $251 and $1,500, and 12% for cards between $1,501 and $3,000, rounded up to the nearest dollar. Cards valued above $3,000 require a custom quote. Cleaning and evaluation services are never subject to a value surcharge.
     </p>
-    <div class="surcharge-table" id="surcharge-table"></div>
-    <div class="surcharge-note" id="surcharge-note"></div>
+    <div class="surcharge-table" id="surcharge-table"><div class="surcharge-row surcharge-header"><span class="val">Card Value</span><span class="fee">Surcharge</span></div>
+  <div class="surcharge-row"><span class="val">$250 or less</span><span class="fee">No Surcharge</span></div>
+
+  <div class="surcharge-row"><span class="val">$251 – $1,500</span><span class="fee">10% of card value</span></div>
+
+  <div class="surcharge-row"><span class="val">$1,501 – $3,000</span><span class="fee">12% of card value</span></div>
+
+  <div class="surcharge-row"><span class="val">Over $3,000</span><span class="fee">Custom Quote</span></div></div>
+    <div class="surcharge-note" id="surcharge-note">Surcharges are calculated on the card's value and rounded up to the nearest dollar.</div>
+    <div class="value-basis-note" role="note">
+      <div class="vb-title">How estimated card value is determined</div>
+      <p>Your card&rsquo;s estimated value is based on its natural wear, excluding any damage. We use current market sales (comps) for that condition, so normal wear like whitening, edge wear or scratches outside the holo area counts toward the value, while damage such as creases, dents, bends, tears or holo scratches is left out.</p>
+      <p><b>Example:</b> a creased card that otherwise shows light edge wear is valued using sales of the same card with that light wear and no crease, not top-condition prices. You only pay a surcharge on what your card is realistically worth.</p>
+    </div>
+    </div>
+    <aside class="pricing-aside">
 
     <div class="ladder-group-label" style="margin-top:36px;">Price calculator</div>
     <div class="calc-panel">
       <div class="field">
         <label for="calc-service">Service</label>
-        <select id="calc-service"></select>
+        <select id="calc-service"><option value="0">Card Cleaning — $10</option><option value="1">Card Cleaning + Scratch Repair — $15</option><option value="2">Grade-Ready Evaluation + Deep Clean — $20</option><option value="3">Base Repair — $35</option><option value="4">Major Repair — $50</option><option value="5">Slab Cracking — $15</option></select>
       </div>
-      <label class="addon-check" id="calc-crack-wrap" style="margin:-4px 0 16px;"><input type="checkbox" id="calc-crack"> Also crack the card out of a graded slab (+$10)</label>
+      <label class="addon-check" id="calc-crack-wrap" style="margin:-4px 0 16px;"><input type="checkbox" id="calc-crack"> Also crack the card out of a graded slab (+<span class="slab-addon-amt">$10</span>)</label>
       <div class="field">
         <label for="calc-qty">Number of cards</label>
         <input type="text" id="calc-qty" inputmode="numeric" placeholder="1" value="1">
       </div>
       <div class="field" style="margin-bottom:0;">
-        <label for="calc-value">Estimated near-mint value per card ($) <span class="hint-inline">(optional)</span></label>
+        <label for="calc-value">Estimated card value per card ($) <span class="hint-inline">(natural wear, excluding damage; optional)</span></label>
         <input type="text" id="calc-value" placeholder="e.g. 300">
       </div>
       <div class="field" style="margin-bottom:0; margin-top:14px;">
@@ -1078,10 +1295,12 @@
         <div class="calc-line"><span id="calc-base-label">Base service</span><span id="calc-base">—</span></div>
         <div class="calc-line" id="calc-crack-line" style="display:none;"><span>Slab cracking add-on</span><span id="calc-crack-amt">—</span></div>
         <div class="calc-line" id="calc-surcharge-line" style="display:none;"><span id="calc-surcharge-label">Value surcharge</span><span id="calc-surcharge">—</span></div>
-        <div class="calc-line" id="calc-discount-line" style="display:none;"><span>Referral discount (10%)</span><span id="calc-discount">—</span></div>
+        <div class="calc-line" id="calc-discount-line" style="display:none;"><span>Referral discount (<span class="ref-pct">10%</span>)</span><span id="calc-discount">—</span></div>
         <div class="calc-line calc-total"><span>Estimated total</span><span id="calc-total">—</span></div>
       </div>
       <div class="calc-hint" id="calc-hint">This is an estimate. Final pricing is confirmed after evaluation.</div>
+    </div>
+    </aside>
     </div>
   </section>
 
@@ -1193,6 +1412,8 @@
     <details class="card-panel" id="submit-panel">
       <summary>Start a submission</summary>
       <form id="intake-form">
+        <div class="form-grid">
+        <div class="form-col form-col-contact">
         <div class="field">
           <label for="f-name">Name <span class="req">*</span></label>
           <input type="text" id="f-name" required>
@@ -1238,8 +1459,12 @@
           <input type="text" id="f-referral" placeholder="e.g. CODE123" autocapitalize="characters">
           <div class="referral-msg" id="referral-msg"></div>
         </div>
+        </div>
+        <div class="form-col form-col-cards">
         <div id="cards-container"></div>
         <button type="button" class="btn btn-outline btn-block" id="add-card-btn">+ ADD ANOTHER CARD</button>
+        </div>
+        </div>
         <div class="terms-embed" id="terms-embed">
           <div class="terms-embed-head">
             <span class="terms-embed-title">Terms &amp; Conditions <span class="req">*</span></span>
@@ -1291,31 +1516,30 @@
           <p>Unless expressly stated otherwise, Restored Rarity is not affiliated with PSA, TAG, CGC, BGS, or any other third-party grading company.</p>
 
           <h4>7. Card Value Surcharge</h4>
-          <p>Card-value surcharges apply to repair services only. Cleaning and evaluation services are never subject to a value surcharge, regardless of the card's Near Mint value.</p>
-          <p>For repair services, cards valued at $250 or less in Near Mint condition are not subject to a card-value surcharge.</p>
-          <p>For repair services on cards valued above $250, an additional surcharge is added to the selected service price based on the card's current Near Mint TCG market value.</p>
+          <p>Card-value surcharges apply to repair services only. Cleaning and evaluation services are never subject to a value surcharge, regardless of the card's value.</p>
+          <p>For repair services, cards with a card value of $250 or less are not subject to a card-value surcharge.</p>
+          <p>For repair services on cards valued above $250, an additional surcharge is added to the selected service price based on the card's value.</p>
           <div class="surcharge-table">
-            <div class="surcharge-row surcharge-header"><span class="val">Near Mint Card Value</span><span class="fee">Surcharge</span></div>
+            <div class="surcharge-row surcharge-header"><span class="val">Card Value</span><span class="fee">Surcharge</span></div>
             <div class="surcharge-row"><span class="val">$250 or less</span><span class="fee">No Surcharge</span></div>
-            <div class="surcharge-row"><span class="val">$251 – $500</span><span class="fee">8% of NM Value</span></div>
-            <div class="surcharge-row"><span class="val">$501 – $1,500</span><span class="fee">10% of NM Value</span></div>
-            <div class="surcharge-row"><span class="val">$1,501 – $2,500</span><span class="fee">12% of NM Value</span></div>
-            <div class="surcharge-row"><span class="val">Over $2,500</span><span class="fee">Custom Quote</span></div>
+            <div class="surcharge-row"><span class="val">$251 – $1,500</span><span class="fee">10% of Card Value</span></div>
+            <div class="surcharge-row"><span class="val">$1,501 – $3,000</span><span class="fee">12% of Card Value</span></div>
+            <div class="surcharge-row"><span class="val">Over $3,000</span><span class="fee">Custom Quote</span></div>
           </div>
-          <p style="margin-top:10px;">Surcharges are calculated using the card's current Near Mint TCG market value and rounded up to the nearest dollar. Cards valued above $2,500 Near Mint are individually reviewed and require a custom quote based on the card, its condition, value, and restoration required.</p>
+          <p style="margin-top:10px;">Card value is the card's estimated current market value, based on recent comparable sales, for the card's condition based on its natural wear, excluding any damage. Surcharges are calculated using this card value and rounded up to the nearest dollar. Cards valued above $3,000 are individually reviewed and require a custom quote based on the card, its condition, value, and restoration required.</p>
 
           <h4>8. Verification of Card Values</h4>
           <p>All submitted card values are subject to verification by Restored Rarity.</p>
-          <p>The Near Mint value entered on the submission form is considered an estimate provided by the customer and does not automatically establish the value used for service pricing.</p>
-          <p>Restored Rarity may verify the card's current Near Mint TCG market value.</p>
-          <p>If the submitted value does not reasonably reflect the card's current Near Mint market value, Restored Rarity may adjust the value used to calculate the applicable surcharge.</p>
-          <p>As a result, the surcharge may increase or decrease if the verified Near Mint value differs from the amount entered on the submission.</p>
+          <p>The card value entered on the submission form is considered an estimate provided by the customer and does not automatically establish the value used for service pricing.</p>
+          <p>Restored Rarity may verify the card's value.</p>
+          <p>If the submitted value does not reasonably reflect the card's value, Restored Rarity may adjust the value used to calculate the applicable surcharge.</p>
+          <p>As a result, the surcharge may increase or decrease if the verified card value differs from the amount entered on the submission.</p>
           <p>Any adjustment resulting in an increased charge will be communicated to the customer before restoration work begins.</p>
 
-          <h4>9. Near Mint Value Is for Service Pricing</h4>
-          <p>The Near Mint market value used to calculate Restored Rarity's service pricing and card-value surcharge is for pricing purposes only.</p>
+          <h4>9. Card Value Is for Service Pricing</h4>
+          <p>The card value used to calculate Restored Rarity's service pricing and card-value surcharge is for pricing purposes only.</p>
           <p>It does not establish or represent an agreed replacement value, guaranteed resale value, guaranteed post-restoration value, or amount payable in the event of loss or damage.</p>
-          <p>The Near Mint value used for service pricing may differ substantially from the current value of a damaged card.</p>
+          <p>The card value used for service pricing may differ substantially from the current value of a damaged card.</p>
 
           <h4>10. High-Value Cards</h4>
           <p>Restored Rarity reserves the right to individually review higher-value cards before accepting them for service.</p>
@@ -1332,7 +1556,7 @@
 
           <h4>12. Initial Communication &amp; Service Confirmation</h4>
           <p>Before customers are instructed to ship their cards, Restored Rarity will communicate with them to confirm relevant submission details.</p>
-          <p>These may include: requested services and repair levels, card information, verified Near Mint market values, applicable card-value surcharges, estimated turnaround time, shipping method and costs, packaging instructions, and questions or concerns regarding the requested restoration.</p>
+          <p>These may include: requested services and repair levels, card information, verified card values, applicable card-value surcharges, estimated turnaround time, shipping method and costs, packaging instructions, and questions or concerns regarding the requested restoration.</p>
           <p>Material pricing or service changes identified during this process will be communicated before the customer is instructed to ship.</p>
 
           <h4>13. Turnaround Times</h4>
@@ -1393,7 +1617,7 @@
 
       <div class="terms-ack-block">
         <h4>Acknowledgment</h4>
-        <p>I have read, understand, and agree to the Restored Rarity Terms &amp; Conditions and Waiver of Liability. I understand that card cleaning, repair, and restoration involve inherent risks; specific restoration and grading results are not guaranteed; and turnaround times vary. I understand that shipping costs are my responsibility and that I must wait for Restored Rarity to contact me and authorize shipment before sending my cards. I understand that submitted Near Mint card values will be verified and that my card-value surcharge may change if the verified Near Mint market value differs from the value provided on my submission. I understand that the Near Mint value used for service pricing does not establish a replacement or guaranteed value for my card. I authorize Restored Rarity to perform the services I approve and acknowledge that submitted cards may be photographed and/or recorded and that this content may be used by Restored Rarity for documentation, website, social media, educational, portfolio, advertising, and promotional purposes in accordance with these Terms.</p>
+        <p>I have read, understand, and agree to the Restored Rarity Terms &amp; Conditions and Waiver of Liability. I understand that card cleaning, repair, and restoration involve inherent risks; specific restoration and grading results are not guaranteed; and turnaround times vary. I understand that shipping costs are my responsibility and that I must wait for Restored Rarity to contact me and authorize shipment before sending my cards. I understand that submitted card values will be verified and that my card-value surcharge may change if the verified card value differs from the value provided on my submission. I understand that the card value used for service pricing does not establish a replacement or guaranteed value for my card. I authorize Restored Rarity to perform the services I approve and acknowledge that submitted cards may be photographed and/or recorded and that this content may be used by Restored Rarity for documentation, website, social media, educational, portfolio, advertising, and promotional purposes in accordance with these Terms.</p>
         <div id="terms-end" aria-hidden="true"></div>
       </div>
           </div>
@@ -1485,6 +1709,21 @@
     </details>
   </section>
 
+  <div id="instagram-wrap" hidden>
+    <div class="divider wrap"></div>
+    <section id="instagram" class="wrap">
+      <div class="section-head">
+        <h2 class="pixel" style="font-size:15px;" id="ig-heading">On Instagram</h2>
+        <p id="ig-sub">Before-and-afters, works in progress and show updates.</p>
+      </div>
+      <div class="ig-grid" id="ig-grid"></div>
+      <a class="btn btn-primary ig-follow" id="ig-follow" href="https://instagram.com/restored.raritytcg" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>
+        <span id="ig-follow-text">FOLLOW @RESTORED.RARITYTCG</span>
+      </a>
+    </section>
+  </div>
+
   <div class="divider wrap"></div>
 
   <section id="faq" class="wrap">
@@ -1496,7 +1735,7 @@
     <details class="faq-item">
       <summary>How do I submit cards for restoration?</summary>
       <div class="faq-answer">
-        <p>Start by completing the Restored Rarity Submission Form above. You'll provide your contact information, details about each card, its estimated Near Mint value, and the cleaning or restoration service you're interested in.</p>
+        <p>Start by completing the Restored Rarity Submission Form above. You'll provide your contact information, details about each card, its estimated card value, and the cleaning or restoration service you're interested in.</p>
         <p>Submitting the form begins the process, but it does not mean you should ship your cards yet.</p>
       </div>
     </details>
@@ -1560,9 +1799,9 @@
       <summary>How are high-value cards handled?</summary>
       <div class="faq-answer">
         <p>Value surcharges apply to repair services only — cleaning and evaluation services are never subject to a surcharge, no matter the card's value.</p>
-        <p>For repairs, cards with a Near Mint value of $250 or less do not have a card-value surcharge.</p>
-        <p>For repairs on cards valued between $251 and $500, a surcharge of 8% of the card's Near Mint value is added to the selected service price. For cards valued between $501 and $1,500, the surcharge is 10% of the card's Near Mint value is added to the selected service price. For repairs on cards valued between $1,501 and $2,500, the surcharge rate is 12%. All surcharges are rounded up to the nearest dollar.</p>
-        <p>Cards valued above $2,500 Near Mint are individually reviewed and require a custom quote.</p>
+        <p>For repairs, cards with a card value of $250 or less do not have a card-value surcharge.</p>
+        <p>For repairs on cards valued between $251 and $1,500, a surcharge of 10% of the card's value is added to the selected service price. For cards valued between $1,501 and $3,000, the surcharge rate is 12%. All surcharges are rounded up to the nearest dollar.</p>
+        <p>Cards valued above $3,000 are individually reviewed and require a custom quote.</p>
       </div>
     </details>
 
@@ -1605,7 +1844,7 @@
 
   <div class="divider wrap"></div>
 
-  <section class="wrap">
+  <section class="wrap" id="contact">
     <div class="section-head">
       <h2 class="pixel" style="font-size:15px;">Follow &amp; contact</h2>
       <p>Restorations, before/afters, and drop-in availability at shows.</p>
@@ -1638,7 +1877,7 @@
 
   <footer>
     <div class="fname pixel" style="font-size:10px; color:var(--muted);">RESTORED RARITY</div>
-    <div class="fyear">© <span id="year"></span> · Card cleaning, repair &amp; grading prep <span style="opacity:.55;">· build v10-01b</span></div>
+    <div class="fyear">© <span id="year"></span> · Card cleaning, repair &amp; grading prep <span style="opacity:.55;">· build v11-04a</span></div>
   </footer>
 </div>
 
@@ -1651,7 +1890,7 @@ document.getElementById('year').textContent = new Date().getFullYear();
 const SUBMIT_ENDPOINT = "https://script.google.com/macros/s/AKfycbyB3lWxsrKg0hfSh4YvHG319jyenpPE1uljsiW1AcrQ328kDO6npH9mncOkellCYJVM/exec";
 
 /* ---------- Referral codes ---------- */
-const REFERRAL_DISCOUNT = 0.10;
+let REFERRAL_DISCOUNT = 0.10;
 let validReferralCodes = new Set();
 let referralCodesLoaded = false;
 
@@ -1680,7 +1919,7 @@ function checkReferralInput(){
     return;
   }
   if(validReferralCodes.has(code)){
-    referralMsg.textContent = '✓ Code applied — 10% off your first use.';
+    referralMsg.textContent = `✓ Code applied — ${Math.round(REFERRAL_DISCOUNT * 100)}% off your first use.`;
     referralMsg.className = 'referral-msg ok';
   } else {
     referralMsg.textContent = "Code not recognized — you can still submit, we'll double check on our end.";
@@ -1693,8 +1932,10 @@ referralInput.addEventListener('blur', checkReferralInput);
 /* ---------- Upcoming shows (edit here to add/remove shows) ---------- */
 /* date: "YYYY-MM-DD" (start date), endDate: "YYYY-MM-DD" (optional, for multi-day shows),
    name: event name, location: venue/address, time: display string (optional), link: URL (optional) */
-const SHOWS = [
-  { date: "2026-09-26", endDate: "2026-09-27", name: "HTX Card Show", location: "Margaritaville Lake Resort, 600 Margaritaville Pkwy, Montgomery, TX 77356", time: "Sat: VIP 9:00 AM · GA 9:30 AM – 5:00 PM, Trade Night after<br>Sun: VIP 10:00 AM · GA 10:30 AM – 4:00 PM", link: "https://tickets.txcardshows.com/htx/htx-card-show-pokemon-tcg-sports-cards-in-the-houston-area-sept-2026" }
+/* Upcoming shows. Add one per line, e.g.
+   { date: "2026-11-14", endDate: "2026-11-15", name: "Show name", location: "Venue, address", time: "Sat 9 AM – 5 PM", link: "https://..." },
+   Shows disappear automatically the day after their end date. */
+let SHOWS = [
 ];
 
 function formatShowDate(dateStr, endDateStr){
@@ -1710,63 +1951,84 @@ function formatShowDate(dateStr, endDateStr){
   return { month, day: d };
 }
 
+/* Escaping + link check for text that comes from the admin portal */
+function siteEsc(v){ return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function siteUrl(u){ u = String(u || '').trim(); return /^https?:\/\//i.test(u) ? u : (u ? 'https://' + u.replace(/^\/+/, '') : ''); }
+
 function renderShows(){
   const el = document.getElementById('shows-list');
-  if(!SHOWS || SHOWS.length === 0){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const upcoming = (SHOWS || []).filter(s => {
+    const [y, m, d] = (s.endDate || s.date).split('-').map(Number);
+    return new Date(y, m - 1, d) >= today;
+  });
+  if(upcoming.length === 0){
     el.innerHTML = `<div class="shows-empty">No upcoming shows scheduled right now — check back soon, or follow on Instagram for updates.</div>`;
     return;
   }
-  const sorted = [...SHOWS].sort((a,b) => new Date(a.date) - new Date(b.date));
+  const sorted = [...upcoming].sort((a,b) => new Date(a.date) - new Date(b.date));
   el.innerHTML = sorted.map(s => {
     const { month, day } = formatShowDate(s.date, s.endDate);
     const inner = `
       <div class="show-date"><span class="month">${month}</span><span class="day">${day}</span></div>
       <div class="show-info">
-        <div class="name">${s.name}</div>
-        <div class="loc">${s.location}</div>
-        ${s.time ? `<div class="loc">${s.time}</div>` : ''}
+        <div class="name">${siteEsc(s.name)}</div>
+        <div class="loc">${siteEsc(s.location)}</div>
+        ${s.time ? `<div class="loc">${siteEsc(s.time)}</div>` : ''}
         ${s.link ? `<div class="link-label">Details / directions →</div>` : ''}
       </div>
     `;
     return s.link
-      ? `<a class="show-card" href="${s.link}" target="_blank" rel="noopener">${inner}</a>`
+      ? `<a class="show-card" href="${siteEsc(siteUrl(s.link))}" target="_blank" rel="noopener">${inner}</a>`
       : `<div class="show-card">${inner}</div>`;
   }).join('');
 }
 renderShows();
 
 /* ---------- Pricing data (edit here to change prices/text) ---------- */
-const CLEAN_TIERS = [
+let CLEAN_TIERS = [
   {price:"$10", title:"Card Cleaning", type:"clean", bulk:true, sub:"Bulk pricing: $8/card for 21–40 cards, $6/card for 41+ cards.", desc:"A meticulous cleaning performed under magnification to safely lift dirt, grime, fingerprints, and surface buildup while restoring the card's natural presentation and holo brilliance. Does not include scratch repair or buffing."},
   {price:"$15", title:"Card Cleaning + Scratch Repair", type:"clean", desc:"Everything included in our Card Cleaning service, with additional surface refinement and precision buffing to reduce visible scratches, scuffs, and holo wear while preserving the card's original finish."},
   {price:"$20", title:"Grade-Ready Evaluation + Deep Clean", type:"clean", desc:"Our most comprehensive grading-prep service. Includes a detailed evaluation under magnification, deep cleaning, scratch and surface refinement, identification and correction of addressable surface defects, and minor corner or edge flattening where appropriate. Your card is cleaned, evaluated, refined, and ready to submit."}
 ];
-const REPAIR_TIERS = [
+let REPAIR_TIERS = [
   {price:"$35", title:"Base Repair", type:"repair", desc:"Targeted restoration for localized damage, including minor corner or edge lifting, dents or gouges under \u00bc inch, and creases under \u00bd inch. Each repair is carefully addressed to stabilize the affected area and restore the card as close as possible to its original appearance."},
   {price:"$50", title:"Major Repair", type:"repair", desc:"Advanced restoration for significant damage, including major corner or edge lifting, delamination or layer separation, dents or gouges over \u00bc inch, and creases over \u00bd inch. Designed for cards requiring more extensive techniques, additional working time, or multiple rounds of restoration to achieve the best result possible."}
 ];
-const ADDON_TIERS = [
+let ADDON_TIERS = [
   {price:"$15", title:"Slab Cracking", type:"addon", sub:"Only $10 when combined with another service.", desc:"Careful removal of your card from a graded slab so it can be cleaned, restored, or resubmitted. The slab is opened with care to protect the card's surface, edges, and corners."}
 ];
 /* Bulk Card Cleaning: $10/card (1–20), $8/card (21–40), $6/card (41+) */
-function bulkCleaningPrice(qty){ return qty > 40 ? 6 : qty > 20 ? 8 : 10; }
-const SLAB_CRACK_SOLO = 15, SLAB_CRACK_ADDON = 10;
-/* Surcharge policy (effective Oct 1, 2026): 0 at $250 or under; 8% of NM value (rounded up) for $251\u2013$500;
-   10% for $501\u2013$1,500; 12% for $1,501\u2013$2,500; custom quote above $2,500. */
-function surchargeForValue(value){
-  if(!value || value <= 250) return 0;
-  if(value > 2500) return null;
-  const rate = value > 1500 ? 0.12 : value > 500 ? 0.10 : 0.08;
-  return Math.ceil(value * rate);
+/* Rules the admin portal can change (Website → Prices). These are the defaults. */
+let PRICE_RULES = {
+  bulk: [{ min: 21, price: 8 }, { min: 41, price: 6 }],      // per-card price for the bulk cleaning tier
+  slabAddon: 10,                                              // slab cracking added to another service
+  surcharge: [{ upTo: 250, rate: 0 }, { upTo: 1500, rate: 10 }, { upTo: 3000, rate: 12 }],  // % of card value; above the last = custom quote
+  referral: 10                                                // referral code discount, %
+};
+function bulkCleaningPrice(qty){
+  const t = CLEAN_TIERS.find(x => x.bulk);
+  let p = t ? Number(t.price.replace(/[^0-9.]/g, '')) : 10;
+  [...PRICE_RULES.bulk].sort((a, b) => a.min - b.min).forEach(b => { if(qty >= b.min) p = b.price; });
+  return p;
 }
-const SURCHARGE_DISPLAY_ROWS = [
+let SLAB_CRACK_SOLO = 15, SLAB_CRACK_ADDON = 10;
+/* Surcharge policy: 0 at $250 or under; 10% of card value (rounded up) for $251\u2013$1,500;
+   12% for $1,501\u2013$3,000; custom quote above $3,000. */
+function surchargeForValue(value){
+  const tiers = PRICE_RULES.surcharge;
+  if(!value) return 0;
+  if(value > tiers[tiers.length - 1].upTo) return null;
+  const t = tiers.find(x => value <= x.upTo);
+  return t && t.rate ? Math.ceil(value * t.rate / 100) : 0;
+}
+let SURCHARGE_DISPLAY_ROWS = [
   {range:"$250 or less", fee:"No Surcharge"},
-  {range:"$251 – $500", fee:"8% of NM value"},
-  {range:"$501 – $1,500", fee:"10% of NM value"},
-  {range:"$1,501 – $2,500", fee:"12% of NM value"},
-  {range:"Over $2,500", fee:"Custom Quote"}
+  {range:"$251 – $1,500", fee:"10% of card value"},
+  {range:"$1,501 – $3,000", fee:"12% of card value"},
+  {range:"Over $3,000", fee:"Custom Quote"}
 ];
-const SURCHARGE_NOTE = "Surcharges are calculated on the card's current Near Mint TCG market value and rounded up to the nearest dollar.";
+const SURCHARGE_NOTE = "Surcharges are calculated on the card's value and rounded up to the nearest dollar.";
 
 function renderLadder(containerId, tiers){
   const el = document.getElementById(containerId);
@@ -1784,14 +2046,14 @@ renderLadder('ladder-clean', CLEAN_TIERS);
 renderLadder('ladder-repair', REPAIR_TIERS);
 renderLadder('ladder-addon', ADDON_TIERS);
 
-const surchargeHeaderRow = `<div class="surcharge-row surcharge-header"><span class="val">Near Mint Card Value</span><span class="fee">Surcharge</span></div>`;
+const surchargeHeaderRow = `<div class="surcharge-row surcharge-header"><span class="val">Card Value</span><span class="fee">Surcharge</span></div>`;
 document.getElementById('surcharge-table').innerHTML = surchargeHeaderRow + SURCHARGE_DISPLAY_ROWS.map(s => `
   <div class="surcharge-row"><span class="val">${s.range}</span><span class="fee">${s.fee}</span></div>
 `).join('');
 document.getElementById('surcharge-note').textContent = SURCHARGE_NOTE;
 
 /* ---------- Price calculator ---------- */
-const ALL_TIERS = [...CLEAN_TIERS, ...REPAIR_TIERS, ...ADDON_TIERS];
+let ALL_TIERS = [...CLEAN_TIERS, ...REPAIR_TIERS, ...ADDON_TIERS];
 const calcServiceSelect = document.getElementById('calc-service');
 calcServiceSelect.innerHTML = ALL_TIERS.map((t, i) => `<option value="${i}">${t.title} — ${t.price}</option>`).join('');
 
@@ -1843,11 +2105,11 @@ function runCalculator(){
     return;
   }
 
-  if(rawValue && value > 2500){
+  if(rawValue && value > 3000){
     calcSurchargeLine.style.display = 'none';
     calcDiscountLine.style.display = 'none';
     calcTotalEl.textContent = 'Custom quote';
-    calcHintEl.textContent = "Cards valued above $2,500 Near Mint need a custom quote — reach out directly for pricing.";
+    calcHintEl.textContent = "Cards valued above $3,000 need a custom quote — reach out directly for pricing.";
     return;
   }
 
@@ -2315,7 +2577,7 @@ rvForm.addEventListener('submit', async (e) => {
 function serviceOptionsHtml(){
   return '<option value="" disabled selected>Choose a tier</option>' +
     [...CLEAN_TIERS, ...REPAIR_TIERS, ...ADDON_TIERS].map(t => {
-      const label = t.bulk ? `${t.title} — ${t.price} (bulk: $8 at 21+, $6 at 41+)` : t.type === 'addon' ? `${t.title} only — ${t.price}` : `${t.title} — ${t.price}`;
+      const label = t.bulk ? `${t.title} — ${t.price}${bulkShortText()}` : t.type === 'addon' ? `${t.title} only — ${t.price}` : `${t.title} — ${t.price}`;
       const val = t.type === 'addon' ? `${t.title} only (${t.price})` : `${t.title} (${t.price})`;
       return `<option value="${val}">${label}</option>`;
     }).join('');
@@ -2393,13 +2655,13 @@ function cardEntryTemplate(id){
         <input type="text" id="f-card-${id}" placeholder="Start typing, e.g. Charizard" required>
       </div>
       <div class="field">
-        <label for="f-value-${id}">Estimated near-mint value ($)</label>
+        <label for="f-value-${id}">Estimated card value ($) <span class="hint-inline">(based on natural wear, excluding any damage)</span></label>
         <input type="text" id="f-value-${id}" placeholder="e.g. 300">
       </div>
       <div class="field">
         <label for="f-service-${id}">Service wanted <span class="req">*</span></label>
         <select id="f-service-${id}" required>${serviceOptionsHtml()}</select>
-        <label class="addon-check" id="f-crack-wrap-${id}"><input type="checkbox" id="f-crack-${id}"> This card is in a graded slab — crack it out (+$10)</label>
+        <label class="addon-check" id="f-crack-wrap-${id}"><input type="checkbox" id="f-crack-${id}"> This card is in a graded slab — crack it out (+<span class="slab-addon-amt">$${SLAB_CRACK_ADDON}</span>)</label>
       </div>
       <div class="field">
         <label for="f-notes-${id}">Notes on damage / what you'd like done</label>
@@ -3036,6 +3298,222 @@ termsAgreeBtn.addEventListener('click', acceptTerms);
 termsUndoBtn.addEventListener('click', resetTerms);
 window.addEventListener('resize', checkTermsScroll);
 checkTermsScroll();
+/* =====================================================================
+   Website content from the admin portal (Website section).
+   Prices, announcement bar, news, shows and Instagram posts are saved in
+   Supabase (site_content) and read here with the public site_get() call.
+   The values written in this file stay as the defaults, so the site still
+   works if that call fails. The last copy is kept in this browser so the
+   next visit shows it straight away.
+   ===================================================================== */
+const SITE_CACHE_KEY = 'rr-site-content-v1';
+function money(n){ return '$' + Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 }); }  // a function so the order form can use it before this point
+
+function bulkShortText(){
+  const b = [...PRICE_RULES.bulk].sort((x, y) => x.min - y.min);
+  return b.length ? ' (bulk: ' + b.map(r => `${money(r.price)} at ${r.min}+`).join(', ') + ')' : '';
+}
+function bulkLongText(){
+  const b = [...PRICE_RULES.bulk].sort((x, y) => x.min - y.min);
+  if(!b.length) return '';
+  return 'Bulk pricing: ' + b.map((r, i) => {
+    const next = b[i + 1];
+    return `${money(r.price)}/card for ${next ? `${r.min}–${next.min - 1}` : `${r.min}+`} cards`;
+  }).join(', ') + '.';
+}
+function surchargeRowsFromRules(){
+  const t = PRICE_RULES.surcharge, rows = [];
+  t.forEach((x, i) => {
+    const from = i === 0 ? null : t[i - 1].upTo + 1;
+    rows.push({ range: from === null ? `${money(x.upTo)} or less` : `${money(from)} – ${money(x.upTo)}`,
+                fee: x.rate ? `${x.rate}% of card value` : 'No Surcharge' });
+  });
+  rows.push({ range: `Over ${money(t[t.length - 1].upTo)}`, fee: 'Custom Quote' });
+  return rows;
+}
+function surchargeSentence(){
+  const t = PRICE_RULES.surcharge, last = t[t.length - 1];
+  const parts = t.map((x, i) => x.rate ? `${x.rate}% for cards between ${money(i ? t[i - 1].upTo + 1 : 0)} and ${money(x.upTo)}` : null).filter(Boolean);
+  const list = parts.length > 1 ? parts.slice(0, -1).join(', ') + ', and ' + parts[parts.length - 1] : (parts[0] || 'no surcharge');
+  return `For repair services, a surcharge is added to the selected service price based on the card's estimated value (based on natural wear, excluding any damage; see below): ${list}, rounded up to the nearest dollar. Cards valued above ${money(last.upTo)} require a custom quote. Cleaning and evaluation services are never subject to a value surcharge.`;
+}
+
+/* Apply the "prices" section: { services:[{title,price,type,desc,sub,bulk}], bulk, slabAddon, surcharge, referral } */
+function applyPrices(pr){
+  if(!pr || !Array.isArray(pr.services) || !pr.services.length) return;
+  const clean = v => Math.max(0, Number(v) || 0);
+  if(Array.isArray(pr.bulk)) PRICE_RULES.bulk = pr.bulk.map(b => ({ min: Math.max(2, Math.round(clean(b.min))), price: clean(b.price) })).filter(b => b.min);
+  if(pr.slabAddon != null) PRICE_RULES.slabAddon = clean(pr.slabAddon);
+  if(Array.isArray(pr.surcharge) && pr.surcharge.length) PRICE_RULES.surcharge = pr.surcharge.map(x => ({ upTo: clean(x.upTo), rate: clean(x.rate) })).sort((a, b) => a.upTo - b.upTo);
+  if(pr.referral != null) PRICE_RULES.referral = clean(pr.referral);
+
+  const tier = x => ({ price: money(clean(x.price)), title: String(x.title || '').trim(), type: x.type,
+                       bulk: !!x.bulk, sub: x.sub ? String(x.sub) : '', desc: String(x.desc || '') });
+  const svc = pr.services.filter(x => x && x.title && ['clean', 'repair', 'addon'].includes(x.type)).map(tier);
+  CLEAN_TIERS = svc.filter(x => x.type === 'clean');
+  REPAIR_TIERS = svc.filter(x => x.type === 'repair');
+  ADDON_TIERS = svc.filter(x => x.type === 'addon');
+  SLAB_CRACK_ADDON = PRICE_RULES.slabAddon;
+  const slab = ADDON_TIERS[0];
+  SLAB_CRACK_SOLO = slab ? Number(slab.price.replace(/[^0-9.]/g, '')) : SLAB_CRACK_SOLO;
+  REFERRAL_DISCOUNT = PRICE_RULES.referral / 100;
+  // Automatic notes under the bulk tier and the slab add-on (typed notes are kept after them)
+  CLEAN_TIERS.forEach(t => { if(t.bulk) t.sub = [bulkLongText(), t.sub].filter(Boolean).join(' '); });
+  if(slab) slab.sub = [`Only ${money(SLAB_CRACK_ADDON)} when combined with another service.`, slab.sub].filter(Boolean).join(' ');
+  [...CLEAN_TIERS, ...REPAIR_TIERS, ...ADDON_TIERS].forEach(t => { t.title = siteEsc(t.title); t.desc = siteEsc(t.desc); t.sub = siteEsc(t.sub); });
+
+  renderLadder('ladder-clean', CLEAN_TIERS);
+  renderLadder('ladder-repair', REPAIR_TIERS);
+  renderLadder('ladder-addon', ADDON_TIERS);
+  SURCHARGE_DISPLAY_ROWS = surchargeRowsFromRules();
+  document.getElementById('surcharge-table').innerHTML = surchargeHeaderRow + SURCHARGE_DISPLAY_ROWS.map(r =>
+    `<div class="surcharge-row"><span class="val">${r.range}</span><span class="fee">${r.fee}</span></div>`).join('');
+  const first = PRICE_RULES.surcharge[0];
+  const freeP = document.getElementById('surcharge-free-text');
+  if(freeP){ freeP.hidden = !!first.rate; freeP.textContent = `For cards with a card value of ${money(first.upTo)} or less, no value surcharge applies.`; }
+  const sP = document.getElementById('surcharge-text'); if(sP) sP.textContent = surchargeSentence();
+  document.querySelectorAll('.slab-addon-amt').forEach(el => { el.textContent = money(SLAB_CRACK_ADDON); });
+  document.querySelectorAll('.ref-pct').forEach(el => { el.textContent = PRICE_RULES.referral + '%'; });
+
+  // Calculator: keep the same service picked if it still exists
+  const prevCalc = (ALL_TIERS[Number(calcServiceSelect.value)] || {}).title;
+  ALL_TIERS = [...CLEAN_TIERS, ...REPAIR_TIERS, ...ADDON_TIERS];
+  calcServiceSelect.innerHTML = ALL_TIERS.map((t, i) => `<option value="${i}">${t.title} — ${t.price}</option>`).join('');
+  const keep = ALL_TIERS.findIndex(t => t.title === prevCalc);
+  calcServiceSelect.value = String(keep >= 0 ? keep : 0);
+  runCalculator();
+
+  // Order form: refresh every card's service list, keeping the choice where possible
+  document.querySelectorAll('select[id^="f-service-"]').forEach(sel => {
+    const prevTitle = (sel.value || '').replace(/ only \(.*$| \(.*$/, '');
+    sel.innerHTML = serviceOptionsHtml();
+    const match = [...sel.options].find(o => o.value && o.value.replace(/ only \(.*$| \(.*$/, '') === prevTitle);
+    if(match) sel.value = match.value;
+  });
+}
+
+/* Announcement bar: { on, text, link, linkText, until:"YYYY-MM-DD" } */
+function applyAnnouncement(a){
+  const bar = document.getElementById('announce');
+  const today = new Date().toISOString().slice(0, 10);
+  const live = a && a.on && String(a.text || '').trim() && !(a.until && a.until < today);
+  let dismissed = '';
+  try{ dismissed = localStorage.getItem('rr-announce-dismissed') || ''; }catch(_){}
+  const sig = live ? String(a.text).trim() + '|' + (a.link || '') : '';
+  if(!live || dismissed === sig){ bar.hidden = true; return; }
+  document.getElementById('announce-text').textContent = String(a.text).trim();
+  const link = document.getElementById('announce-link');
+  const url = siteUrl(a.link);
+  link.hidden = !url;
+  if(url){
+    link.href = url;
+    link.textContent = (a.linkText || 'Learn more') + ' →';
+    if(/^#/.test(String(a.link).trim())) link.href = String(a.link).trim();
+    else { link.target = '_blank'; link.rel = 'noopener'; }
+  }
+  bar.hidden = false;
+  document.getElementById('announce-x').onclick = () => {
+    bar.hidden = true;
+    try{ localStorage.setItem('rr-announce-dismissed', sig); }catch(_){}
+  };
+}
+
+/* News: [{ id, date, title, body, image, link, linkText, published, pinned }] */
+function applyNews(items){
+  const wrap = document.getElementById('news-wrap');
+  const posts = (Array.isArray(items) ? items : []).filter(n => n && n.published !== false && (n.title || n.body))
+    .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || String(b.date || '').localeCompare(String(a.date || '')));
+  wrap.hidden = !posts.length;
+  document.getElementById('nav-news').hidden = !posts.length;
+  if(!posts.length) return;
+  const fmt = d => { const [y, m, dd] = String(d || '').split('-').map(Number); return y ? new Date(y, m - 1, dd).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : ''; };
+  const card = n => {
+    const url = siteUrl(n.link);
+    const img = /^https:\/\//i.test(n.image || '') ? `<img src="${siteEsc(n.image)}" alt="" loading="lazy">` : '';
+    return `<article class="news-card${n.pinned ? ' pinned' : ''}">${img}<div class="news-body">
+      <div class="news-date">${n.pinned ? '📌 ' : ''}${siteEsc(fmt(n.date))}</div>
+      ${n.title ? `<h3>${siteEsc(n.title)}</h3>` : ''}
+      ${n.body ? `<p class="news-text">${siteEsc(n.body)}</p>` : ''}
+      ${url ? `<a class="news-link" href="${siteEsc(url)}" target="_blank" rel="noopener">${siteEsc(n.linkText || 'Read more')} →</a>` : ''}
+    </div></article>`;
+  };
+  const list = document.getElementById('news-list'), more = document.getElementById('news-more');
+  const SHOW = 3;
+  list.innerHTML = posts.slice(0, SHOW).map(card).join('');
+  more.hidden = posts.length <= SHOW;
+  more.onclick = () => { list.innerHTML = posts.map(card).join(''); more.hidden = true; };
+}
+
+/* Shows: same fields as SHOWS above */
+function applyShows(list){
+  if(!Array.isArray(list)) return;
+  SHOWS = list.filter(s => s && s.date && s.name);
+  renderShows();
+}
+
+/* Instagram: { on, handle, heading, sub, posts:["https://www.instagram.com/p/…/", …] } */
+let igScriptRequested = false;
+function applyInstagram(ig){
+  const wrap = document.getElementById('instagram-wrap');
+  if(!ig || !ig.on){ wrap.hidden = true; return; }
+  const handle = String(ig.handle || 'restored.raritytcg').replace(/^@/, '').trim();
+  const posts = (Array.isArray(ig.posts) ? ig.posts : []).map(u => {
+    const m = String(u || '').match(/instagram\.com\/(?:[A-Za-z0-9_.]+\/)?(p|reel|tv)\/([A-Za-z0-9_-]+)/);
+    return m ? `https://www.instagram.com/${m[1]}/${m[2]}/` : null;
+  }).filter(Boolean).slice(0, 6);
+  document.getElementById('ig-heading').textContent = ig.heading || 'On Instagram';
+  document.getElementById('ig-sub').textContent = ig.sub || 'Before-and-afters, works in progress and show updates.';
+  const follow = document.getElementById('ig-follow');
+  follow.href = 'https://instagram.com/' + encodeURIComponent(handle);
+  document.getElementById('ig-follow-text').textContent = 'FOLLOW @' + handle.toUpperCase();
+  const grid = document.getElementById('ig-grid');
+  grid.innerHTML = posts.map(u => `<blockquote class="instagram-media" data-instgrm-permalink="${u}?utm_source=ig_embed" data-instgrm-version="14">
+    <a class="ig-fallback" href="${u}" target="_blank" rel="noopener">View this post on Instagram →</a></blockquote>`).join('');
+  grid.hidden = !posts.length;
+  wrap.hidden = false;
+  if(!posts.length) return;
+  const load = () => {
+    if(window.instgrm && window.instgrm.Embeds){ window.instgrm.Embeds.process(); return; }
+    if(igScriptRequested) return;
+    igScriptRequested = true;
+    const sc = document.createElement('script'); sc.async = true; sc.src = 'https://www.instagram.com/embed.js';
+    document.body.appendChild(sc);
+  };
+  if('IntersectionObserver' in window){
+    const io = new IntersectionObserver(es => { if(es.some(e => e.isIntersecting)){ io.disconnect(); load(); } }, { rootMargin: '600px' });
+    io.observe(wrap);
+  } else load();
+}
+
+function applySiteContent(c){
+  if(!c || typeof c !== 'object') return;
+  const run = (name, fn, v) => { try{ fn(v); }catch(e){ console.warn('Site content: ' + name + ' skipped', e); } };
+  if(c.prices) run('prices', applyPrices, c.prices);
+  run('announcement', applyAnnouncement, c.announcement);
+  run('news', applyNews, c.news);
+  if(c.shows) run('shows', applyShows, c.shows);
+  run('instagram', applyInstagram, c.instagram);
+}
+
+(function loadSiteContent(){
+  if(/[?&]nocms\b/.test(location.search)) return;   // ?nocms shows the built-in defaults only
+  let cached = null;
+  try{ cached = JSON.parse(localStorage.getItem(SITE_CACHE_KEY) || 'null'); }catch(_){}
+  if(cached) applySiteContent(cached);
+  const cfg = window.RR_CONFIG || {};
+  if(!cfg.supabaseUrl || !cfg.supabaseAnonKey || /YOUR-/.test(cfg.supabaseUrl + cfg.supabaseAnonKey)) return;
+  fetch(cfg.supabaseUrl.replace(/\/$/, '') + '/rest/v1/rpc/site_get', {
+    method: 'POST',
+    headers: { apikey: cfg.supabaseAnonKey, Authorization: 'Bearer ' + cfg.supabaseAnonKey, 'Content-Type': 'application/json' },
+    body: '{}'
+  }).then(r => r.ok ? r.json() : null).then(c => {
+    if(!c || typeof c !== 'object') return;
+    const fresh = JSON.stringify(c);
+    try{ localStorage.setItem(SITE_CACHE_KEY, fresh); }catch(_){}
+    if(!cached || JSON.stringify(cached) !== fresh) applySiteContent(c);
+  }).catch(err => console.warn('Site content not loaded (using built-in content)', err));
+})();
+
 </script>
 </body>
 </html>

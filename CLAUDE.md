@@ -10,6 +10,7 @@ grading prep). This adds a card-intake and customer portal to the existing site
 |---|---|
 | `portal/` | Static web app (no build step). Deployed as-is under `/portal/` on GitHub Pages. |
 | `portal/admin.html` + `admin.js` | Owner's admin portal (Supabase email/password login): submissions, all cards, customer profiles, card detail, photos, notes, statuses, customer links. Hash router (`#/`, `#/cards`, `#/customers`, `#/customer/<id>`, `#/submission/<id>`, `#/card/<id>`, `#/new[/<customerId>]`). |
+| `portal/site.js` | Admin **Website** section (`#/site/<tab>`: reviews on/off, prices, announcement bar, news, events, Instagram) + the **Quote** panel on each submission. Content saved in Supabase `site_content`; reviews + quotes go through the Apps Script with the admin token. |
 | `portal/view.html` + `view.js` | Customer view opened by a private link `view.html#t=<share_token>` (no login). Shows everything on that customer's profile; customer can upload/delete their own photos. |
 | `portal/scan.html` + `scan.js` | **Scan station** (Mac or Windows, Chrome/Edge): watches a scan folder via the File System Access API, processes each new scan in the browser and saves it to the portal. Front → back → auto-save → next card. Moves originals into `<folder>/<code>/<code>_C001_<stage>_<side>.<ext>`. Folder handle remembered in IndexedDB. |
 | `portal/scanproc.js` | Browser image processing: card detection, straighten/crop, corner/edge regions, centering measurement, dpi from PNG pHYs / JPEG JFIF/EXIF. Port of `desktop-scanner/cardcrop.py` + `detail.py`. |
@@ -19,6 +20,7 @@ grading prep). This adds a card-intake and customer portal to the existing site
 | `portal/cardsearch.js` + `cards.json` | Card-name suggestions (plain script, `window.RRCardSearch.attach(input[, {details}])`) on the intake form in `index.html` and the admin portal's card fields (add card, card detail, new submission). `cards.json` = 21k English cards from TCGdex, built by `tools/build_card_catalog.py`; pictures load from assets.tcgdex.net. Free typing still allowed. |
 | `portal/config.js` | Supabase URL + anon key (public by design). **Never put the service_role key here.** Placeholder values ⇒ demo mode. |
 | `portal/demo/` | Sample data/images for `?demo` previews (built by `tools/make_demo.py`). Optional to deploy. |
+| `apps-script/Code.gs` + `PortalEmails.gs` | The Sheet's Apps Script project (copies; the live code is pasted into the Sheet's Extensions → Apps Script). Code.gs = submissions, emails, pickup reminders, automatic quotes, `portalReviews`; PortalEmails.gs = Send status email + Supabase admin check. |
 | `supabase/schema.sql` | Whole database: tables, RLS, RPC functions, storage bucket + policies. Idempotent — re-run safely in the Supabase SQL editor. |
 | `scanner/` | **Scan Station by Restored Rarity** (public app; not the admin-only `portal/scan.html`): a standalone public app at `/scanner/` (its own accounts, its **own Supabase project** + `scanner/schema.sql`, config `scanner/config.js` → `window.SCANNER_CONFIG`). Bulk "Add cards" queue (continuous camera with bubble level/auto-capture in `camera.js`, multi-pick, drag & drop, watched folder; front/back pairing; auto-save) + "To finish" list, perspective-correcting crop (`photo.js`, reuses `portal/scanproc.js` for close-ups + centering), private `cards` bucket at `<user id>/<card id>/<side>_<kind>_<ver>.jpg`, eBay .zip download (`zip.js`, `listing.txt`). See `scanner/README.md`. |
 | `desktop-scanner/` | Windows Python/Tk app (backup scanning path) for the Canon CanoScan LiDE 400 via WIA. Same processing in Python; pushes to Supabase with the service_role key stored locally in `config.json`. |
@@ -92,6 +94,9 @@ arrow keys (Alt = outer marker), save, or reset to auto.
 - iPhone has no folder access, so the scan station falls back to "choose a file" there.
 
 ## Keep in sync
+
+- Built-in prices: `index.html` (`CLEAN_TIERS`/`REPAIR_TIERS`/`ADDON_TIERS`/`PRICE_RULES`) ⇄ `portal/site.js` `DEFAULT_PRICES` ⇄
+  `apps-script/Code.gs` `QUOTE_PRICING` (fallback only). Once prices are saved in the portal, all three read `site_content.prices`.
 
 - `portal/centering.js` ⇄ `desktop-scanner/assets/centering.js` (identical copies).
 - `portal/scanproc.js` ⇄ `desktop-scanner/cardcrop.py` + `detail.py` (same constants: crop pad 0.06 in, corner 0.40 in,
@@ -323,6 +328,27 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    no `card_limit` self-edit, no cross-folder storage, `delete_me`). Not yet tested on a real phone or real photos.
    Owner steps: create the project, run `scanner/schema.sql`, auth URL settings, fill `scanner/config.js`, upload
    `scanner/` (see `scanner/README.md`). Open: custom SMTP before public launch; pricing/payments (not built: e.g. Stripe subscription raising `card_limit`).
+
+17. **Built Nov 3–4, 2026 (branch `feature/site-content`), not yet live: portal Website section + automatic quotes.**
+   Found first: the zip the owner called "source of truth" (build v10-06b: new surcharge tiers ≤$250 none / 10% to $1,500 /
+   12% to $3,000 / custom above, value-basis note, desktop layout) **had never been uploaded**; live main was v10-01b + portal
+   intake. Owner confirmed the new tiers are real. `index.html` = 3-way merge (base 6f29a08) of v10-06b onto main, clean, then
+   build **v11-04a**. Don't upload any older zip `index.html` (no portal intake). Owner's live Apps Script (2026-10-19 + portal
+   hooks) is now in `apps-script/Code.gs` with: automatic quotes (Cards: Quote / Quote Breakdown / Price Override; Submissions:
+   Quote Subtotal / Referral Discount ($) / Your Discount / Your Discount ($) / Quote Total / Quote Notes — all found by header
+   name after column R, because Cards O–R are the pickup clock; quote in the owner alert email), prices read from
+   `site_get()` (5-min cache, `QUOTE_PRICING` fallback), `portalQuote` and `portalReviews` POSTs (token checked by `sbIsAdmin_`),
+   `?action=portalEmails` now also returns `quotes:true, reviews:true`. Helper names are `quote*` to avoid clashes with
+   PortalEmails.gs (shared global namespace). Supabase: `site_content` (key prices|announcement|news|shows|instagram, jsonb,
+   admin RLS, public `site_get()`) + `submissions.quote_discount` — `supabase/2026-11-04_site_content.sql`, tested on local
+   Postgres (anon read-only via RPC, non-admin blocked). Site reads `site_get()` on load (localStorage cache `rr-site-content-v1`,
+   `?nocms` = built-in only) and redraws prices/surcharge text/calculator/form options, announcement bar, News section, shows,
+   Instagram embeds (posts the owner picks; Meta's tokenless embeds since June 2026; auto-latest needs a Meta app, declined).
+   Reviews stay in the Sheet (portal toggles column F). Terms & Conditions are NOT driven by the portal (owner's rule).
+   Tested: mock Apps Script runs, Playwright on site + portal (`?demo`) at 390/1280 px, portal → site → quote round trip,
+   website intake still calls `intake_submit` then Apps Script with the portal code.
+   Owner steps, in order: run the SQL → paste Code.gs, run `setup`, deploy new version → merge/upload `index.html` +
+   `portal/{admin.html,admin.js,common.js,portal.css,site.js}` → open Website → Prices and Save once.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
