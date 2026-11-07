@@ -17,7 +17,7 @@ grading prep). This adds a card-intake and customer portal to the existing site
 | `portal/check.html` + `check.js` + `photoproc.js` | **Card Check**: public, no-login tool (no Supabase, nothing uploaded). Phone photo or scanner file → straightened card, centering (editable), corners/edges, surface relief view, PSA/CGC/BGS centering caps, eBay listing photos + text. `photoproc.js` flattens tilted phone photos (edge line fits → homography); files with ≥150 dpi metadata use the scan path (`scanupload.analyze`, up to 3 cards). |
 | `portal/centering.js` | Interactive centering tool (plain script, `window.RRCentering`): zoom/pan canvas, draggable markers, save/reset. Used by portal and by the desktop app's local reports. |
 | `portal/common.js` | Shared: data API (`realApi` = Supabase, `demoApi` = in-memory), card report renderer, lightbox, helpers. |
-| `portal/cardsearch.js` + `cards.json` | Card-name suggestions (plain script, `window.RRCardSearch.attach(input[, {details}])`) on the intake form in `index.html` and the admin portal's card fields (add card, card detail, new submission). `cards.json` = 21k English cards from TCGdex, built by `tools/build_card_catalog.py`; pictures load from assets.tcgdex.net. Free typing still allowed. |
+| `portal/cardsearch.js` + `cards.json` | Card-name suggestions (plain script, `window.RRCardSearch.attach(input[, {details}])`) on the intake form in `index.html` and the admin portal's card fields (add card, card detail, new submission). `cards.json` = 21k English cards from TCGdex, built by `tools/build_card_catalog.py`; pictures load from assets.tcgdex.net. Free typing still allowed. **Updates itself** on the 1st and 15th (`.github/workflows/update-card-list.yml`, see Status 18). |
 | `portal/config.js` | Supabase URL + anon key (public by design). **Never put the service_role key here.** Placeholder values ⇒ demo mode. |
 | `portal/demo/` | Sample data/images for `?demo` previews (built by `tools/make_demo.py`). Optional to deploy. |
 | `apps-script/Code.gs` + `PortalEmails.gs` | The Sheet's Apps Script project (copies; the live code is pasted into the Sheet's Extensions → Apps Script). Code.gs = submissions, emails, pickup reminders, automatic quotes, `portalReviews`; PortalEmails.gs = Send status email + Supabase admin check. |
@@ -349,6 +349,17 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    website intake still calls `intake_submit` then Apps Script with the portal code.
    Owner steps, in order: run the SQL → paste Code.gs, run `setup`, deploy new version → merge/upload `index.html` +
    `portal/{admin.html,admin.js,common.js,portal.css,site.js}` → open Website → Prices and Save once.
+
+18. **Built Nov 7, 2026 (branch `feature/card-list-auto-update`): card list updates itself.** Owner asked for new cards
+   to show up without anyone re-running the builder. `.github/workflows/update-card-list.yml` runs on the 1st and 15th
+   (cron `17 11 1,15 * *` = 11:17 UTC) and on demand (Actions → "Update card list" → Run workflow): it runs
+   `tools/build_card_catalog.py` into a temp file, then `tools/compare_card_catalog.py` refuses a list that looks broken
+   (< 1,000 cards, < 95% of the live count, or 3+ fewer sets, e.g. TCGdex down) and reports `changed` ignoring the
+   date stamp. Only real changes are committed to `portal/cards.json` (as github-actions[bot], message
+   "Card list update: +N cards, …"); GitHub Pages republishes on its own. Tested: the compare script against the live
+   list (unchanged → no commit; added set → commit; partial download → fails). Not yet verified: a real run on GitHub
+   (do one by hand after merging). Note: GitHub pauses scheduled workflows after 60 days with no repo activity; the
+   Actions tab then shows a button to turn it back on.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
