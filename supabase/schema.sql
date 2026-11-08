@@ -78,6 +78,17 @@ create table if not exists public.cards (
   created_at    timestamptz not null default now(),
   unique (submission_id, card_number)
 );
+-- Each card's own service (as written on the order, e.g. "Base Repair ($35) + Grading Submission ($5) — grading: PSA")
+-- and the grading company it's being submitted to ('' = not being graded).
+alter table public.cards add column if not exists service text not null default '';
+alter table public.cards add column if not exists grading text not null default '';
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'cards_grading_check') then
+    alter table public.cards add constraint cards_grading_check
+      check (grading in ('', 'PSA', 'CGC', 'BGS', 'TAG', 'Not sure yet'));
+  end if;
+end $$;
+create index if not exists cards_grading_idx on public.cards (grading) where grading <> '';
 
 -- ----------------------------------------------------------------- scans
 -- One row per card + stage + side. "files" holds storage paths:
@@ -152,6 +163,7 @@ begin
           select jsonb_agg(jsonb_build_object(
             'id', k.id, 'card_number', k.card_number, 'name', k.name, 'details', k.details,
             'status', k.status, 'public_notes', k.public_notes, 'customer_notes', k.customer_notes,
+            'service', k.service, 'grading', k.grading,
             'scans', coalesce((
               select jsonb_agg(jsonb_build_object('stage', x.stage, 'side', x.side, 'dpi', x.dpi,
                                                   'files', x.files, 'scanned_at', x.scanned_at))
@@ -255,9 +267,10 @@ begin
 
   for card in select * from jsonb_array_elements(p -> 'cards') loop
     n := n + 1;
-    insert into public.cards (submission_id, card_number, name, details, status, customer_notes)
+    insert into public.cards (submission_id, card_number, name, details, status, customer_notes, service, grading)
       values (s.id, n, left(coalesce(card ->> 'name', ''), 200), left(coalesce(card ->> 'details', ''), 300),
-              'submitted', left(coalesce(card ->> 'notes', ''), 2000))
+              'submitted', left(coalesce(card ->> 'notes', ''), 2000), left(coalesce(card ->> 'service', ''), 300),
+              case when card ->> 'grading' in ('PSA', 'CGC', 'BGS', 'TAG', 'Not sure yet') then card ->> 'grading' else '' end)
       returning id into v_card;
     v_ids := v_ids || to_jsonb(v_card);
   end loop;

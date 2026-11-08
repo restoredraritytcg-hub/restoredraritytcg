@@ -2,7 +2,7 @@
 import { api, DEMO, esc, $, $$, pill, STATUSES, renderReport, wireReport, thumbOf, mediaUrl, fmtDate,
   fmtDateTime, installLightbox, installHint, toast, customerLink, progressSteps, STAGE_LABEL } from "./common.js";
 import * as U from "./scanupload.js";
-import { sitePage, quotePanel, wireQuote } from "./site.js";
+import { sitePage, quotePanel, wireQuote, currentPrices, saveServicesToSheet } from "./site.js";
 
 const app = $("#app");
 let S = null; // { customers, submissions, cards, scans, photos }
@@ -139,7 +139,7 @@ async function reload() { S = await api.loadAll(); }
 
 // ------------------------------------------------------------------ router
 function route() {
-  const [page, id] = location.hash.replace(/^#\/?/, "").split("/");
+  const [page, id] = location.hash.replace(/^#\/?/, "").split("?")[0].split("/");
   $$("[data-nav]").forEach((a) => a.classList.toggle("on", a.dataset.nav === (page || "")));
   // On phones the tabs are one swipeable row: keep the current one in view.
   $("[data-nav].on")?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
@@ -189,13 +189,119 @@ function dashboard() {
 }
 
 // --------------------------------------------------------------- all cards
+// ------------------------------------------------------------ grading submissions
+// cards.grading = where the card is being sent: PSA, CGC, BGS, TAG, "Not sure yet", or "" (not being graded).
+const GRADERS = ["PSA", "CGC", "BGS", "TAG"];
+const gradeTag = (g) => g ? `<span class="pill gtag" title="Grading submission">→ ${esc(g === "Not sure yet" ? "Grading (company?)" : g)}</span>` : "";
+const gradingSelect = (id, val, blank = "Not being graded", cls = "") => `<select ${cls ? `class="${cls}"` : `id="${id}"`}><option value="">${blank}</option>
+  ${GRADERS.map((g) => `<option ${g === val ? "selected" : ""}>${g}</option>`).join("")}
+  <option value="Not sure yet" ${val === "Not sure yet" ? "selected" : ""}>Not sure yet</option></select>`;
+const moneyTxt = (n) => "$" + Number(n).toLocaleString("en-US", { maximumFractionDigits: 2 });
+/** Keep a card's service text in step with its grading company (same wording as the website order form). */
+function withGrading(service, grading, P) {
+  let t = String(service || "").replace(/\s+—\s+grading.*$/i, "").trim();
+  const solo = /^grading submission/i.test(t);
+  if (!grading) return solo ? t : t.replace(/\s*\+\s*grading submission\s*\([^)]*\)/i, "").trim();
+  if (t && !solo && !/\+\s*grading submission/i.test(t)) t += ` + Grading Submission (${moneyTxt(P ? P.gradingAddon : 5)})`;
+  return `${t} — ${grading === "Not sure yet" ? "grading company not chosen yet" : "grading: " + grading}`.trim();
+}
+const gradingSummary = (cards) => {
+  const n = {}; cards.forEach((k) => { if (k.grading) n[k.grading] = (n[k.grading] || 0) + 1; });
+  return Object.entries(n).map(([g, c]) => `${c} × ${g}`).join(", ");
+};
+
+// ------------------------------------------------------------ service editor
+// One menu for New submission, the submission page and the card page, built from the price list.
+function buildMenu(P) {
+  const items = P.services.filter((x) => x && x.title).map((x) => {
+    const solo = x.type === "addon" || x.type === "grading";
+    return { kind: x.type === "addon" ? "slab" : x.type === "grading" ? "grading" : x.type, title: x.title,
+      value: solo ? `${x.title} only (${moneyTxt(x.price)})` : `${x.title} (${moneyTxt(x.price)})`,
+      label: x.type === "grading" ? `${x.title} only — ${moneyTxt(x.price)} first card, ${moneyTxt(P.gradingNext)} each after`
+        : solo ? `${x.title} only — ${moneyTxt(x.price)}` : `${x.title} — ${moneyTxt(x.price)}${x.bulk ? " (bulk pricing in the quote)" : ""}` };
+  });
+  const GROUP = { clean: "Cleaning & grading prep", repair: "Repairs", slab: "On its own", grading: "On its own" };
+  const labels = [...new Set(Object.values(GROUP))];
+  const html = (sel = "", other = "") => `<option value="">Choose a service</option>` +
+    labels.map((l) => `<optgroup label="${esc(l)}">${items.map((m, i) => GROUP[m.kind] === l
+      ? `<option value="${i}" ${String(sel) === String(i) ? "selected" : ""}>${esc(m.label)}</option>` : "").join("")}</optgroup>`).join("") +
+    (other ? `<option value="other" selected>As written: ${esc(other)}</option>` : "");
+  return { items, html };
+}
+/** "Base Repair ($35) + Slab Cracking ($10) + Grading Submission ($5) — grading: PSA" → menu pick + add-ons. */
+function parseService(text, M) {
+  const t = String(text || "").trim();
+  const crack = /\+\s*slab\s*cracking/i.test(t), grade = /\+\s*grading\s*submission/i.test(t);
+  const base = t.replace(/\s*\+\s*(slab\s*cracking|grading\s*submission).*$/i, "").replace(/\s+—\s+grading.*$/i, "").trim();
+  let idx = -1, len = 0;
+  M.items.forEach((m, i) => { if (base.toLowerCase().startsWith(m.title.toLowerCase()) && m.title.length > len) { idx = i; len = m.title.length; } });
+  return { idx, other: idx < 0 ? base : "", crack, grade };
+}
+const valueOf = (k) => (((k.customer_notes || "").match(/^(?:NM|Estimated|Card)?\s*value:\s*\$?\s*(.+)$/mi) || [])[1] || "").trim();
+function withValue(notes, v) {
+  const line = v ? `Card value: $${String(v).replace(/^\$/, "")}` : "";
+  const re = /^(?:NM|Estimated|Card)?\s*value:.*$/mi;
+  if (re.test(notes || "")) return String(notes).replace(re, line).replace(/\n{2,}/g, "\n").trim();
+  return [notes, line].filter(Boolean).join("\n");
+}
+const cardServiceText = (k) => k.service || ((k.customer_notes || "").match(/^Service:\s*(.+)$/mi) || [])[1] || "";
+/** Editor fields for one card (row class "svrow"). */
+function serviceFields(k, M, P) {
+  const cur = parseService(cardServiceText(k), M);
+  return `<div class="svrow" data-id="${k.id}">
+    <div class="grid2"><div><label class="f">Service</label><select class="ksv">${M.html(cur.idx >= 0 ? cur.idx : "", cur.other)}</select></div>
+      <div><label class="f">Card value <span style="text-transform:none">(for repair surcharges)</span></label>
+        <input type="text" class="kv" inputmode="decimal" placeholder="e.g. 300" value="${esc(valueOf(k))}"></div></div>
+    <div class="row" style="margin-top:6px;gap:16px;flex-wrap:wrap">
+      <label class="small kcw"><input type="checkbox" class="kc" ${cur.crack ? "checked" : ""}> Slab cracking (+${moneyTxt(P.slabAddon)})</label>
+      <label class="small kgw"><input type="checkbox" class="kgb" ${cur.grade ? "checked" : ""}> Grading submission (+${moneyTxt(P.gradingAddon)})</label>
+      <span class="kgco"><label class="small">Grading company ${gradingSelect("", k.grading || "", "Choose…", "kgs")}</label></span></div></div>`;
+}
+function wireServiceFields(r, M) {
+  const sync = () => {
+    const v = $(".ksv", r).value, m = M.items[v] || {};
+    $(".kcw", r).hidden = m.kind === "slab"; if (m.kind === "slab") $(".kc", r).checked = false;
+    $(".kgw", r).hidden = m.kind === "grading"; if (m.kind === "grading") $(".kgb", r).checked = false;
+    $(".kgco", r).hidden = !(m.kind === "grading" || $(".kgb", r).checked);
+  };
+  $(".ksv", r).onchange = sync; $(".kgb", r).onchange = sync; sync();
+}
+/** Read one editor → {service, grading, value} or {error}. */
+function readServiceFields(r, M, P, label) {
+  const sel = $(".ksv", r).value, m = M.items[sel];
+  let service = sel === "other" ? $(".ksv option[value=other]", r).textContent.replace(/^As written:\s*/, "") : m ? m.value : "";
+  const kind = m ? m.kind : "";
+  if (service && $(".kc", r).checked && kind !== "slab") service += ` + Slab Cracking (${moneyTxt(P.slabAddon)})`;
+  let grading = "";
+  if (service && (kind === "grading" || $(".kgb", r).checked)) {
+    grading = $(".kgs", r).value;
+    if (!grading) return { error: `Choose a grading company for ${label} (or "Not sure yet").` };
+    service = withGrading(service, grading, P);
+  }
+  return { service, grading, value: $(".kv", r).value.trim().replace(/^\$/, "") };
+}
+/** Save changed services: portal first, then the Sheet (so a website order's quote follows). Returns a message. */
+async function saveServices(s, changes) {
+  for (const { k, service, grading, value } of changes) {
+    Object.assign(k, await api.update("cards", k.id, { service, grading, customer_notes: withValue(k.customer_notes, value) }));
+  }
+  if (!changes.length) return "Nothing changed.";
+  try {
+    const out = await saveServicesToSheet(s.code, changes.map(({ k, service, value }) => ({ num: k.card_number, service, value })));
+    return out.onSheet ? `Saved. The Sheet and the quote are updated (${out.updated} card${out.updated === 1 ? "" : "s"}).`
+      : "Saved. This order was made in the portal, so its quote uses these services.";
+  } catch (e) {
+    return `Saved in the portal, but the Sheet wasn't updated: ${e.message}`;
+  }
+}
+
 function cardTile(c) {
   const s = byId("submissions", c.submission_id) || {}, cu = customerOf(s) || {};
   const t = thumbOf(cardScans(c.id));
   return `<a class="tile" href="#/card/${c.id}">
     ${t ? `<img class="ph" src="${esc(mediaUrl(t))}" alt="" loading="lazy">` : `<div class="ph">Not scanned</div>`}
     <div class="n">${esc(cardTitle(c))}</div>
-    <div class="s">${esc(s.code)} · #${c.card_number} · ${esc(cu.name || "")}</div>${pill(c.status)}</a>`;
+    <div class="s">${esc(s.code)} · #${c.card_number} · ${esc(cu.name || "")}</div>${pill(c.status)} ${gradeTag(c.grading)}</a>`;
 }
 
 function allCards() {
@@ -204,24 +310,29 @@ function allCards() {
       `<option value="${k}">${esc(l)}</option>`).join("")}</select>
     <select id="sc" style="max-width:200px"><option value="">Scanned or not</option>
       <option value="no">Not scanned yet</option><option value="before">Has before scan</option>
-      <option value="after">Has after scan</option></select></div>
+      <option value="after">Has after scan</option></select>
+    <select id="gr" style="max-width:200px"><option value="">Any grading</option><option value="any">Being graded</option>
+      ${GRADERS.map((g) => `<option>${g}</option>`).join("")}<option value="Not sure yet">Grading, company not chosen</option></select></div>
     <input type="search" id="q" placeholder="Search card, set, customer, code…" style="margin:12px 0">
     <p class="muted small" id="cnt"></p><div class="tiles" id="g"></div>`;
   const draw = () => {
-    const words = $("#q").value.toLowerCase().split(/\s+/).filter(Boolean), st = $("#st").value, sc = $("#sc").value;
+    const words = $("#q").value.toLowerCase().split(/\s+/).filter(Boolean), st = $("#st").value, sc = $("#sc").value, gr = $("#gr").value;
     const list = S.cards.filter((c) => {
       const s = byId("submissions", c.submission_id) || {}, cu = customerOf(s) || {};
       const scans = cardScans(c.id);
       if (st && c.status !== st) return false;
+      if (gr === "any" ? !c.grading : gr && c.grading !== gr) return false;
       if (sc === "no" && scans.length) return false;
       if ((sc === "before" || sc === "after") && !scans.some((x) => x.stage === sc)) return false;
-      const hay = [c.name, c.details, s.code, cu.name, cu.email, c.public_notes, c.internal_notes].join(" ").toLowerCase();
+      const hay = [c.name, c.details, s.code, cu.name, cu.email, c.public_notes, c.internal_notes, c.service, c.grading].join(" ").toLowerCase();
       return words.every((w) => hay.includes(w));
     }).sort((a, b) => b.created_at.localeCompare(a.created_at));
     $("#cnt").textContent = `${list.length} of ${S.cards.length} cards`;
     $("#g").innerHTML = list.map(cardTile).join("") || `<div class="empty">No cards match.</div>`;
   };
-  ["#q", "#st", "#sc"].forEach((s) => $(s).oninput = draw);
+  ["#q", "#st", "#sc", "#gr"].forEach((s) => $(s).oninput = draw);
+  const want = new URLSearchParams(location.hash.split("?")[1] || "").get("grading");   // #/cards?grading=PSA
+  if (want) { $("#gr").value = want; }
   draw();
 }
 
@@ -371,16 +482,21 @@ function submission(id) {
       <span class="grow"></span><button class="btn danger" id="sdel">Delete submission</button></div></div>
     <div class="row"><h2 class="grow">Cards</h2>
       <a class="btn" target="rr-scan" href="${esc(scanUrl(id))}" title="Open the scan station at the first card without a scan">📷 Scan cards</a></div>
+    ${gradingSummary(cards) ? `<p class="small" style="margin:0 0 8px">Grading submission: <b>${esc(gradingSummary(cards))}</b></p>` : ""}
     <div class="panel" style="padding:0;overflow:auto"><table class="list"><thead><tr><th></th><th>#</th><th>Card</th>
-      <th class="hide-sm">Set / number</th><th>Status</th><th class="hide-sm">Scans</th><th></th></tr></thead><tbody>
+      <th class="hide-sm">Set / number</th><th>Status</th><th>Grading</th><th class="hide-sm">Scans</th><th></th></tr></thead><tbody>
     ${cards.map((k) => { const t = thumbOf(cardScans(k.id)); const st = [...new Set(cardScans(k.id).map((x) => x.stage))];
       const ns = nextStage(k.id);
       return `<tr class="click" data-go="#/card/${k.id}"><td style="width:54px">${t ? `<img src="${esc(mediaUrl(t))}" style="height:52px;border-radius:4px">` : ""}</td>
       <td>${k.card_number}</td><td><b>${esc(k.name || "—")}</b></td><td class="hide-sm">${esc(k.details)}</td>
-      <td>${pill(k.status)}</td><td class="hide-sm muted small">${esc(st.join(", ") || "none")}</td>
+      <td>${pill(k.status)}</td><td>${gradeTag(k.grading) || `<span class="muted small">—</span>`}</td><td class="hide-sm muted small">${esc(st.join(", ") || "none")}</td>
       <td><a class="btn sm" target="rr-scan" href="${esc(scanUrl(id, k.card_number, ns))}"
         title="Scan this card (${esc(STAGE_LABEL[ns])})">📷 Scan</a></td></tr>`; }).join("")
-      || `<tr><td colspan="7" class="muted">No cards.</td></tr>`}</tbody></table></div>
+      || `<tr><td colspan="8" class="muted">No cards.</td></tr>`}</tbody></table></div>
+    <div class="panel" id="svpanel" style="margin-top:12px"><div class="row"><h3 class="grow" style="margin:0">Services &amp; levels</h3>
+      <button class="btn sm" id="svopen">Adjust services</button></div>
+      <p class="muted small" style="margin:6px 0 0">Change any card's service, add-ons, grading company or value. Saving updates the Sheet and the quote.</p>
+      <div id="svbody" hidden></div></div>
     <div class="panel" style="margin-top:12px"><h3 style="margin-top:0">Add a card</h3><div class="row">
       <input type="text" id="kn" placeholder="Card name" class="grow" style="width:auto">
       <input type="text" id="kd" placeholder="Set / number / year" class="grow" style="width:auto">
@@ -389,6 +505,28 @@ function submission(id) {
     <h2>Photos</h2>${photosAdmin(S.photos.filter((p) => p.submission_id === id), { cards })}`;
   $$("[data-go]").forEach((r) => r.onclick = (e) => { if (!e.target.closest("a")) go(r.dataset.go); });
   window.RRCardSearch?.attach($("#kn"), { details: $("#kd") });
+  $("#svopen").onclick = async () => {
+    const body = $("#svbody");
+    if (!body.hidden) { body.hidden = true; $("#svopen").textContent = "Adjust services"; return; }
+    $("#svopen").textContent = "Close"; body.hidden = false; body.innerHTML = `<p class="muted small">Loading your services…</p>`;
+    const P = await currentPrices(), M = buildMenu(P);
+    body.innerHTML = cards.map((k) => `<div style="border-top:1px solid var(--line);margin-top:12px;padding-top:10px">
+        <b>#${k.card_number} ${esc(k.name || "")}</b> ${cardServiceText(k) ? `<span class="muted small">— now: ${esc(cardServiceText(k))}</span>` : ""}
+        ${serviceFields(k, M, P)}</div>`).join("") +
+      `<div class="row" style="margin-top:14px"><button class="btn gold" id="svsave">Save services</button><span class="muted small" id="svmsg"></span></div>`;
+    $$(".svrow", body).forEach((r) => wireServiceFields(r, M));
+    $("#svsave").onclick = async () => {
+      const changes = [];
+      for (const r of $$(".svrow", body)) {
+        const k = byId("cards", r.dataset.id), got = readServiceFields(r, M, P, `card #${k.card_number}`);
+        if (got.error) return toast(got.error, 6000);
+        if (got.service !== cardServiceText(k) || got.grading !== (k.grading || "") || got.value !== valueOf(k)) changes.push({ k, ...got });
+      }
+      $("#svsave").disabled = true; $("#svmsg").textContent = "Saving…";
+      try { toast(await saveServices(s, changes), 7000); route(); }
+      catch (e) { toast(e.message, 6000); $("#svsave").disabled = false; $("#svmsg").textContent = ""; }
+    };
+  };
   wireEmailBar(s);
   wireQuote(s, cards);
   wirePhotosAdmin({ customer: c, cards, submissionId: id });
@@ -437,6 +575,7 @@ function card(id) {
       <div><label class="f">Card name</label><input type="text" id="kn" value="${esc(k.name)}"></div>
       <div><label class="f">Set / number / year</label><input type="text" id="kd" value="${esc(k.details)}"></div>
       <div><label class="f">Status</label>${statusSelect("ks", k.status)}</div><div></div>
+      <div style="grid-column:1/-1" id="ksvc"><span class="muted small">Loading services…</span></div>
       <div><label class="f">Note to customer (they see this)</label><textarea id="kp">${esc(k.public_notes)}</textarea></div>
       <div><label class="f">Private notes (only you)</label><textarea id="ki">${esc(k.internal_notes)}</textarea></div>
     </div>
@@ -495,11 +634,20 @@ function card(id) {
   };
   wirePhotosAdmin({ customer: c, cards: [k], fixedCard: id });
   window.RRCardSearch?.attach($("#kn"), { details: $("#kd") });
+  let SV = null;   // the service editor, once the price list has loaded
+  currentPrices().then((P) => {
+    const M = buildMenu(P), box = $("#ksvc"); if (!box) return;
+    box.innerHTML = serviceFields(k, M, P) + `<p class="muted small" style="margin:4px 0 0">Saving updates the Sheet and the quote too.</p>`;
+    wireServiceFields($(".svrow", box), M); SV = { M, P };
+  });
   $("#ksave").onclick = async () => {
     try {
+      const got = SV ? readServiceFields($(".svrow", app), SV.M, SV.P, "this card") : null;
+      if (got && got.error) return toast(got.error, 6000);
       Object.assign(k, await api.update("cards", id, { name: $("#kn").value.trim(), details: $("#kd").value.trim(),
         status: $("#ks").value, public_notes: $("#kp").value, internal_notes: $("#ki").value }));
-      toast("Saved."); route();
+      const changed = got && (got.service !== cardServiceText(k) || got.grading !== (k.grading || "") || got.value !== valueOf(k));
+      toast(changed ? await saveServices(s, [{ k, ...got }]) : "Saved.", 6000); route();
     } catch (e) { toast(e.message, 5000); }
   };
   $("#kdel").onclick = async () => {
@@ -511,9 +659,11 @@ function card(id) {
 }
 
 // --------------------------------------------------------- new submission
-function newSubmission(customerId) {
+async function newSubmission(customerId) {
   const opts = [...S.customers].sort((a, b) => (a.name || "").localeCompare(b.name || ""))
     .map((c) => `<option value="${c.id}" ${c.id === customerId ? "selected" : ""}>${esc(c.name)}${c.email ? " — " + esc(c.email) : ""}</option>`).join("");
+  app.innerHTML = `<div class="empty">Loading your services…</div>`;
+  const P = await currentPrices(), M = buildMenu(P), MENU = M.items, menuHtml = M.html();
   app.innerHTML = `<h1>New submission</h1>
     <div class="panel"><label class="f">Customer</label>
       <select id="nc"><option value="">➕ New customer…</option>${opts}</select>
@@ -521,26 +671,59 @@ function newSubmission(customerId) {
         <div><label class="f">Name</label><input type="text" id="nn"></div>
         <div><label class="f">Email</label><input type="email" id="ne"></div>
         <div><label class="f">Phone</label><input type="tel" id="np"></div></div>
-      <div class="grid2"><div><label class="f">Service</label><input type="text" id="nsv" placeholder="e.g. Clean + press"></div>
-        <div><label class="f">Status</label>${statusSelect("nst", "received")}</div></div>
+      <div class="grid2"><div><label class="f">Status</label>${statusSelect("nst", "received")}</div>
+        <div><label class="f">Service summary <span style="text-transform:none">(optional; filled in from the cards if blank)</span></label>
+          <input type="text" id="nsv" placeholder="e.g. Repairs + grading"></div></div>
       <h3>Cards</h3><div id="ncards"></div>
       <button class="btn sm" id="nadd">+ Add another card</button>
-      <div class="row" style="margin-top:16px"><button class="btn gold" id="ncreate">Create submission</button></div></div>`;
+      <div class="row" style="margin-top:16px"><button class="btn gold" id="ncreate">Create submission</button>
+        <span class="muted small">The quote on the next page is worked out from these services.</span></div></div>`;
   const addRow = () => {
-    $("#ncards").insertAdjacentHTML("beforeend", `<div class="row" style="margin-bottom:8px">
-    <span class="muted" style="width:26px">#${$$("#ncards .row").length + 1}</span>
-    <input type="text" class="kn grow" placeholder="Card name" style="width:auto">
-    <input type="text" class="kd grow" placeholder="Set / number / year" style="width:auto"></div>`);
-    const r = $$("#ncards .row").at(-1);
+    const n = $$("#ncards .ncard").length + 1;
+    $("#ncards").insertAdjacentHTML("beforeend", `<div class="panel ncard" style="margin-bottom:10px">
+      <div class="row" style="margin-bottom:6px"><b class="grow">Card #${n}</b>${n > 1 ? `<button class="btn sm danger nrm" aria-label="Remove card">✕</button>` : ""}</div>
+      <div class="grid2"><div><label class="f">Card name</label><input type="text" class="kn" placeholder="Start typing, e.g. Charizard"></div>
+        <div><label class="f">Set / number / year</label><input type="text" class="kd"></div>
+        <div><label class="f">Service</label><select class="ksv">${menuHtml}</select></div>
+        <div><label class="f">Card value <span style="text-transform:none">(for repair surcharges; optional)</span></label><input type="text" class="kv" inputmode="decimal" placeholder="e.g. 300"></div></div>
+      <div class="row" style="margin-top:8px;gap:16px;flex-wrap:wrap">
+        <label class="small kcw"><input type="checkbox" class="kc"> Slab cracking (+${moneyTxt(P.slabAddon)})</label>
+        <label class="small kgw"><input type="checkbox" class="kgb"> Grading submission (+${moneyTxt(P.gradingAddon)})</label>
+        <span class="kgco" hidden><label class="small">Grading company ${gradingSelect("", "", "Choose…", "kgs")}</label></span></div></div>`);
+    const r = $$("#ncards .ncard").at(-1);
     window.RRCardSearch?.attach($(".kn", r), { details: $(".kd", r) });
+    const sync = () => {
+      const m = MENU[$(".ksv", r).value] || {};
+      $(".kcw", r).hidden = m.kind === "slab"; if (m.kind === "slab") $(".kc", r).checked = false;
+      $(".kgw", r).hidden = m.kind === "grading"; if (m.kind === "grading") $(".kgb", r).checked = false;
+      $(".kgco", r).hidden = !(m.kind === "grading" || $(".kgb", r).checked);
+    };
+    $(".ksv", r).onchange = sync; $(".kgb", r).onchange = sync; sync();
+    $(".nrm", r)?.addEventListener("click", () => { r.remove(); $$("#ncards .ncard b").forEach((b, i) => { b.textContent = `Card #${i + 1}`; }); });
   };
   addRow();
   $("#nadd").onclick = addRow;
   const sync = () => { $("#newc").style.display = $("#nc").value ? "none" : ""; };
   $("#nc").onchange = sync; sync();
   $("#ncreate").onclick = async () => {
-    const rows = $$("#ncards .row").map((r) => ({ name: $(".kn", r).value.trim(), details: $(".kd", r).value.trim() }))
-      .filter((r) => r.name || r.details);
+    const rows = [];
+    for (const [i, r] of $$("#ncards .ncard").entries()) {
+      const name = $(".kn", r).value.trim(), details = $(".kd", r).value.trim(), m = MENU[$(".ksv", r).value];
+      if (!name && !details && !m) continue;
+      if (!name) return toast(`Card #${i + 1} needs a name.`);
+      let service = "", grading = "";
+      if (m) {
+        service = m.value;
+        if ($(".kc", r).checked && m.kind !== "slab") service += ` + Slab Cracking (${moneyTxt(P.slabAddon)})`;
+        if (m.kind === "grading" || $(".kgb", r).checked) {
+          grading = $(".kgs", r).value;
+          if (!grading) return toast(`Choose a grading company for card #${i + 1} (or "Not sure yet").`);
+          service = withGrading(service, grading, P);
+        }
+      }
+      const v = $(".kv", r).value.trim().replace(/^\$/, "");
+      rows.push({ name, details, service, grading, customer_notes: v ? `Card value: $${v}` : "", title: m ? m.title : "" });
+    }
     if (!rows.length) return toast("Add at least one card.");
     $("#ncreate").disabled = true;
     try {
@@ -552,14 +735,19 @@ function newSubmission(customerId) {
         S.customers.push(cust);
       }
       const status = $("#nst").value;
-      const sub = await api.insert("submissions", { customer_id: cust.id, status, service: $("#nsv").value.trim() });
+      const summary = $("#nsv").value.trim() || [...new Set(rows.map((r) => r.title).filter(Boolean))].join(", ").slice(0, 200);
+      const sub = await api.insert("submissions", { customer_id: cust.id, status, service: summary });
       S.submissions.push(sub);
-      for (const [i, r] of rows.entries()) {
+      for (const [i, { title, ...r }] of rows.entries()) {
         S.cards.push(await api.insert("cards", { submission_id: sub.id, card_number: i + 1, ...r, status }));
       }
       toast(`Created ${sub.code}.`);
       go(`#/submission/${sub.id}`);
-    } catch (e) { toast(e.message, 6000); $("#ncreate").disabled = false; }
+    } catch (e) {
+      $("#ncreate").disabled = false;
+      if (/service|grading|column/i.test(e.message)) return toast("The database needs a one-time update first: in Supabase → SQL Editor, run supabase/2026-11-07_card_grading.sql, then try again.", 9000);
+      toast(e.message, 6000);
+    }
   };
 }
 

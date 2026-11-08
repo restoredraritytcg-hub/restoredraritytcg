@@ -231,6 +231,7 @@ function doPost(e) {
     }
         if (record.type === 'statusEmail') return json_(portalStatusEmail_(record));
     if (record.type === 'portalQuote') return json_(portalQuote_(record));
+    if (record.type === 'portalCardServices') return json_(portalCardServices_(record));
     if (record.type === 'portalReviews') return json_(portalReviews_(record));
 
     // Submissions
@@ -308,7 +309,7 @@ function doGet(e) {
     if (action === 'track') {
       return json_(trackSubmission_(e.parameter.ref || '', e.parameter.email || ''));
     }
-        if (action === 'portalEmails') return json_({ success: true, version: 1, quotes: true, reviews: true });
+        if (action === 'portalEmails') return json_({ success: true, version: 1, quotes: true, reviews: true, services: true });
 
     return json_({ success: false, error: 'Unknown action' });
   } catch (err) {
@@ -943,10 +944,13 @@ var QUOTE_PRICING = {
     { title: 'Card Cleaning',                       price: 10, type: 'clean', bulk: true },
     { title: 'Base Repair',                         price: 35, type: 'repair' },
     { title: 'Major Repair',                        price: 50, type: 'repair' },
-    { title: 'Slab Cracking',                       price: 15, type: 'addon' }   // on its own
+    { title: 'Slab Cracking',                       price: 15, type: 'addon' },  // on its own
+    { title: 'Grading Submission (PSA, CGC, BGS, TAG)', price: 15, type: 'grading' }  // on its own: first card
   ],
   bulkCleaning: function (qty) { return qty > 40 ? 6 : qty > 20 ? 8 : 10; },
   slabAddon: 10,                 // slab cracking added to another service
+  gradingNext: 5,                // grading submission on its own: each card after the first
+  gradingAddon: 5,               // grading submission added to another service, per card
   surcharge: [                   // repairs only, on estimated card value
     { upTo: 250,  rate: 0 },
     { upTo: 1500, rate: 0.10 },
@@ -986,9 +990,13 @@ function quotePricing_() {
 function quotePricingFrom_(pr) {
   if (!pr || !pr.services || !pr.services.length) return null;
   var num = function (v) { v = Number(v); return isFinite(v) && v >= 0 ? v : 0; };
-  var services = pr.services.filter(function (x) { return x && x.title && /^(clean|repair|addon)$/.test(x.type); })
-    .map(function (x) { return { title: String(x.title).trim(), price: num(x.price), type: x.type, bulk: !!x.bulk }; })
-    .sort(function (a, b) { return b.title.length - a.title.length; });   // longest first for name matching
+  var services = pr.services.filter(function (x) { return x && x.title && /^(clean|repair|addon|grading)$/.test(x.type); })
+    .map(function (x) { return { title: String(x.title).trim(), price: num(x.price), type: x.type, bulk: !!x.bulk }; });
+  // A price list saved before the grading service existed: use the built-in one
+  if (!services.some(function (x) { return x.type === 'grading'; })) {
+    services.push(QUOTE_PRICING.services.filter(function (x) { return x.type === 'grading'; })[0]);
+  }
+  services.sort(function (a, b) { return b.title.length - a.title.length; });   // longest first for name matching
   if (!services.length) return null;
   var bulkTier = services.filter(function (x) { return x.bulk; })[0];
   var bulk = (pr.bulk || []).map(function (b) { return { min: num(b.min), price: num(b.price) }; })
@@ -1003,6 +1011,8 @@ function quotePricingFrom_(pr) {
       return p;
     },
     slabAddon: pr.slabAddon != null ? num(pr.slabAddon) : QUOTE_PRICING.slabAddon,
+    gradingNext: pr.gradingNext != null ? num(pr.gradingNext) : QUOTE_PRICING.gradingNext,
+    gradingAddon: pr.gradingAddon != null ? num(pr.gradingAddon) : QUOTE_PRICING.gradingAddon,
     surcharge: surcharge.length ? surcharge : QUOTE_PRICING.surcharge,
     referralRate: pr.referral != null ? num(pr.referral) / 100 : QUOTE_PRICING.referralRate
   };
@@ -1019,13 +1029,16 @@ function computeQuote_(cards, opts, pricing) {
   var parsed = cards.map(function (c) {
     var svc = String(c.service || '').trim();
     var crack = /\+\s*slab\s*cracking/i.test(svc);
-    var base = svc.replace(/\s*\+\s*slab\s*cracking.*$/i, '').trim();
+    var grade = /\+\s*grading\s*submission/i.test(svc);
+    // strip the add-ons and the "— grading: PSA" note to get the main service
+    var base = svc.replace(/\s*\+\s*(slab\s*cracking|grading\s*submission).*$/i, '').replace(/\s+—\s+grading.*$/i, '').trim();
     var tier = null;
     for (var i = 0; i < QP.services.length; i++) {
       if (base.toLowerCase().indexOf(QP.services[i].title.toLowerCase()) === 0) { tier = QP.services[i]; break; }
     }
-    return { c: c, tier: tier, crack: crack, base: base, cancelled: canonicalStatus_(c.status) === 'Cancelled' };
+    return { c: c, tier: tier, crack: crack, grade: grade, base: base, cancelled: canonicalStatus_(c.status) === 'Cancelled' };
   });
+  var gradingSeen = 0;   // grading on its own: first card full price, each after at gradingNext
   var cleanQty = parsed.filter(function (p) { return !p.cancelled && p.tier && p.tier.bulk; }).length;
 
   var lines = parsed.map(function (p) {
@@ -1038,8 +1051,10 @@ function computeQuote_(cards, opts, pricing) {
     var parts = [], price = 0, flag = '';
     if (p.tier) {
       var basePrice = p.tier.bulk ? QP.bulkCleaning(cleanQty) : p.tier.price;
+      if (p.tier.type === 'grading' && gradingSeen++ > 0) basePrice = QP.gradingNext;
       price += basePrice;
-      parts.push(p.tier.title + ' ' + quoteMoney_(basePrice) + (p.tier.bulk && basePrice !== p.tier.price ? ' (bulk, ' + cleanQty + ' cleanings)' : ''));
+      parts.push(p.tier.title + ' ' + quoteMoney_(basePrice) + (p.tier.bulk && basePrice !== p.tier.price ? ' (bulk, ' + cleanQty + ' cleanings)' : '')
+        + (p.tier.type === 'grading' && basePrice !== p.tier.price ? ' (additional card)' : ''));
     } else {
       var m = p.base.match(/\$\s*([\d,]+(?:\.\d+)?)/);
       if (!m) return { num: num, price: null, breakdown: 'Service not recognized: "' + p.base + '"', flag: 'Card ' + num + ': service not recognized — set a Price Override' };
@@ -1049,6 +1064,7 @@ function computeQuote_(cards, opts, pricing) {
       flag = 'Card ' + num + ': service not in price list, used ' + quoteMoney_(guess) + ' from its name';
     }
     if (p.crack && !(p.tier && p.tier.type === 'addon')) { price += QP.slabAddon; parts.push('slab cracking ' + quoteMoney_(QP.slabAddon)); }
+    if (p.grade && !(p.tier && p.tier.type === 'grading')) { price += QP.gradingAddon; parts.push('grading submission ' + quoteMoney_(QP.gradingAddon)); }
 
     if (p.tier && p.tier.type === 'repair') {
       var v = quoteParseValue_(c.value);
@@ -1236,6 +1252,46 @@ function portalQuote_(record) {
     var lock = LockService.getScriptLock();
     lock.waitLock(20000);
     try { return { success: true, quote: recalcQuote_(id), onSheet: true }; } finally { lock.releaseLock(); }
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
+/** The portal changed cards' services (and values): write them to the Cards tab and re-quote.
+ *  {type:'portalCardServices', token, code, cards:[{num, service, value?}]}
+ *  Orders made in the portal only aren't on the Sheet: answers {success:true, onSheet:false}. */
+function portalCardServices_(record) {
+  try {
+    var token = String(record.token || ''), code = String(record.code || '').trim();
+    if (!token || !code) return { success: false, error: 'Missing sign-in or submission code.' };
+    if (typeof sbIsAdmin_ !== 'function' || !sbIsAdmin_(token)) return { success: false, error: 'Not signed in to the portal as an admin. Sign out and back in, then try again.' };
+    var ss = SpreadsheetApp.getActiveSpreadsheet(), subSheet = ss.getSheetByName(SUBMISSIONS_TAB), cardSheet = ss.getSheetByName(CARDS_TAB);
+    var id = '', last = subSheet.getLastRow();
+    if (last >= 2) {
+      var ids = subSheet.getRange(2, SC.ID, last - 1, 1).getValues();
+      for (var i = ids.length - 1; i >= 0; i--) {
+        var v = String(ids[i][0] || '');
+        if (v && (v === code || normRef_(refFromId_(v)) === normRef_(code))) { id = v; break; }
+      }
+    }
+    if (!id) return { success: true, onSheet: false, updated: 0 };
+    var lock = LockService.getScriptLock();
+    lock.waitLock(20000);
+    try {
+      var n = cardSheet.getLastRow() - 1, updated = 0;
+      var rows = n > 0 ? cardSheet.getRange(2, 1, n, CC.SERVICE).getValues() : [];
+      (record.cards || []).forEach(function (c) {
+        for (var r = 0; r < rows.length; r++) {
+          if (String(rows[r][CC.ID - 1]) !== id || Number(rows[r][CC.NUM - 1]) !== Number(c.num)) continue;
+          if (c.service != null) cardSheet.getRange(r + 2, CC.SERVICE).setValue(String(c.service).slice(0, 300));
+          if (c.value != null) cardSheet.getRange(r + 2, CC.VALUE).setValue(String(c.value).slice(0, 40));
+          updated++;
+          break;
+        }
+      });
+      SpreadsheetApp.flush();
+      return { success: true, onSheet: true, updated: updated, quote: recalcQuote_(id) };
+    } finally { lock.releaseLock(); }
   } catch (err) {
     return { success: false, error: String(err) };
   }

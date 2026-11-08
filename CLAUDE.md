@@ -97,6 +97,11 @@ arrow keys (Alt = outer marker), save, or reset to auto.
 
 - Built-in prices: `index.html` (`CLEAN_TIERS`/`REPAIR_TIERS`/`ADDON_TIERS`/`PRICE_RULES`) ⇄ `portal/site.js` `DEFAULT_PRICES` ⇄
   `apps-script/Code.gs` `QUOTE_PRICING` (fallback only). Once prices are saved in the portal, all three read `site_content.prices`.
+  Service types: `clean`, `repair`, `addon` (slab cracking on its own) and `grading` (grading submission on its own; rules
+  `gradingNext` / `gradingAddon`). All three places add the built-in grading service back if a saved list predates it.
+- Service text wording is shared by the website form, the portal's New submission (`withGrading` in admin.js) and Code.gs's
+  `computeQuote_` parser: `Base Repair ($35) + Slab Cracking ($10) + Grading Submission ($5) — grading: PSA`,
+  `Grading Submission (PSA, CGC, BGS, TAG) only ($15) — grading company not chosen yet`.
 
 - `portal/centering.js` ⇄ `desktop-scanner/assets/centering.js` (identical copies).
 - `portal/scanproc.js` ⇄ `desktop-scanner/cardcrop.py` + `detail.py` (same constants: crop pad 0.06 in, corner 0.40 in,
@@ -397,6 +402,55 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    docs "Scan Station — Launch Plan". The `scanner/` folder here stays as the origin; future work goes to the new repo.
    Owner's Mac packages: "Card Business Projects" zip (one folder per project + Claude Project briefs) — folder access to the
    Mac was refused, so it was sent as a download. The "Websites" Claude project is over its knowledge limit (writes refused).
+
+21. **Built Nov 7, 2026 (branch `feature/grading-addon`), not yet live: grading submission service + company per card.**
+   Owner's decisions: grading submissions to **PSA, CGC, BGS or TAG**; **$15 first card + $5 each after on its own, $5 per card
+   as an add-on**; shown on the website and in the portal; **the customer picks the company on the order form ("Not sure yet"
+   allowed) and the owner can change it in the portal**. Built: `cards.service` + `cards.grading` (check: '' / PSA / CGC / BGS /
+   TAG / Not sure yet) in `supabase/2026-11-07_card_grading.sql` (+ schema.sql), saved by `intake_submit`, returned by
+   `portal_get`; website price list, calculator (grading box + first/next math), order form (grading box + "Which grading
+   company?" picker, required when grading is chosen; service text ends "— grading: PSA"); Code.gs quotes (solo first/next
+   across the submission, cancelled cards don't count; add-on $5); portal price editor (Grading submission prices section, the
+   grading row can't be removed); portal New submission rebuilt with a per-card service menu from the price list, slab/grading
+   add-ons, company picker and card value (→ `customer_notes` "Card value: $…" for repair surcharges); card page Service +
+   Grading submission fields (changing the company rewrites the service text via `withGrading`); submission page Grading column
+   + "Grading submission: 2 × PSA, 1 × CGC" summary; All cards "Grading" filter (also `#/cards?grading=PSA`) and a → PSA tag on
+   tiles. Tested: SQL on local Postgres from main's schema with data (old orders kept, re-run safe, bad company refused, anon
+   can't read cards, customer link shows the company); quote math in Node (first/next, add-on with crack + surcharge, cancelled,
+   price list saved before grading, custom grading prices, old orders unchanged); Playwright on the site (built-in and saved
+   price lists, desktop + phone) and the portal in `?demo` (desktop + phone). Website orders are quoted from the Sheet's
+   Service column; since item 22, saving a card's service in the portal writes it there too.
+   Owner steps, in order: run `supabase/2026-11-07_card_grading.sql` → paste `apps-script/Code.gs`, deploy a new version →
+   merge (uploads `index.html`, `portal/admin.js`, `portal/site.js`) → in the portal open Website → Prices and Save once
+   (optional: keeps the grading prices with the rest of the saved list). Item 22 ships in the same PR with the same steps.
+
+22. **Built Nov 7, 2026 (same branch / PR #7): adjust services in the portal + evaluation → grading note.**
+   Owner wants to correct customers' services and levels so quotes are accurate. Submission page: **Services & levels** panel
+   ("Adjust services") with one editor per card; card page: the same editor in place of the old free-text Service field.
+   Editor = service menu from the price list (pre-selects the card's current service via `parseService`; unmatched text is kept
+   as "As written: …"), slab/grading add-ons, grading company, card value. Saving writes `cards.service` / `cards.grading` /
+   the "Card value: $…" line in `customer_notes`, then POSTs `{type:'portalCardServices', token, code, cards:[{num, service,
+   value}]}` → Code.gs `portalCardServices_` writes the Cards tab Service (E) + Value (D) for that submission's rows and returns
+   `recalcQuote_(id)`; portal-only orders answer `{onSheet:false}`. The portal only posts when `?action=portalEmails` reports
+   `services:true` (an older script would treat the POST as a new submission); otherwise it saves in the portal and says the
+   Sheet wasn't updated. The customer's original choice stays in the card's intake notes ("Service: …").
+   Website: the Grade-Ready Evaluation tier (`isEvalTier`: clean + /evaluation|grade-ready/) gets an automatic note "Add a
+   grading submission for $5 more: I submit it to PSA, CGC, BGS or TAG for you." (owner chose the $5 add-on over a separate
+   package). Tested: `portalCardServices_` on a mock Sheet (only that order's rows change, quote $20 → $125, non-admin refused,
+   portal-only answer, capability flag); portal editor in `?demo` on desktop + phone (pre-select, missing company caught, save,
+   Grading column/summary refresh, card page editor); website eval note.
+
+23. **Built Nov 7, 2026 (same PR #7): grading fee terms.** Owner's rule: the grading company's **base fee for the chosen
+   service level is due once the card is evaluated and ready to ship to the grader**; any grading-company upcharge (e.g. a
+   higher value tier) is billed/invoiced to the customer when the grading company invoices Restored Rarity. Shown in a
+   "How grading submission fees work" box under Additional services (`#grading-fees`, amounts follow saved prices), a short
+   note under the order form's "Which grading company?" picker, and the calculator hint whenever grading is included.
+   The grading tier's description no longer says return shipping is separate (index.html + site.js default). Terms &
+   Conditions: on Nov 8 the owner asked for the same rule in the T&C: section 6 (Grading) got "Grading submission service",
+   "When grading fees are due", "Grading company upcharges" and a fees-set-by-the-grader paragraph; section 19 (Payment) and
+   the Acknowledgment got one sentence each; Effective Date → November 8, 2026 (build v11-08a). Same day, owner changed the rule to staged payment: **50% of the
+   grader's base fee when the card is ready to ship, the other 50% when it enters the holder and label stage; return shipping
+   + any upcharge once grades are complete** (box, form note, calculator, T&C §6/§19/Acknowledgment; build v11-08b). Owner reported Nov 7 that grading wasn't showing on the live site: PR #7 isn't merged yet.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
