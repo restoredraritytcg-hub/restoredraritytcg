@@ -386,6 +386,7 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    JPEG (≤3200 px) per side goes to their Cloudinary; close-ups are Cloudinary `c_crop` URLs from `boxes`; the scan JSON lives
    in the Items tab column V "Scans" (Code.gs `saveScanAction_`, `itemMedia_` feeds the customer link). Shared guide:
    Claude Docs "Scan Station & Intake App — Setup Guide". Merge each PR only after that site's new Code.gs is deployed.
+   **RipperDoc: owner pasted the new Code.gs (Nov 8); PR #2 merged, help.html confirmed live.** PH: waiting on its Code.gs.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
