@@ -366,6 +366,11 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    workflow retries the whole build 3× 10 min apart; actions bumped to checkout@v5 / setup-python@v6 (Node 24).
    **Verified on GitHub Nov 7:** a manual run on the fix branch succeeded and committed +176 cards / 1 new set
    (Delta Reign) → 21,432 cards in 202 sets. Merging PR #6 brings the fix and that list to main.
+   **Other sites use this list (Nov 7):** the owner's client sites RipperDoc TCG (theripperdoctcg.com) and PH Restoration Lab
+   load `https://restoredraritytcg.com/portal/cards.json` (fallback: raw.githubusercontent.com copy of `main`) for their
+   card-name suggestions, then pokemontcg.io / TCGdex online. **Don't move, rename or change the format of
+   `portal/cards.json`** (`{v, img, sets:[[id,name,year,total,path]], cards:[[name,setIndex,number,pic]]}`) without
+   updating those sites.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
