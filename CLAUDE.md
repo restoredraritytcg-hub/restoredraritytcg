@@ -388,5 +388,15 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    Claude Docs "Scan Station & Intake App — Setup Guide". Merge each PR only after that site's new Code.gs is deployed.
    **RipperDoc: owner pasted the new Code.gs (Nov 8); PR #2 merged, help.html confirmed live.** PH: waiting on its Code.gs.
 
+20. **Nov 8, 2026: standalone Scan Station split out + launch plan.** Built locally at `/home/claude/scan-station` (new repo
+   `restoredraritytcg-hub/scan-station`, **not created yet — the owner must create it empty**; Claude sessions can't create
+   repos). Contents: `app/` (copy of `scanner/` with `shared/` copies of portal modules, plans + upgrade prompts, eBay zip only
+   on paid plans), `supabase/plans.sql` (plans, `whop_memberships`, `sync_plan`/`sync_membership`/`my_plan`; tested on local
+   Postgres), Edge Functions `whop-webhook` + `create-checkout` (Whop field names unverified — sandbox), `discord/` (server
+   blueprint + `setup-server.mjs`, tested on a mock API), `business/` (go-to-market, launch checklist, support). Docs: Claude
+   docs "Scan Station — Launch Plan". The `scanner/` folder here stays as the origin; future work goes to the new repo.
+   Owner's Mac packages: "Card Business Projects" zip (one folder per project + Claude Project briefs) — folder access to the
+   Mac was refused, so it was sent as a download. The "Websites" Claude project is over its knowledge limit (writes refused).
+
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
