@@ -19,16 +19,27 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
       - name: Build the card list from TCGdex
-        run: python tools/build_card_catalog.py "$RUNNER_TEMP/cards.json"
+        # TCGdex is a free service and sometimes busy: the builder retries each request, and if the
+        # whole build still fails it waits 10 minutes and tries again (3 tries in all).
+        run: |
+          for attempt in 1 2 3; do
+            if python tools/build_card_catalog.py "$RUNNER_TEMP/cards.json"; then exit 0; fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "::warning::TCGdex didn't finish answering (try $attempt of 3). Trying again in 10 minutes."
+              sleep 600
+            fi
+          done
+          echo "::error::TCGdex was unavailable for all 3 tries. The live card list was not changed; the next scheduled run will try again."
+          exit 1
 
       - name: Compare with the live list
         id: cmp
