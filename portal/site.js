@@ -56,6 +56,13 @@ export const DEFAULT_PRICES = {
       "type": "addon",
       "desc": "Careful removal of your card from a graded slab so it can be cleaned, restored, or resubmitted. The slab is opened with care to protect the card's surface, edges, and corners.",
       "sub": ""
+    },
+    {
+      "title": "Grading Submission (PSA, CGC, BGS, TAG)",
+      "price": 15,
+      "type": "grading",
+      "desc": "We package your card and submit it to the grading company you choose: PSA, CGC, BGS or TAG. The grading company\u2019s own fees and return shipping are separate.",
+      "sub": ""
     }
   ],
   "bulk": [
@@ -69,6 +76,8 @@ export const DEFAULT_PRICES = {
     }
   ],
   "slabAddon": 10,
+  "gradingNext": 5,
+  "gradingAddon": 5,
   "surcharge": [
     {
       "upTo": 250,
@@ -130,6 +139,11 @@ async function loadSite() {
     throw e;
   }
 }
+/** The current price list (saved in the portal, or the website's built-in one), for the New submission service menu. */
+export async function currentPrices() {
+  if (!SC) { try { await loadSite(); } catch (e) { SC = {}; } }
+  return withDefaults(clone(SC.prices && SC.prices.services ? SC.prices : DEFAULT_PRICES));
+}
 async function saveSite(key, value, msg = "Saved. It's live on the site within a minute.") {
   await api.upsert("site_content", { key, value }, "key");
   SC[key] = clone(value);   // a copy, so later edits on the page don't change the saved version
@@ -187,9 +201,17 @@ async function reviews(body) {
 }
 
 // ------------------------------------------------------------ prices
-const GROUPS = [["clean", "Cleaning & grading prep"], ["repair", "Repairs"], ["addon", "Slab cracking on its own"]];
+const GROUPS = [["clean", "Cleaning & grading prep"], ["repair", "Repairs"], ["addon", "Slab cracking on its own"],
+  ["grading", "Grading submission on its own (first card)"]];
+/** Fill in anything a saved price list predates: the grading service and its two prices. */
+function withDefaults(P) {
+  if (!P.services.some((x) => x.type === "grading")) P.services.push(clone(DEFAULT_PRICES.services.find((x) => x.type === "grading")));
+  if (P.gradingNext == null) P.gradingNext = DEFAULT_PRICES.gradingNext;
+  if (P.gradingAddon == null) P.gradingAddon = DEFAULT_PRICES.gradingAddon;
+  return P;
+}
 async function prices(body) {
-  let P = clone(SC.prices && SC.prices.services ? SC.prices : DEFAULT_PRICES);
+  let P = withDefaults(clone(SC.prices && SC.prices.services ? SC.prices : DEFAULT_PRICES));
   const saved = !!SC.prices;
   const svcRow = (x, i) => `<div class="panel svc" data-i="${i}" data-type="${x.type}" style="margin-top:8px">
       <div class="row">
@@ -198,7 +220,7 @@ async function prices(body) {
         <span class="row" style="gap:4px">
           <button class="btn sm" data-mv="-1" title="Move up" aria-label="Move up">▲</button>
           <button class="btn sm" data-mv="1" title="Move down" aria-label="Move down">▼</button>
-          ${x.type !== "addon" ? `<button class="btn sm danger" data-rm title="Remove" aria-label="Remove">✕</button>` : ""}</span></div>
+          ${x.type !== "addon" && x.type !== "grading" ? `<button class="btn sm danger" data-rm title="Remove" aria-label="Remove">✕</button>` : ""}</span></div>
       <label class="f">Description</label><textarea class="d" rows="3">${esc(x.desc)}</textarea>
       <label class="f">Extra note <span style="text-transform:none">(optional, small print under the description)</span></label>
       <input type="text" class="s" value="${esc(x.sub || "")}">
@@ -208,7 +230,7 @@ async function prices(body) {
     body.innerHTML = `${saved ? "" : `<div class="panel" style="border-color:var(--gold);margin-bottom:12px">These are the prices built into the website right now.
         Once you save here, the website and your order quotes both use this list.</div>`}
       ${GROUPS.map(([type, label]) => `<h2>${label}</h2>${P.services.map((x, i) => x.type === type ? svcRow(x, i) : "").join("")}
-        ${type !== "addon" ? `<button class="btn sm" data-add="${type}" style="margin-top:8px">+ Add a ${type === "clean" ? "cleaning" : "repair"} service</button>`
+        ${type === "grading" ? "" : type !== "addon" ? `<button class="btn sm" data-add="${type}" style="margin-top:8px">+ Add a ${type === "clean" ? "cleaning" : "repair"} service</button>`
           : (P.services.some((x) => x.type === "addon") ? "" : `<button class="btn sm" data-add="addon" style="margin-top:8px">+ Add slab cracking</button>`)}`).join("")}
       <h2>Bulk cleaning</h2>
       <div class="panel">${P.bulk.map((b, i) => `<div class="row brow" style="margin-bottom:6px">From
@@ -220,6 +242,12 @@ async function prices(body) {
       <div class="panel row">Added to another service:
         <span class="money"><span>$</span><input type="text" id="slab" inputmode="decimal" value="${esc(P.slabAddon)}" aria-label="Slab cracking add-on price"></span>
         <span class="muted small">(on its own it's the Slab Cracking price above)</span></div>
+      <h2>Grading submission prices</h2>
+      <div class="panel"><div class="row" style="margin-bottom:6px">On its own, each card after the first:
+          <span class="money"><span>$</span><input type="text" id="gnext" inputmode="decimal" value="${esc(P.gradingNext)}" aria-label="Grading on its own, each additional card"></span></div>
+        <div class="row">Added to another service, per card:
+          <span class="money"><span>$</span><input type="text" id="gadd" inputmode="decimal" value="${esc(P.gradingAddon)}" aria-label="Grading added to another service"></span></div>
+        <p class="muted small" style="margin:6px 0 0">The first card on its own is the Grading Submission price above. Customers pick PSA, CGC, BGS or TAG on the order form.</p></div>
       <h2>Card value surcharge <span class="muted small" style="text-transform:none">(repairs only)</span></h2>
       <div class="panel">${P.surcharge.map((t, i) => `<div class="row srow" style="margin-bottom:6px">${i ? `${money(P.surcharge[i - 1].upTo + 1)} up to` : "Up to"}
           <span class="money"><span>$</span><input type="text" class="su" inputmode="decimal" value="${esc(t.upTo)}" aria-label="Up to card value"></span>:
@@ -250,7 +278,7 @@ async function prices(body) {
     $$("[data-brm]", body).forEach((b) => b.onclick = () => { collect(); P.bulk.splice(+b.dataset.brm, 1); draw(); });
     $("#sadd").onclick = () => { collect(); const l = P.surcharge.at(-1); P.surcharge.push({ upTo: l.upTo + 1000, rate: l.rate }); draw(); };
     $$("[data-srm]", body).forEach((b) => b.onclick = () => { collect(); P.surcharge.splice(+b.dataset.srm, 1); draw(); });
-    $("#pundo").onclick = () => { P = clone(SC.prices && SC.prices.services ? SC.prices : DEFAULT_PRICES); draw(); toast("Changes undone."); };
+    $("#pundo").onclick = () => { P = withDefaults(clone(SC.prices && SC.prices.services ? SC.prices : DEFAULT_PRICES)); draw(); toast("Changes undone."); };
     $("#preset").onclick = () => { if (confirm("Fill in the prices built into the website? Nothing is saved until you click Save prices.")) { P = clone(DEFAULT_PRICES); draw(); } };
     $("#psave").onclick = async () => {
       collect();
@@ -270,6 +298,8 @@ async function prices(body) {
     });
     P.bulk = $$(".brow", body).map((r) => ({ min: Math.round(num($(".bm", r).value)), price: num($(".bp", r).value) }));
     P.slabAddon = num($("#slab").value);
+    P.gradingNext = num($("#gnext").value);
+    P.gradingAddon = num($("#gadd").value);
     P.surcharge = $$(".srow", body).map((r) => ({ upTo: num($(".su", r).value), rate: num($(".sr", r).value) }));
     P.referral = num($("#ref").value);
   };
@@ -284,13 +314,14 @@ function check(P) {
     seen.add(k);
     if (!(x.price >= 0)) return `"${x.title}" needs a price (a number, like 35).`;
   }
-  if (!P.services.some((x) => x.type !== "addon")) return "Add at least one cleaning or repair service.";
+  if (!P.services.some((x) => x.type !== "addon" && x.type !== "grading")) return "Add at least one cleaning or repair service.";
   for (const [i, b] of P.bulk.entries()) {
     if (!(b.min >= 2) || !(b.price >= 0)) return "Each bulk level needs a number of cards (2 or more) and a price.";
     if (i && b.min <= P.bulk[i - 1].min) return "Bulk levels must go from fewer cards to more cards.";
   }
   if (P.bulk.length && !P.services.some((x) => x.bulk)) return "Pick which cleaning service the bulk pricing applies to.";
   if (!(P.slabAddon >= 0)) return "The slab cracking add-on needs a price.";
+  if (!(P.gradingNext >= 0) || !(P.gradingAddon >= 0)) return "The grading submission prices need numbers (like 5).";
   for (const [i, t] of P.surcharge.entries()) {
     if (!(t.upTo > 0) || !(t.rate >= 0 && t.rate <= 100)) return "Each surcharge level needs a card value and a percent from 0 to 100.";
     if (i && t.upTo <= P.surcharge[i - 1].upTo) return "Surcharge levels must go from lower card values to higher ones.";
@@ -498,7 +529,7 @@ function quoteCards(s, cards) {
   return cards.map((k) => {
     const n = k.customer_notes || "";
     return { num: k.card_number, card: k.name || `Card #${k.card_number}`,
-      service: (n.match(/^Service:\s*(.+)$/mi) || [])[1] || s.service || "",
+      service: k.service || (n.match(/^Service:\s*(.+)$/mi) || [])[1] || s.service || "",
       value: (n.match(/^(?:NM|Estimated|Card)?\s*value:\s*(.+)$/mi) || [])[1] || "",
       status: "" };
   });
@@ -527,7 +558,7 @@ export async function wireQuote(s, cards) {
         ${q.discount ? `<button class="btn sm" type="button" id="qdrm">Remove</button>` : ""}</form>
       <p class="muted small" style="margin:10px 0 0">${onSheet
         ? "Same quote as the Sheet's Quote Total. For a card over the custom-quote value, type its price in the Sheet's Price Override column."
-        : "This order isn't on the Sheet (made in the portal), so it's priced from each card's service and value in its intake notes, or the submission's Service."}
+        : "This order isn't on the Sheet (made in the portal), so it's priced from each card's Service (set on the card's page) and its card value, or the submission's Service."}
         Customers never see quotes.</p>`;
     $("#qcopy").hidden = false;
     $("#qdisc").onsubmit = (e) => { e.preventDefault(); apply($("#qd").value.trim()); };

@@ -943,10 +943,13 @@ var QUOTE_PRICING = {
     { title: 'Card Cleaning',                       price: 10, type: 'clean', bulk: true },
     { title: 'Base Repair',                         price: 35, type: 'repair' },
     { title: 'Major Repair',                        price: 50, type: 'repair' },
-    { title: 'Slab Cracking',                       price: 15, type: 'addon' }   // on its own
+    { title: 'Slab Cracking',                       price: 15, type: 'addon' },  // on its own
+    { title: 'Grading Submission (PSA, CGC, BGS, TAG)', price: 15, type: 'grading' }  // on its own: first card
   ],
   bulkCleaning: function (qty) { return qty > 40 ? 6 : qty > 20 ? 8 : 10; },
   slabAddon: 10,                 // slab cracking added to another service
+  gradingNext: 5,                // grading submission on its own: each card after the first
+  gradingAddon: 5,               // grading submission added to another service, per card
   surcharge: [                   // repairs only, on estimated card value
     { upTo: 250,  rate: 0 },
     { upTo: 1500, rate: 0.10 },
@@ -986,9 +989,13 @@ function quotePricing_() {
 function quotePricingFrom_(pr) {
   if (!pr || !pr.services || !pr.services.length) return null;
   var num = function (v) { v = Number(v); return isFinite(v) && v >= 0 ? v : 0; };
-  var services = pr.services.filter(function (x) { return x && x.title && /^(clean|repair|addon)$/.test(x.type); })
-    .map(function (x) { return { title: String(x.title).trim(), price: num(x.price), type: x.type, bulk: !!x.bulk }; })
-    .sort(function (a, b) { return b.title.length - a.title.length; });   // longest first for name matching
+  var services = pr.services.filter(function (x) { return x && x.title && /^(clean|repair|addon|grading)$/.test(x.type); })
+    .map(function (x) { return { title: String(x.title).trim(), price: num(x.price), type: x.type, bulk: !!x.bulk }; });
+  // A price list saved before the grading service existed: use the built-in one
+  if (!services.some(function (x) { return x.type === 'grading'; })) {
+    services.push(QUOTE_PRICING.services.filter(function (x) { return x.type === 'grading'; })[0]);
+  }
+  services.sort(function (a, b) { return b.title.length - a.title.length; });   // longest first for name matching
   if (!services.length) return null;
   var bulkTier = services.filter(function (x) { return x.bulk; })[0];
   var bulk = (pr.bulk || []).map(function (b) { return { min: num(b.min), price: num(b.price) }; })
@@ -1003,6 +1010,8 @@ function quotePricingFrom_(pr) {
       return p;
     },
     slabAddon: pr.slabAddon != null ? num(pr.slabAddon) : QUOTE_PRICING.slabAddon,
+    gradingNext: pr.gradingNext != null ? num(pr.gradingNext) : QUOTE_PRICING.gradingNext,
+    gradingAddon: pr.gradingAddon != null ? num(pr.gradingAddon) : QUOTE_PRICING.gradingAddon,
     surcharge: surcharge.length ? surcharge : QUOTE_PRICING.surcharge,
     referralRate: pr.referral != null ? num(pr.referral) / 100 : QUOTE_PRICING.referralRate
   };
@@ -1019,13 +1028,16 @@ function computeQuote_(cards, opts, pricing) {
   var parsed = cards.map(function (c) {
     var svc = String(c.service || '').trim();
     var crack = /\+\s*slab\s*cracking/i.test(svc);
-    var base = svc.replace(/\s*\+\s*slab\s*cracking.*$/i, '').trim();
+    var grade = /\+\s*grading\s*submission/i.test(svc);
+    // strip the add-ons and the "— grading: PSA" note to get the main service
+    var base = svc.replace(/\s*\+\s*(slab\s*cracking|grading\s*submission).*$/i, '').replace(/\s+—\s+grading.*$/i, '').trim();
     var tier = null;
     for (var i = 0; i < QP.services.length; i++) {
       if (base.toLowerCase().indexOf(QP.services[i].title.toLowerCase()) === 0) { tier = QP.services[i]; break; }
     }
-    return { c: c, tier: tier, crack: crack, base: base, cancelled: canonicalStatus_(c.status) === 'Cancelled' };
+    return { c: c, tier: tier, crack: crack, grade: grade, base: base, cancelled: canonicalStatus_(c.status) === 'Cancelled' };
   });
+  var gradingSeen = 0;   // grading on its own: first card full price, each after at gradingNext
   var cleanQty = parsed.filter(function (p) { return !p.cancelled && p.tier && p.tier.bulk; }).length;
 
   var lines = parsed.map(function (p) {
@@ -1038,8 +1050,10 @@ function computeQuote_(cards, opts, pricing) {
     var parts = [], price = 0, flag = '';
     if (p.tier) {
       var basePrice = p.tier.bulk ? QP.bulkCleaning(cleanQty) : p.tier.price;
+      if (p.tier.type === 'grading' && gradingSeen++ > 0) basePrice = QP.gradingNext;
       price += basePrice;
-      parts.push(p.tier.title + ' ' + quoteMoney_(basePrice) + (p.tier.bulk && basePrice !== p.tier.price ? ' (bulk, ' + cleanQty + ' cleanings)' : ''));
+      parts.push(p.tier.title + ' ' + quoteMoney_(basePrice) + (p.tier.bulk && basePrice !== p.tier.price ? ' (bulk, ' + cleanQty + ' cleanings)' : '')
+        + (p.tier.type === 'grading' && basePrice !== p.tier.price ? ' (additional card)' : ''));
     } else {
       var m = p.base.match(/\$\s*([\d,]+(?:\.\d+)?)/);
       if (!m) return { num: num, price: null, breakdown: 'Service not recognized: "' + p.base + '"', flag: 'Card ' + num + ': service not recognized — set a Price Override' };
@@ -1049,6 +1063,7 @@ function computeQuote_(cards, opts, pricing) {
       flag = 'Card ' + num + ': service not in price list, used ' + quoteMoney_(guess) + ' from its name';
     }
     if (p.crack && !(p.tier && p.tier.type === 'addon')) { price += QP.slabAddon; parts.push('slab cracking ' + quoteMoney_(QP.slabAddon)); }
+    if (p.grade && !(p.tier && p.tier.type === 'grading')) { price += QP.gradingAddon; parts.push('grading submission ' + quoteMoney_(QP.gradingAddon)); }
 
     if (p.tier && p.tier.type === 'repair') {
       var v = quoteParseValue_(c.value);

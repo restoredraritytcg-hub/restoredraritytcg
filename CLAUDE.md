@@ -97,6 +97,11 @@ arrow keys (Alt = outer marker), save, or reset to auto.
 
 - Built-in prices: `index.html` (`CLEAN_TIERS`/`REPAIR_TIERS`/`ADDON_TIERS`/`PRICE_RULES`) ⇄ `portal/site.js` `DEFAULT_PRICES` ⇄
   `apps-script/Code.gs` `QUOTE_PRICING` (fallback only). Once prices are saved in the portal, all three read `site_content.prices`.
+  Service types: `clean`, `repair`, `addon` (slab cracking on its own) and `grading` (grading submission on its own; rules
+  `gradingNext` / `gradingAddon`). All three places add the built-in grading service back if a saved list predates it.
+- Service text wording is shared by the website form, the portal's New submission (`withGrading` in admin.js) and Code.gs's
+  `computeQuote_` parser: `Base Repair ($35) + Slab Cracking ($10) + Grading Submission ($5) — grading: PSA`,
+  `Grading Submission (PSA, CGC, BGS, TAG) only ($15) — grading company not chosen yet`.
 
 - `portal/centering.js` ⇄ `desktop-scanner/assets/centering.js` (identical copies).
 - `portal/scanproc.js` ⇄ `desktop-scanner/cardcrop.py` + `detail.py` (same constants: crop pad 0.06 in, corner 0.40 in,
@@ -371,6 +376,27 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    card-name suggestions, then pokemontcg.io / TCGdex online. **Don't move, rename or change the format of
    `portal/cards.json`** (`{v, img, sets:[[id,name,year,total,path]], cards:[[name,setIndex,number,pic]]}`) without
    updating those sites.
+
+19. **Built Nov 7, 2026 (branch `feature/grading-addon`), not yet live: grading submission service + company per card.**
+   Owner's decisions: grading submissions to **PSA, CGC, BGS or TAG**; **$15 first card + $5 each after on its own, $5 per card
+   as an add-on**; shown on the website and in the portal; **the customer picks the company on the order form ("Not sure yet"
+   allowed) and the owner can change it in the portal**. Built: `cards.service` + `cards.grading` (check: '' / PSA / CGC / BGS /
+   TAG / Not sure yet) in `supabase/2026-11-07_card_grading.sql` (+ schema.sql), saved by `intake_submit`, returned by
+   `portal_get`; website price list, calculator (grading box + first/next math), order form (grading box + "Which grading
+   company?" picker, required when grading is chosen; service text ends "— grading: PSA"); Code.gs quotes (solo first/next
+   across the submission, cancelled cards don't count; add-on $5); portal price editor (Grading submission prices section, the
+   grading row can't be removed); portal New submission rebuilt with a per-card service menu from the price list, slab/grading
+   add-ons, company picker and card value (→ `customer_notes` "Card value: $…" for repair surcharges); card page Service +
+   Grading submission fields (changing the company rewrites the service text via `withGrading`); submission page Grading column
+   + "Grading submission: 2 × PSA, 1 × CGC" summary; All cards "Grading" filter (also `#/cards?grading=PSA`) and a → PSA tag on
+   tiles. Tested: SQL on local Postgres from main's schema with data (old orders kept, re-run safe, bad company refused, anon
+   can't read cards, customer link shows the company); quote math in Node (first/next, add-on with crack + surcharge, cancelled,
+   price list saved before grading, custom grading prices, old orders unchanged); Playwright on the site (built-in and saved
+   price lists, desktop + phone) and the portal in `?demo` (desktop + phone). Website orders are still quoted from the Sheet's
+   Service column, so changing a company in the portal doesn't change a website order's quote.
+   Owner steps, in order: run `supabase/2026-11-07_card_grading.sql` → paste `apps-script/Code.gs`, deploy a new version →
+   merge (uploads `index.html`, `portal/admin.js`, `portal/site.js`) → in the portal open Website → Prices and Save once
+   (optional: keeps the grading prices with the rest of the saved list).
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.

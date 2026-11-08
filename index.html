@@ -199,6 +199,8 @@
   .tier-body .tier-sub{display:block; margin-top:6px; font-size:12px; color:var(--cyan);}
   .addon-check{display:flex; align-items:center; gap:10px; font-size:13px; color:var(--white); cursor:pointer; margin-top:10px;}
   .addon-check input{width:17px; height:17px; accent-color:var(--cyan); flex-shrink:0; cursor:pointer;}
+  .grade-co{margin-top:12px;}
+  .grade-co label{display:block; margin-bottom:6px;}
   .value-basis-note{margin-top:16px; padding:14px 16px; border-radius:var(--radius); border:1px solid var(--cyan); background:rgba(73,219,232,.07); font-size:13px; line-height:1.6; color:var(--muted);}
   .value-basis-note .vb-title{color:var(--cyan); font-weight:700; font-size:13px; margin-bottom:6px;}
   .value-basis-note p{margin:0 0 8px;}
@@ -1278,7 +1280,8 @@
         <label for="calc-service">Service</label>
         <select id="calc-service"><option value="0">Card Cleaning — $10</option><option value="1">Card Cleaning + Scratch Repair — $15</option><option value="2">Grade-Ready Evaluation + Deep Clean — $20</option><option value="3">Base Repair — $35</option><option value="4">Major Repair — $50</option><option value="5">Slab Cracking — $15</option></select>
       </div>
-      <label class="addon-check" id="calc-crack-wrap" style="margin:-4px 0 16px;"><input type="checkbox" id="calc-crack"> Also crack the card out of a graded slab (+<span class="slab-addon-amt">$10</span>)</label>
+      <label class="addon-check" id="calc-crack-wrap" style="margin:-4px 0 16px;"><input type="checkbox" id="calc-crack"> <span>Also crack the card out of a graded slab (+<span class="slab-addon-amt">$10</span>)</span></label>
+      <label class="addon-check" id="calc-grade-wrap" style="margin:-8px 0 16px;"><input type="checkbox" id="calc-grade"> <span>Also submit it for grading: PSA, CGC, BGS or TAG (+<span class="grade-addon-amt">$5</span>)</span></label>
       <div class="field">
         <label for="calc-qty">Number of cards</label>
         <input type="text" id="calc-qty" inputmode="numeric" placeholder="1" value="1">
@@ -1294,6 +1297,7 @@
       <div class="calc-result">
         <div class="calc-line"><span id="calc-base-label">Base service</span><span id="calc-base">—</span></div>
         <div class="calc-line" id="calc-crack-line" style="display:none;"><span>Slab cracking add-on</span><span id="calc-crack-amt">—</span></div>
+        <div class="calc-line" id="calc-grade-line" style="display:none;"><span>Grading submission add-on</span><span id="calc-grade-amt">—</span></div>
         <div class="calc-line" id="calc-surcharge-line" style="display:none;"><span id="calc-surcharge-label">Value surcharge</span><span id="calc-surcharge">—</span></div>
         <div class="calc-line" id="calc-discount-line" style="display:none;"><span>Referral discount (<span class="ref-pct">10%</span>)</span><span id="calc-discount">—</span></div>
         <div class="calc-line calc-total"><span>Estimated total</span><span id="calc-total">—</span></div>
@@ -1877,7 +1881,7 @@
 
   <footer>
     <div class="fname pixel" style="font-size:10px; color:var(--muted);">RESTORED RARITY</div>
-    <div class="fyear">© <span id="year"></span> · Card cleaning, repair &amp; grading prep <span style="opacity:.55;">· build v11-04a</span></div>
+    <div class="fyear">© <span id="year"></span> · Card cleaning, repair &amp; grading prep <span style="opacity:.55;">· build v11-07a</span></div>
   </footer>
 </div>
 
@@ -1996,13 +2000,16 @@ let REPAIR_TIERS = [
   {price:"$50", title:"Major Repair", type:"repair", desc:"Advanced restoration for significant damage, including major corner or edge lifting, delamination or layer separation, dents or gouges over \u00bc inch, and creases over \u00bd inch. Designed for cards requiring more extensive techniques, additional working time, or multiple rounds of restoration to achieve the best result possible."}
 ];
 let ADDON_TIERS = [
-  {price:"$15", title:"Slab Cracking", type:"addon", sub:"Only $10 when combined with another service.", desc:"Careful removal of your card from a graded slab so it can be cleaned, restored, or resubmitted. The slab is opened with care to protect the card's surface, edges, and corners."}
+  {price:"$15", title:"Slab Cracking", type:"addon", sub:"Only $10 when combined with another service.", desc:"Careful removal of your card from a graded slab so it can be cleaned, restored, or resubmitted. The slab is opened with care to protect the card's surface, edges, and corners."},
+  {price:"$15", title:"Grading Submission (PSA, CGC, BGS, TAG)", type:"grading", sub:"$5 each additional card on its own. Only $5 per card when combined with another service.", desc:"We package your card and submit it to the grading company you choose: PSA, CGC, BGS or TAG. The grading company\u2019s own fees and return shipping are separate."}
 ];
 /* Bulk Card Cleaning: $10/card (1–20), $8/card (21–40), $6/card (41+) */
 /* Rules the admin portal can change (Website → Prices). These are the defaults. */
 let PRICE_RULES = {
   bulk: [{ min: 21, price: 8 }, { min: 41, price: 6 }],      // per-card price for the bulk cleaning tier
   slabAddon: 10,                                              // slab cracking added to another service
+  gradingNext: 5,                                             // grading submission on its own: each card after the first
+  gradingAddon: 5,                                            // grading submission added to another service, per card
   surcharge: [{ upTo: 250, rate: 0 }, { upTo: 1500, rate: 10 }, { upTo: 3000, rate: 12 }],  // % of card value; above the last = custom quote
   referral: 10                                                // referral code discount, %
 };
@@ -2013,6 +2020,11 @@ function bulkCleaningPrice(qty){
   return p;
 }
 let SLAB_CRACK_SOLO = 15, SLAB_CRACK_ADDON = 10;
+let GRADING_NEXT = 5, GRADING_ADDON = 5;
+const GRADING_COMPANIES = ['PSA', 'CGC', 'BGS', 'TAG'];
+/* The built-in grading service, added back if a saved price list (portal → Website → Prices) predates it */
+const DEFAULT_GRADING_TIER = Object.assign({}, ADDON_TIERS.find(t => t.type === 'grading'));
+function gradingSubText(){ return `${money(GRADING_NEXT)} each additional card on its own. Only ${money(GRADING_ADDON)} per card when combined with another service.`; }
 /* Surcharge policy: 0 at $250 or under; 10% of card value (rounded up) for $251\u2013$1,500;
    12% for $1,501\u2013$3,000; custom quote above $3,000. */
 function surchargeForValue(value){
@@ -2075,22 +2087,32 @@ const calcCrackWrap = document.getElementById('calc-crack-wrap');
 const calcCrackLine = document.getElementById('calc-crack-line');
 const calcCrackAmt = document.getElementById('calc-crack-amt');
 const calcBaseLabel = document.getElementById('calc-base-label');
+const calcGradeInput = document.getElementById('calc-grade');
+const calcGradeWrap = document.getElementById('calc-grade-wrap');
+const calcGradeLine = document.getElementById('calc-grade-line');
+const calcGradeAmt = document.getElementById('calc-grade-amt');
 function runCalculator(){
   const tier = ALL_TIERS[Number(calcServiceSelect.value)];
   const qty = Math.max(1, Math.floor(Number(calcQtyInput.value.replace(/[^0-9]/g, '')) || 1));
   let perCard = tier.bulk ? bulkCleaningPrice(qty) : Number(tier.price.replace(/[^0-9.]/g, ''));
-  const isSlabOnly = tier.type === 'addon';
+  const isSlabOnly = tier.type === 'addon', isGradeOnly = tier.type === 'grading';
   calcCrackWrap.style.display = isSlabOnly ? 'none' : 'flex';
+  calcGradeWrap.style.display = isGradeOnly ? 'none' : 'flex';
   const crack = !isSlabOnly && calcCrackInput.checked;
-  calcBaseLabel.textContent = qty > 1 ? `Base service ($${perCard} × ${qty})` : 'Base service';
-  calcBaseEl.textContent = `$${perCard * qty}`;
+  const grade = !isGradeOnly && calcGradeInput.checked;
+  // Grading on its own: full price for the first card, less for each one after
+  const baseTotal = isGradeOnly ? perCard + GRADING_NEXT * (qty - 1) : perCard * qty;
+  calcBaseLabel.textContent = qty > 1 ? (isGradeOnly ? `Base service ($${perCard} + $${GRADING_NEXT} × ${qty - 1})` : `Base service ($${perCard} × ${qty})`) : 'Base service';
+  calcBaseEl.textContent = `$${baseTotal}`;
   if(crack){
     calcCrackLine.style.display = 'flex';
     calcCrackAmt.textContent = `+$${SLAB_CRACK_ADDON * qty}`;
   } else {
     calcCrackLine.style.display = 'none';
   }
-  const basePrice = (perCard + (crack ? SLAB_CRACK_ADDON : 0)) * qty;
+  calcGradeLine.style.display = grade ? 'flex' : 'none';
+  if(grade) calcGradeAmt.textContent = `+$${GRADING_ADDON * qty}`;
+  const basePrice = baseTotal + ((crack ? SLAB_CRACK_ADDON : 0) + (grade ? GRADING_ADDON : 0)) * qty;
 
   const rawValue = calcValueInput.value.trim();
   const value = rawValue ? Number(rawValue.replace(/[^0-9.]/g, '')) : 0;
@@ -2140,6 +2162,7 @@ calcValueInput.addEventListener('input', runCalculator);
 calcReferralInput.addEventListener('input', runCalculator);
 calcQtyInput.addEventListener('input', runCalculator);
 calcCrackInput.addEventListener('change', runCalculator);
+calcGradeInput.addEventListener('change', runCalculator);
 runCalculator();
 
 /* ---------- Centering calculator ----------
@@ -2577,9 +2600,12 @@ rvForm.addEventListener('submit', async (e) => {
 function serviceOptionsHtml(){
   return '<option value="" disabled selected>Choose a tier</option>' +
     [...CLEAN_TIERS, ...REPAIR_TIERS, ...ADDON_TIERS].map(t => {
-      const label = t.bulk ? `${t.title} — ${t.price}${bulkShortText()}` : t.type === 'addon' ? `${t.title} only — ${t.price}` : `${t.title} — ${t.price}`;
-      const val = t.type === 'addon' ? `${t.title} only (${t.price})` : `${t.title} (${t.price})`;
-      return `<option value="${val}">${label}</option>`;
+      const solo = t.type === 'addon' || t.type === 'grading';
+      const label = t.bulk ? `${t.title} — ${t.price}${bulkShortText()}` : t.type === 'grading' ? `${t.title} only — ${t.price} first card, ${money(GRADING_NEXT)} each after`
+        : solo ? `${t.title} only — ${t.price}` : `${t.title} — ${t.price}`;
+      const val = solo ? `${t.title} only (${t.price})` : `${t.title} (${t.price})`;
+      const kind = t.type === 'addon' ? ' data-kind="slab"' : t.type === 'grading' ? ' data-kind="grading"' : '';
+      return `<option value="${val}"${kind}>${label}</option>`;
     }).join('');
 }
 
@@ -2661,7 +2687,12 @@ function cardEntryTemplate(id){
       <div class="field">
         <label for="f-service-${id}">Service wanted <span class="req">*</span></label>
         <select id="f-service-${id}" required>${serviceOptionsHtml()}</select>
-        <label class="addon-check" id="f-crack-wrap-${id}"><input type="checkbox" id="f-crack-${id}"> This card is in a graded slab — crack it out (+<span class="slab-addon-amt">$${SLAB_CRACK_ADDON}</span>)</label>
+        <label class="addon-check" id="f-crack-wrap-${id}"><input type="checkbox" id="f-crack-${id}"> <span>This card is in a graded slab — crack it out (+<span class="slab-addon-amt">$${SLAB_CRACK_ADDON}</span>)</span></label>
+        <label class="addon-check" id="f-grade-wrap-${id}"><input type="checkbox" id="f-grade-${id}"> <span>Submit it for grading: PSA, CGC, BGS or TAG (+<span class="grade-addon-amt">${money(GRADING_ADDON)}</span>)</span></label>
+        <div class="grade-co" id="f-gradeco-wrap-${id}" hidden>
+          <label for="f-gradeco-${id}">Which grading company? <span class="req">*</span></label>
+          <select id="f-gradeco-${id}"><option value="">Choose a company</option>${GRADING_COMPANIES.map(c => `<option>${c}</option>`).join('')}<option value="Not sure yet">Not sure yet — help me decide</option></select>
+        </div>
       </div>
       <div class="field">
         <label for="f-notes-${id}">Notes on damage / what you'd like done</label>
@@ -2779,11 +2810,18 @@ function addCardEntry(){
   wireDetailPhotos(id);
   if(window.RRCardSearch) RRCardSearch.attach(document.getElementById(`f-card-${id}`));
   const svcSel = document.getElementById(`f-service-${id}`);
-  svcSel.addEventListener('change', () => {
-    const slabOnly = /^Slab Cracking only/.test(svcSel.value);
-    document.getElementById(`f-crack-wrap-${id}`).style.display = slabOnly ? 'none' : 'flex';
-    if(slabOnly) document.getElementById(`f-crack-${id}`).checked = false;
-  });
+  const gradeBox = document.getElementById(`f-grade-${id}`);
+  const syncAddons = () => {
+    const kind = (svcSel.selectedOptions[0] && svcSel.selectedOptions[0].dataset.kind) || '';
+    document.getElementById(`f-crack-wrap-${id}`).style.display = kind === 'slab' ? 'none' : 'flex';
+    if(kind === 'slab') document.getElementById(`f-crack-${id}`).checked = false;
+    document.getElementById(`f-grade-wrap-${id}`).style.display = kind === 'grading' ? 'none' : 'flex';
+    if(kind === 'grading') gradeBox.checked = false;
+    // which grading company: asked when grading is the service or the add-on
+    document.getElementById(`f-gradeco-wrap-${id}`).hidden = !(kind === 'grading' || gradeBox.checked);
+  };
+  svcSel.addEventListener('change', syncAddons);
+  gradeBox.addEventListener('change', syncAddons);
   cardsContainer.querySelector(`[data-card-id="${id}"] .remove-card-btn`).addEventListener('click', () => {
     delete cardEntries[id];
     cardsContainer.querySelector(`[data-card-id="${id}"]`).remove();
@@ -2924,9 +2962,21 @@ form.addEventListener('submit', async (e) => {
     const cid = el.dataset.cardId;
     const cardName = document.getElementById(`f-card-${cid}`).value.trim();
     const value = document.getElementById(`f-value-${cid}`).value.trim();
-    let service = document.getElementById(`f-service-${cid}`).value;
+    const svcEl = document.getElementById(`f-service-${cid}`);
+    let service = svcEl.value;
+    const kind = (svcEl.selectedOptions[0] && svcEl.selectedOptions[0].dataset.kind) || '';
     const crackEl = document.getElementById(`f-crack-${cid}`);
-    if(service && crackEl && crackEl.checked && !/^Slab Cracking only/.test(service)) service += ' + Slab Cracking ($10)';
+    if(service && crackEl && crackEl.checked && kind !== 'slab') service += ` + Slab Cracking (${money(SLAB_CRACK_ADDON)})`;
+    const gradeEl = document.getElementById(`f-grade-${cid}`);
+    const wantsGrading = !!service && (kind === 'grading' || (gradeEl && gradeEl.checked));
+    if(wantsGrading && kind !== 'grading') service += ` + Grading Submission (${money(GRADING_ADDON)})`;
+    const grading = wantsGrading ? document.getElementById(`f-gradeco-${cid}`).value : '';
+    if(wantsGrading && !grading){
+      formMsg.textContent = `Please choose a grading company for card ${cards.length + 1} (or "Not sure yet").`;
+      formMsg.className = 'form-msg err';
+      return;
+    }
+    if(grading) service += ` — ${grading === 'Not sure yet' ? 'grading company not chosen yet' : 'grading: ' + grading}`;
     const notes = document.getElementById(`f-notes-${cid}`).value.trim();
     if(!cardName || !service){
       formMsg.textContent = 'Please fill in the card name and service tier for each card.';
@@ -2934,7 +2984,7 @@ form.addEventListener('submit', async (e) => {
       return;
     }
     cards.push({
-      card: cardName, value, service, notes,
+      card: cardName, value, service, notes, grading,
       photos: {
         front: cardEntries[cid].photos.front,
         back: cardEntries[cid].photos.back,
@@ -2982,7 +3032,7 @@ form.addEventListener('submit', async (e) => {
       referralCode ? `Referral code: ${referralCode}` : ''
     ].filter(Boolean).join('\n'),
     cards: cards.map(c => ({
-      name: c.card, details: '',
+      name: c.card, details: '', service: c.service, grading: c.grading,
       notes: [`Service: ${c.service}`, c.value ? `NM value: $${c.value.replace(/^\$/, '')}` : '', c.notes].filter(Boolean).join('\n')
     }))
   });
@@ -3344,17 +3394,24 @@ function applyPrices(pr){
   const clean = v => Math.max(0, Number(v) || 0);
   if(Array.isArray(pr.bulk)) PRICE_RULES.bulk = pr.bulk.map(b => ({ min: Math.max(2, Math.round(clean(b.min))), price: clean(b.price) })).filter(b => b.min);
   if(pr.slabAddon != null) PRICE_RULES.slabAddon = clean(pr.slabAddon);
+  if(pr.gradingNext != null) PRICE_RULES.gradingNext = clean(pr.gradingNext);
+  if(pr.gradingAddon != null) PRICE_RULES.gradingAddon = clean(pr.gradingAddon);
   if(Array.isArray(pr.surcharge) && pr.surcharge.length) PRICE_RULES.surcharge = pr.surcharge.map(x => ({ upTo: clean(x.upTo), rate: clean(x.rate) })).sort((a, b) => a.upTo - b.upTo);
   if(pr.referral != null) PRICE_RULES.referral = clean(pr.referral);
 
   const tier = x => ({ price: money(clean(x.price)), title: String(x.title || '').trim(), type: x.type,
                        bulk: !!x.bulk, sub: x.sub ? String(x.sub) : '', desc: String(x.desc || '') });
-  const svc = pr.services.filter(x => x && x.title && ['clean', 'repair', 'addon'].includes(x.type)).map(tier);
+  const svc = pr.services.filter(x => x && x.title && ['clean', 'repair', 'addon', 'grading'].includes(x.type)).map(tier);
+  // A price list saved before the grading service existed: add the built-in one so it still shows
+  if(!svc.some(x => x.type === 'grading')) svc.push(tier({ title: DEFAULT_GRADING_TIER.title, price: DEFAULT_GRADING_TIER.price.replace(/[^0-9.]/g, ''),
+    type: 'grading', desc: DEFAULT_GRADING_TIER.desc }));
   CLEAN_TIERS = svc.filter(x => x.type === 'clean');
   REPAIR_TIERS = svc.filter(x => x.type === 'repair');
-  ADDON_TIERS = svc.filter(x => x.type === 'addon');
+  ADDON_TIERS = [...svc.filter(x => x.type === 'addon'), ...svc.filter(x => x.type === 'grading')];
   SLAB_CRACK_ADDON = PRICE_RULES.slabAddon;
-  const slab = ADDON_TIERS[0];
+  GRADING_NEXT = PRICE_RULES.gradingNext; GRADING_ADDON = PRICE_RULES.gradingAddon;
+  const slab = ADDON_TIERS.find(x => x.type === 'addon'), grad = ADDON_TIERS.find(x => x.type === 'grading');
+  if(grad) grad.sub = [gradingSubText(), grad.sub].filter(Boolean).join(' ');
   SLAB_CRACK_SOLO = slab ? Number(slab.price.replace(/[^0-9.]/g, '')) : SLAB_CRACK_SOLO;
   REFERRAL_DISCOUNT = PRICE_RULES.referral / 100;
   // Automatic notes under the bulk tier and the slab add-on (typed notes are kept after them)
@@ -3373,6 +3430,7 @@ function applyPrices(pr){
   if(freeP){ freeP.hidden = !!first.rate; freeP.textContent = `For cards with a card value of ${money(first.upTo)} or less, no value surcharge applies.`; }
   const sP = document.getElementById('surcharge-text'); if(sP) sP.textContent = surchargeSentence();
   document.querySelectorAll('.slab-addon-amt').forEach(el => { el.textContent = money(SLAB_CRACK_ADDON); });
+  document.querySelectorAll('.grade-addon-amt').forEach(el => { el.textContent = money(GRADING_ADDON); });
   document.querySelectorAll('.ref-pct').forEach(el => { el.textContent = PRICE_RULES.referral + '%'; });
 
   // Calculator: keep the same service picked if it still exists
