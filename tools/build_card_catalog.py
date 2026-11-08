@@ -13,7 +13,7 @@ File shape (kept short so the browser downloads it fast):
    "cards": [[name, set_index, number, image], ...]}
 image: 1 = <img><asset_path>/<number>/low.webp, 0 = no picture, or a full URL base.
 """
-import json, os, sys, time, urllib.request
+import json, os, random, sys, time, urllib.error, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 
@@ -22,21 +22,31 @@ IMG = "https://assets.tcgdex.net/en/"
 SKIP_SERIES = {"tcgp"}  # TCG Pocket: digital-only cards
 
 
-def get(url, tries=4):
+def get(url, tries=8):
+    """Fetch JSON, waiting out a busy TCGdex: retries with growing pauses (5 s, 10 s, 20 s … up to 60 s),
+    or as long as the server's Retry-After asks. A missing page (404 etc.) fails at once."""
     req = urllib.request.Request(url, headers={"User-Agent": "RestoredRarity-catalog/1.0"})
     for i in range(tries):
         try:
             with urllib.request.urlopen(req, timeout=60) as r:
                 return json.load(r)
+        except urllib.error.HTTPError as e:
+            if e.code not in (408, 425, 429, 500, 502, 503, 504) or i == tries - 1:
+                raise
+            wait = min(60, 5 * 2 ** i)
+            ra = (e.headers or {}).get("Retry-After")
+            if ra and str(ra).isdigit():
+                wait = min(120, max(wait, int(ra)))
         except Exception:
             if i == tries - 1:
                 raise
-            time.sleep(2 * (i + 1))
+            wait = min(60, 5 * 2 ** i)
+        time.sleep(wait + random.random())
 
 
 def main(out):
     briefs = get(f"{API}/sets")
-    with ThreadPoolExecutor(6) as pool:
+    with ThreadPoolExecutor(3) as pool:   # gentle on TCGdex's free API
         sets = list(pool.map(lambda b: get(f"{API}/sets/{b['id']}"), briefs))
     sets = [s for s in sets if (s.get("serie") or {}).get("id") not in SKIP_SERIES and s.get("cards")]
     sets.sort(key=lambda s: (s.get("releaseDate") or "9999", s["id"]))
