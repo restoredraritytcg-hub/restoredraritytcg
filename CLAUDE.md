@@ -311,6 +311,11 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    memory on the Windows PC (its one lesson — merge origin/main before handing out files — is in item 12).
    Habits that also apply on the Mac: `git pull` before starting (the owner edits main on GitHub's website), and
    prefer committing + pushing over handing files to upload once git is signed in there.
+   **Owner's standing rule (Nov 8, 2026): when the owner asks for a change to any of their websites (Restored Rarity,
+   RipperDoc TCG `restoredraritytcg-hub/theripperdoctcg`, PH Restoration Lab `restoredraritytcg-hub/phrestorationlab`),
+   Claude makes it on GitHub directly — commit, push and merge — instead of handing files to upload.** Pull/merge main first
+   (the owner also uploads on GitHub.com). Apps Script (`Code.gs`) and Supabase SQL still have to be pasted/run by the owner, so
+   anything that depends on them is held until the owner confirms they're done.
 
 16. **Built (Oct 31, 2026), not yet set up/uploaded: standalone "Scan Station by Restored Rarity" (`scanner/`,
    URL stays `/scanner/`).** Goal: a paid product, so ease of use comes first. Any browser/device. Adding is bulk and
