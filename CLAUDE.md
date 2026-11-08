@@ -392,8 +392,8 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    tiles. Tested: SQL on local Postgres from main's schema with data (old orders kept, re-run safe, bad company refused, anon
    can't read cards, customer link shows the company); quote math in Node (first/next, add-on with crack + surcharge, cancelled,
    price list saved before grading, custom grading prices, old orders unchanged); Playwright on the site (built-in and saved
-   price lists, desktop + phone) and the portal in `?demo` (desktop + phone). Website orders are still quoted from the Sheet's
-   Service column, so changing a company in the portal doesn't change a website order's quote.
+   price lists, desktop + phone) and the portal in `?demo` (desktop + phone). Website orders are quoted from the Sheet's
+   Service column; since item 20, saving a card's service in the portal writes it there too.
    Owner steps, in order: run `supabase/2026-11-07_card_grading.sql` → paste `apps-script/Code.gs`, deploy a new version →
    merge (uploads `index.html`, `portal/admin.js`, `portal/site.js`) → in the portal open Website → Prices and Save once
    (optional: keeps the grading prices with the rest of the saved list). Item 20 ships in the same PR with the same steps.
