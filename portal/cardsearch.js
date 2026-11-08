@@ -96,6 +96,8 @@
     const pick = (c) => {
       if (opts.details) { input.value = c.name; opts.details.value = details(c); }
       else input.value = label(c);
+      input.dataset.rrPicked = input.value;
+      input.dataset.rrCard = JSON.stringify({ set: c.set || "", cardNo: c.number || "", year: c.year ? String(c.year) : "" });
       close();
       input.dispatchEvent(new Event("input", { bubbles: true }));
       input.dispatchEvent(new Event("change", { bubbles: true }));
@@ -136,5 +138,22 @@
       .observe(document.body, { childList: true, subtree: true });
   }
 
-  window.RRCardSearch = { attach, load, search };
+  // Set, card # and year for a card-name field: from the suggestion that was picked, or (typed name) from the list
+  // when the text matches exactly one card. Otherwise blank, so the portal shows "Set needed".
+  async function info(input) {
+    const blank = { set: "", cardNo: "", year: "" }, text = String(input && input.value || "").trim();
+    if (!text) return blank;
+    if (input.dataset.rrPicked === input.value && input.dataset.rrCard) { try { return JSON.parse(input.dataset.rrCard); } catch {} }
+    try { await load(); } catch { return blank; }
+    const out = (c) => ({ set: c.set || "", cardNo: c.number || "", year: c.year ? String(c.year) : "" });
+    const exact = DB.filter((c) => label(c) === text); if (exact.length === 1) return out(exact[0]);
+    const nq = norm(text), words = nq.split(" ").filter(Boolean);
+    const all = DB.filter((c) => words.every((w) => c.hay.includes(w)));
+    if (all.length === 1) return out(all[0]);
+    const same = DB.filter((c) => c.n === nq); if (same.length === 1) return out(same[0]);
+    return blank;
+  }
+  const detailsOf = (i) => [i.set, i.cardNo, i.year].filter(Boolean).join(" · ");
+
+  window.RRCardSearch = { attach, load, search, info, detailsOf };
 })();

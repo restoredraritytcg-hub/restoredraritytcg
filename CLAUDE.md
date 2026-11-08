@@ -452,5 +452,20 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    grader's base fee when the card is ready to ship, the other 50% when it enters the holder and label stage; return shipping
    + any upcharge once grades are complete** (box, form note, calculator, T&C §6/§19/Acknowledgment; build v11-08b). Owner reported Nov 7 that grading wasn't showing on the live site: PR #7 isn't merged yet.
 
+24. **Built Nov 8, 2026 (branch `feature/card-set-year`, on top of PR #7): every card's set, number and year saved.**
+   Owner wants the set/year clear on every submission (groundwork for a future "safety sheet" feature). Owner's choices: all
+   three sites; **auto-match + editable** — fill set/year when the typed name clearly matches one card in `cards.json`,
+   otherwise leave blank and show **"Set needed"** for the owner to fill in. `RRCardSearch.info(input)` (cardsearch.js):
+   picked suggestion → exact label → the only card matching every word → unique name; `detailsOf` → "Set · 4/102 · 1999".
+   Website form sends `set/cardNo/year` per card (portal `details`; Apps Script `writeCardSetInfo_` → Cards tab columns
+   **"Set" / "Set No." / "Year"** found by header (not "Card #": column B already uses that name)). Supabase:
+   `cards.set_name/card_no/year` filled by trigger `cards_split_details` from `details` (+ backfill) —
+   `supabase/2026-11-08_card_set_year.sql`, tested on local Postgres. Portal: "Set needed" badge + count on the submission,
+   on the card page, and auto-fill on card save and New submission. Tested: Apps Script on a mock Sheet, portal `?demo`
+   desktop + phone. RipperDoc / PH: same lookup in index.html + intake.html, Items columns W–Y (Set / Card # / Year),
+   editable on each intake card (action `cardInfo`); PR #3 on each repo (PH's sits on its PR #2).
+   Owner steps: RR — PR #7 steps first, then run `supabase/2026-11-08_card_set_year.sql`, paste `apps-script/Code.gs` and
+   deploy a new version, then merge. RD/PH — paste the new Code.gs (keep the PIN), deploy, run `setup`, then merge.
+
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.

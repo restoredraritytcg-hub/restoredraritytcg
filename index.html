@@ -1902,7 +1902,7 @@
 
   <footer>
     <div class="fname pixel" style="font-size:10px; color:var(--muted);">RESTORED RARITY</div>
-    <div class="fyear">© <span id="year"></span> · Card cleaning, repair &amp; grading prep <span style="opacity:.55;">· build v11-08b</span></div>
+    <div class="fyear">© <span id="year"></span> · Card cleaning, repair &amp; grading prep <span style="opacity:.55;">· build v11-08c</span></div>
   </footer>
 </div>
 
@@ -3011,8 +3011,10 @@ form.addEventListener('submit', async (e) => {
       formMsg.className = 'form-msg err';
       return;
     }
+    const ci = window.RRCardSearch && RRCardSearch.info ? await RRCardSearch.info(document.getElementById(`f-card-${cid}`)).catch(() => ({})) : {};
     cards.push({
       card: cardName, value, service, notes, grading,
+      set: ci.set || '', cardNo: ci.cardNo || '', year: ci.year || '',
       photos: {
         front: cardEntries[cid].photos.front,
         back: cardEntries[cid].photos.back,
@@ -3060,7 +3062,7 @@ form.addEventListener('submit', async (e) => {
       referralCode ? `Referral code: ${referralCode}` : ''
     ].filter(Boolean).join('\n'),
     cards: cards.map(c => ({
-      name: c.card, details: '', service: c.service, grading: c.grading,
+      name: c.card, details: [c.set, c.cardNo, c.year].filter(Boolean).join(' · '), service: c.service, grading: c.grading,
       notes: [`Service: ${c.service}`, c.value ? `NM value: $${c.value.replace(/^\$/, '')}` : '', c.notes].filter(Boolean).join('\n')
     }))
   });
