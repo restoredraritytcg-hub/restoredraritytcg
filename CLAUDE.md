@@ -377,5 +377,15 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    `portal/cards.json`** (`{v, img, sets:[[id,name,year,total,path]], cards:[[name,setIndex,number,pic]]}`) without
    updating those sites.
 
+19. **Built Nov 8, 2026: scan station for the client sites (RipperDoc TCG, PH Restoration Lab), PR #2 on each repo.**
+   Owner's choices: keep their Sheets + Apps Script + Cloudinary backend; scan station **inside the intake page only**
+   (Scan tab), **no eBay zip** (reserved for the paid standalone app); **don't change their services, prices or terms**
+   (Restored Rarity's grading service / services editor / fee terms are NOT ported). Each repo has `scan/` with copies of
+   `portal/scanproc.js`, `portal/centering.js`, `scanner/photo.js`, `scanner/camera.js` (**keep in sync**) plus new
+   `scanview.js` (viewer + grade caps, copy of `CENTERING_RULES`), `station.js`, `scan.css`, and `help.html`. One straightened
+   JPEG (≤3200 px) per side goes to their Cloudinary; close-ups are Cloudinary `c_crop` URLs from `boxes`; the scan JSON lives
+   in the Items tab column V "Scans" (Code.gs `saveScanAction_`, `itemMedia_` feeds the customer link). Shared guide:
+   Claude Docs "Scan Station & Intake App — Setup Guide". Merge each PR only after that site's new Code.gs is deployed.
+
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
