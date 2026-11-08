@@ -466,6 +466,10 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    editable on each intake card (action `cardInfo`); PR #3 on each repo (PH's sits on its PR #2).
    Owner steps: RR — PR #7 steps first, then run `supabase/2026-11-08_card_set_year.sql`, paste `apps-script/Code.gs` and
    deploy a new version, then merge. RD/PH — paste the new Code.gs (keep the PIN), deploy, run `setup`, then merge.
+   **Live Nov 8, 2026 (~5:55 PM CT):** owner ran both SQL files (`2026-11-07_card_grading.sql` + `2026-11-08_card_set_year.sql`,
+   verified: cards has service/grading/set_name/card_no/year) and pasted the new Code.gs; PR #7 (grading, items 21–23) and
+   PR #8 (set/year) merged, site shows build v11-08c. Not yet confirmed: the Apps Script "New version" deploy, a real test order.
+   RipperDoc/PH PR #3 still waiting on their Code.gs.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
