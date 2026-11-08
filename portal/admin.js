@@ -483,12 +483,13 @@ function submission(id) {
     <div class="row"><h2 class="grow">Cards</h2>
       <a class="btn" target="rr-scan" href="${esc(scanUrl(id))}" title="Open the scan station at the first card without a scan">📷 Scan cards</a></div>
     ${gradingSummary(cards) ? `<p class="small" style="margin:0 0 8px">Grading submission: <b>${esc(gradingSummary(cards))}</b></p>` : ""}
+    ${(n => n ? `<p class="small setneed-note">${n === 1 ? "1 card still needs" : `${n} cards still need`} a set — open the card and fill in Set / number / year.</p>` : "")(cards.filter((k) => !String(k.details || "").trim()).length)}
     <div class="panel" style="padding:0;overflow:auto"><table class="list"><thead><tr><th></th><th>#</th><th>Card</th>
       <th class="hide-sm">Set / number</th><th>Status</th><th>Grading</th><th class="hide-sm">Scans</th><th></th></tr></thead><tbody>
     ${cards.map((k) => { const t = thumbOf(cardScans(k.id)); const st = [...new Set(cardScans(k.id).map((x) => x.stage))];
       const ns = nextStage(k.id);
       return `<tr class="click" data-go="#/card/${k.id}"><td style="width:54px">${t ? `<img src="${esc(mediaUrl(t))}" style="height:52px;border-radius:4px">` : ""}</td>
-      <td>${k.card_number}</td><td><b>${esc(k.name || "—")}</b></td><td class="hide-sm">${esc(k.details)}</td>
+      <td>${k.card_number}</td><td><b>${esc(k.name || "—")}</b>${k.details ? "" : ` <span class="setneed">Set needed</span>`}</td><td class="hide-sm">${esc(k.details)}</td>
       <td>${pill(k.status)}</td><td>${gradeTag(k.grading) || `<span class="muted small">—</span>`}</td><td class="hide-sm muted small">${esc(st.join(", ") || "none")}</td>
       <td><a class="btn sm" target="rr-scan" href="${esc(scanUrl(id, k.card_number, ns))}"
         title="Scan this card (${esc(STAGE_LABEL[ns])})">📷 Scan</a></td></tr>`; }).join("")
@@ -570,10 +571,10 @@ function card(id) {
   app.innerHTML = `<p><a href="#/submission/${s.id}">← ${esc(s.code)}</a> · <a href="#/customer/${c.id}">${esc(c.name)}</a></p>
     <div class="row"><h1 class="grow">${esc(cardTitle(k))}</h1>${pill(k.status)}</div>
     <div class="meta"><span>Submission <b>${esc(s.code)}</b></span><span>Card <b>#${k.card_number}</b></span>
-      ${k.details ? `<span><b>${esc(k.details)}</b></span>` : ""}</div>
+      ${k.details ? `<span><b>${esc(k.details)}</b></span>` : `<span class="setneed">Set needed</span>`}</div>
     <div class="panel" style="margin-top:14px"><div class="grid2">
       <div><label class="f">Card name</label><input type="text" id="kn" value="${esc(k.name)}"></div>
-      <div><label class="f">Set / number / year</label><input type="text" id="kd" value="${esc(k.details)}"></div>
+      <div><label class="f">Set / number / year</label><input type="text" id="kd" value="${esc(k.details)}" placeholder="e.g. Base Set · 4/102 · 1999"></div>
       <div><label class="f">Status</label>${statusSelect("ks", k.status)}</div><div></div>
       <div style="grid-column:1/-1" id="ksvc"><span class="muted small">Loading services…</span></div>
       <div><label class="f">Note to customer (they see this)</label><textarea id="kp">${esc(k.public_notes)}</textarea></div>
@@ -644,6 +645,7 @@ function card(id) {
     try {
       const got = SV ? readServiceFields($(".svrow", app), SV.M, SV.P, "this card") : null;
       if (got && got.error) return toast(got.error, 6000);
+      if (!$("#kd").value.trim() && window.RRCardSearch?.info) $("#kd").value = RRCardSearch.detailsOf(await RRCardSearch.info($("#kn")));
       Object.assign(k, await api.update("cards", id, { name: $("#kn").value.trim(), details: $("#kd").value.trim(),
         status: $("#ks").value, public_notes: $("#kp").value, internal_notes: $("#ki").value }));
       const changed = got && (got.service !== cardServiceText(k) || got.grading !== (k.grading || "") || got.value !== valueOf(k));
@@ -708,6 +710,8 @@ async function newSubmission(customerId) {
   $("#ncreate").onclick = async () => {
     const rows = [];
     for (const [i, r] of $$("#ncards .ncard").entries()) {
+      if (!$(".kd", r).value.trim() && $(".kn", r).value.trim() && window.RRCardSearch?.info)
+        $(".kd", r).value = RRCardSearch.detailsOf(await RRCardSearch.info($(".kn", r)));
       const name = $(".kn", r).value.trim(), details = $(".kd", r).value.trim(), m = MENU[$(".ksv", r).value];
       if (!name && !details && !m) continue;
       if (!name) return toast(`Card #${i + 1} needs a name.`);

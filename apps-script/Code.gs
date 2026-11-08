@@ -1,6 +1,6 @@
 /*******************************************************************
  * RESTORED RARITY — Submission backend
- * Version: 2026-11-04 (branded emails + pickup reminders + automatic quotes + portal reviews)
+ * Version: 2026-11-08 (branded emails + pickup reminders + automatic quotes + portal reviews + grading + card set/number/year)
  *
  * What this does
  *  • Saves website submissions to the "Submissions" + "Cards" tabs
@@ -262,6 +262,7 @@ function doPost(e) {
           firstStage, timestamp, '', '', firstStage
         ]);
         applyDropdown_(cardSheet, cardSheet.getLastRow());
+        writeCardSetInfo_(cardSheet, cardSheet.getLastRow(), card);
         logHistory_(record.id || '', i + 1, card.card || '', firstStage, 'Submitted on website');
       });
       try { quote = recalcQuote_(record.id || ''); } catch (err) { console.error('Quote failed: ' + err); }
@@ -1295,6 +1296,19 @@ function portalCardServices_(record) {
   } catch (err) {
     return { success: false, error: String(err) };
   }
+}
+
+// Each card's set, number in the set and year (from the website's card lookup) in "Set" / "Set No." / "Year" columns, found by
+// header name like the quote columns (added at the end of the Cards tab the first time). Blank = nobody picked the card.
+function writeCardSetInfo_(sheet, row, card) {
+  var clip = function (v, n) { return String(v == null ? '' : v).replace(/[\r\n]+/g, ' ').trim().slice(0, n); };
+  var set = clip(card && card.set, 80), num = clip(card && card.cardNo, 20), year = clip(card && card.year, 4).replace(/[^0-9]/g, '');
+  if (!set && !num && !year) return;
+  try {
+    sheet.getRange(row, quoteCol_(sheet, 'Set')).setValue(set);
+    sheet.getRange(row, quoteCol_(sheet, 'Set No.')).setNumberFormat('@').setValue(num);
+    sheet.getRange(row, quoteCol_(sheet, 'Year')).setNumberFormat('@').setValue(year);
+  } catch (err) { console.error('Card set info not saved: ' + err); }
 }
 
 // Column lookup by header name; adds the column at the end if it's missing.
