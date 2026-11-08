@@ -231,6 +231,7 @@ function doPost(e) {
     }
         if (record.type === 'statusEmail') return json_(portalStatusEmail_(record));
     if (record.type === 'portalQuote') return json_(portalQuote_(record));
+    if (record.type === 'portalCardServices') return json_(portalCardServices_(record));
     if (record.type === 'portalReviews') return json_(portalReviews_(record));
 
     // Submissions
@@ -308,7 +309,7 @@ function doGet(e) {
     if (action === 'track') {
       return json_(trackSubmission_(e.parameter.ref || '', e.parameter.email || ''));
     }
-        if (action === 'portalEmails') return json_({ success: true, version: 1, quotes: true, reviews: true });
+        if (action === 'portalEmails') return json_({ success: true, version: 1, quotes: true, reviews: true, services: true });
 
     return json_({ success: false, error: 'Unknown action' });
   } catch (err) {
@@ -1251,6 +1252,46 @@ function portalQuote_(record) {
     var lock = LockService.getScriptLock();
     lock.waitLock(20000);
     try { return { success: true, quote: recalcQuote_(id), onSheet: true }; } finally { lock.releaseLock(); }
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
+/** The portal changed cards' services (and values): write them to the Cards tab and re-quote.
+ *  {type:'portalCardServices', token, code, cards:[{num, service, value?}]}
+ *  Orders made in the portal only aren't on the Sheet: answers {success:true, onSheet:false}. */
+function portalCardServices_(record) {
+  try {
+    var token = String(record.token || ''), code = String(record.code || '').trim();
+    if (!token || !code) return { success: false, error: 'Missing sign-in or submission code.' };
+    if (typeof sbIsAdmin_ !== 'function' || !sbIsAdmin_(token)) return { success: false, error: 'Not signed in to the portal as an admin. Sign out and back in, then try again.' };
+    var ss = SpreadsheetApp.getActiveSpreadsheet(), subSheet = ss.getSheetByName(SUBMISSIONS_TAB), cardSheet = ss.getSheetByName(CARDS_TAB);
+    var id = '', last = subSheet.getLastRow();
+    if (last >= 2) {
+      var ids = subSheet.getRange(2, SC.ID, last - 1, 1).getValues();
+      for (var i = ids.length - 1; i >= 0; i--) {
+        var v = String(ids[i][0] || '');
+        if (v && (v === code || normRef_(refFromId_(v)) === normRef_(code))) { id = v; break; }
+      }
+    }
+    if (!id) return { success: true, onSheet: false, updated: 0 };
+    var lock = LockService.getScriptLock();
+    lock.waitLock(20000);
+    try {
+      var n = cardSheet.getLastRow() - 1, updated = 0;
+      var rows = n > 0 ? cardSheet.getRange(2, 1, n, CC.SERVICE).getValues() : [];
+      (record.cards || []).forEach(function (c) {
+        for (var r = 0; r < rows.length; r++) {
+          if (String(rows[r][CC.ID - 1]) !== id || Number(rows[r][CC.NUM - 1]) !== Number(c.num)) continue;
+          if (c.service != null) cardSheet.getRange(r + 2, CC.SERVICE).setValue(String(c.service).slice(0, 300));
+          if (c.value != null) cardSheet.getRange(r + 2, CC.VALUE).setValue(String(c.value).slice(0, 40));
+          updated++;
+          break;
+        }
+      });
+      SpreadsheetApp.flush();
+      return { success: true, onSheet: true, updated: updated, quote: recalcQuote_(id) };
+    } finally { lock.releaseLock(); }
   } catch (err) {
     return { success: false, error: String(err) };
   }

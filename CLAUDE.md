@@ -396,7 +396,23 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    Service column, so changing a company in the portal doesn't change a website order's quote.
    Owner steps, in order: run `supabase/2026-11-07_card_grading.sql` → paste `apps-script/Code.gs`, deploy a new version →
    merge (uploads `index.html`, `portal/admin.js`, `portal/site.js`) → in the portal open Website → Prices and Save once
-   (optional: keeps the grading prices with the rest of the saved list).
+   (optional: keeps the grading prices with the rest of the saved list). Item 20 ships in the same PR with the same steps.
+
+20. **Built Nov 7, 2026 (same branch / PR #7): adjust services in the portal + evaluation → grading note.**
+   Owner wants to correct customers' services and levels so quotes are accurate. Submission page: **Services & levels** panel
+   ("Adjust services") with one editor per card; card page: the same editor in place of the old free-text Service field.
+   Editor = service menu from the price list (pre-selects the card's current service via `parseService`; unmatched text is kept
+   as "As written: …"), slab/grading add-ons, grading company, card value. Saving writes `cards.service` / `cards.grading` /
+   the "Card value: $…" line in `customer_notes`, then POSTs `{type:'portalCardServices', token, code, cards:[{num, service,
+   value}]}` → Code.gs `portalCardServices_` writes the Cards tab Service (E) + Value (D) for that submission's rows and returns
+   `recalcQuote_(id)`; portal-only orders answer `{onSheet:false}`. The portal only posts when `?action=portalEmails` reports
+   `services:true` (an older script would treat the POST as a new submission); otherwise it saves in the portal and says the
+   Sheet wasn't updated. The customer's original choice stays in the card's intake notes ("Service: …").
+   Website: the Grade-Ready Evaluation tier (`isEvalTier`: clean + /evaluation|grade-ready/) gets an automatic note "Add a
+   grading submission for $5 more: I submit it to PSA, CGC, BGS or TAG for you." (owner chose the $5 add-on over a separate
+   package). Tested: `portalCardServices_` on a mock Sheet (only that order's rows change, quote $20 → $125, non-admin refused,
+   portal-only answer, capability flag); portal editor in `?demo` on desktop + phone (pre-select, missing company caught, save,
+   Grading column/summary refresh, card page editor); website eval note.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.

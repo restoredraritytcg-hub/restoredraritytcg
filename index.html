@@ -2024,6 +2024,10 @@ let GRADING_NEXT = 5, GRADING_ADDON = 5;
 const GRADING_COMPANIES = ['PSA', 'CGC', 'BGS', 'TAG'];
 /* The built-in grading service, added back if a saved price list (portal → Website → Prices) predates it */
 const DEFAULT_GRADING_TIER = Object.assign({}, ADDON_TIERS.find(t => t.type === 'grading'));
+/* Under the evaluation service: it can go straight to a grader with the grading add-on */
+const isEvalTier = t => t.type === 'clean' && /evaluation|grade-ready/i.test(t.title);
+function evalGradingNote(){ return `Add a grading submission for ${money(GRADING_ADDON)} more: I submit it to PSA, CGC, BGS or TAG for you.`; }
+CLEAN_TIERS.forEach(t => { if(isEvalTier(t)) t.sub = [t.sub, evalGradingNote()].filter(Boolean).join(' '); });
 function gradingSubText(){ return `${money(GRADING_NEXT)} each additional card on its own. Only ${money(GRADING_ADDON)} per card when combined with another service.`; }
 /* Surcharge policy: 0 at $250 or under; 10% of card value (rounded up) for $251\u2013$1,500;
    12% for $1,501\u2013$3,000; custom quote above $3,000. */
@@ -3416,6 +3420,7 @@ function applyPrices(pr){
   REFERRAL_DISCOUNT = PRICE_RULES.referral / 100;
   // Automatic notes under the bulk tier and the slab add-on (typed notes are kept after them)
   CLEAN_TIERS.forEach(t => { if(t.bulk) t.sub = [bulkLongText(), t.sub].filter(Boolean).join(' '); });
+  CLEAN_TIERS.forEach(t => { if(isEvalTier(t)) t.sub = [t.sub, evalGradingNote()].filter(Boolean).join(' '); });
   if(slab) slab.sub = [`Only ${money(SLAB_CRACK_ADDON)} when combined with another service.`, slab.sub].filter(Boolean).join(' ');
   [...CLEAN_TIERS, ...REPAIR_TIERS, ...ADDON_TIERS].forEach(t => { t.title = siteEsc(t.title); t.desc = siteEsc(t.desc); t.sub = siteEsc(t.sub); });
 

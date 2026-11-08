@@ -114,7 +114,7 @@ async function gas(type, body = {}) {
   if (DEMO) return demoGas(type, body);
   if (!GAS) throw new Error("The Apps Script address isn't set (emailEndpoint in config.js).");
   if (!gasCaps) gasCaps = await fetch(`${GAS}?action=portalEmails`).then((r) => r.json()).catch(() => null);
-  const need = type === "portalReviews" ? "reviews" : "quotes";
+  const need = type === "portalReviews" ? "reviews" : type === "portalCardServices" ? "services" : "quotes";
   if (!gasCaps?.success || !gasCaps[need]) {
     gasCaps = null;
     throw new Error("The Apps Script hasn't been updated yet: paste the new Code.gs into the Sheet's Apps Script and deploy a new version.");
@@ -139,6 +139,10 @@ async function loadSite() {
     throw e;
   }
 }
+/** Send changed card services to the Sheet so the website order's quote follows them.
+ *  Returns {onSheet, updated}; throws if the Apps Script is too old or refuses. */
+export async function saveServicesToSheet(code, cards) { return gas("portalCardServices", { code, cards }); }
+
 /** The current price list (saved in the portal, or the website's built-in one), for the New submission service menu. */
 export async function currentPrices() {
   if (!SC) { try { await loadSite(); } catch (e) { SC = {}; } }
@@ -589,6 +593,7 @@ export async function wireQuote(s, cards) {
 
 // ------------------------------------------------------------ demo (?demo)
 function demoGas(type, body) {
+  if (type === "portalCardServices") { window._rrDemoSheetWrites = (window._rrDemoSheetWrites || []).concat([body]); return { success: true, onSheet: false, updated: 0 }; }
   if (type === "portalReviews") {
     window._rrDemoReviews ||= [
       { row: 2, at: "2026-10-30T15:00:00Z", name: "Sam", rating: 5, card: "Charizard, Base Set", text: "Crease is basically gone. Amazing work!", approved: true },

@@ -2,7 +2,7 @@
 import { api, DEMO, esc, $, $$, pill, STATUSES, renderReport, wireReport, thumbOf, mediaUrl, fmtDate,
   fmtDateTime, installLightbox, installHint, toast, customerLink, progressSteps, STAGE_LABEL } from "./common.js";
 import * as U from "./scanupload.js";
-import { sitePage, quotePanel, wireQuote, currentPrices } from "./site.js";
+import { sitePage, quotePanel, wireQuote, currentPrices, saveServicesToSheet } from "./site.js";
 
 const app = $("#app");
 let S = null; // { customers, submissions, cards, scans, photos }
@@ -210,6 +210,91 @@ const gradingSummary = (cards) => {
   return Object.entries(n).map(([g, c]) => `${c} × ${g}`).join(", ");
 };
 
+// ------------------------------------------------------------ service editor
+// One menu for New submission, the submission page and the card page, built from the price list.
+function buildMenu(P) {
+  const items = P.services.filter((x) => x && x.title).map((x) => {
+    const solo = x.type === "addon" || x.type === "grading";
+    return { kind: x.type === "addon" ? "slab" : x.type === "grading" ? "grading" : x.type, title: x.title,
+      value: solo ? `${x.title} only (${moneyTxt(x.price)})` : `${x.title} (${moneyTxt(x.price)})`,
+      label: x.type === "grading" ? `${x.title} only — ${moneyTxt(x.price)} first card, ${moneyTxt(P.gradingNext)} each after`
+        : solo ? `${x.title} only — ${moneyTxt(x.price)}` : `${x.title} — ${moneyTxt(x.price)}${x.bulk ? " (bulk pricing in the quote)" : ""}` };
+  });
+  const GROUP = { clean: "Cleaning & grading prep", repair: "Repairs", slab: "On its own", grading: "On its own" };
+  const labels = [...new Set(Object.values(GROUP))];
+  const html = (sel = "", other = "") => `<option value="">Choose a service</option>` +
+    labels.map((l) => `<optgroup label="${esc(l)}">${items.map((m, i) => GROUP[m.kind] === l
+      ? `<option value="${i}" ${String(sel) === String(i) ? "selected" : ""}>${esc(m.label)}</option>` : "").join("")}</optgroup>`).join("") +
+    (other ? `<option value="other" selected>As written: ${esc(other)}</option>` : "");
+  return { items, html };
+}
+/** "Base Repair ($35) + Slab Cracking ($10) + Grading Submission ($5) — grading: PSA" → menu pick + add-ons. */
+function parseService(text, M) {
+  const t = String(text || "").trim();
+  const crack = /\+\s*slab\s*cracking/i.test(t), grade = /\+\s*grading\s*submission/i.test(t);
+  const base = t.replace(/\s*\+\s*(slab\s*cracking|grading\s*submission).*$/i, "").replace(/\s+—\s+grading.*$/i, "").trim();
+  let idx = -1, len = 0;
+  M.items.forEach((m, i) => { if (base.toLowerCase().startsWith(m.title.toLowerCase()) && m.title.length > len) { idx = i; len = m.title.length; } });
+  return { idx, other: idx < 0 ? base : "", crack, grade };
+}
+const valueOf = (k) => (((k.customer_notes || "").match(/^(?:NM|Estimated|Card)?\s*value:\s*\$?\s*(.+)$/mi) || [])[1] || "").trim();
+function withValue(notes, v) {
+  const line = v ? `Card value: $${String(v).replace(/^\$/, "")}` : "";
+  const re = /^(?:NM|Estimated|Card)?\s*value:.*$/mi;
+  if (re.test(notes || "")) return String(notes).replace(re, line).replace(/\n{2,}/g, "\n").trim();
+  return [notes, line].filter(Boolean).join("\n");
+}
+const cardServiceText = (k) => k.service || ((k.customer_notes || "").match(/^Service:\s*(.+)$/mi) || [])[1] || "";
+/** Editor fields for one card (row class "svrow"). */
+function serviceFields(k, M, P) {
+  const cur = parseService(cardServiceText(k), M);
+  return `<div class="svrow" data-id="${k.id}">
+    <div class="grid2"><div><label class="f">Service</label><select class="ksv">${M.html(cur.idx >= 0 ? cur.idx : "", cur.other)}</select></div>
+      <div><label class="f">Card value <span style="text-transform:none">(for repair surcharges)</span></label>
+        <input type="text" class="kv" inputmode="decimal" placeholder="e.g. 300" value="${esc(valueOf(k))}"></div></div>
+    <div class="row" style="margin-top:6px;gap:16px;flex-wrap:wrap">
+      <label class="small kcw"><input type="checkbox" class="kc" ${cur.crack ? "checked" : ""}> Slab cracking (+${moneyTxt(P.slabAddon)})</label>
+      <label class="small kgw"><input type="checkbox" class="kgb" ${cur.grade ? "checked" : ""}> Grading submission (+${moneyTxt(P.gradingAddon)})</label>
+      <span class="kgco"><label class="small">Grading company ${gradingSelect("", k.grading || "", "Choose…", "kgs")}</label></span></div></div>`;
+}
+function wireServiceFields(r, M) {
+  const sync = () => {
+    const v = $(".ksv", r).value, m = M.items[v] || {};
+    $(".kcw", r).hidden = m.kind === "slab"; if (m.kind === "slab") $(".kc", r).checked = false;
+    $(".kgw", r).hidden = m.kind === "grading"; if (m.kind === "grading") $(".kgb", r).checked = false;
+    $(".kgco", r).hidden = !(m.kind === "grading" || $(".kgb", r).checked);
+  };
+  $(".ksv", r).onchange = sync; $(".kgb", r).onchange = sync; sync();
+}
+/** Read one editor → {service, grading, value} or {error}. */
+function readServiceFields(r, M, P, label) {
+  const sel = $(".ksv", r).value, m = M.items[sel];
+  let service = sel === "other" ? $(".ksv option[value=other]", r).textContent.replace(/^As written:\s*/, "") : m ? m.value : "";
+  const kind = m ? m.kind : "";
+  if (service && $(".kc", r).checked && kind !== "slab") service += ` + Slab Cracking (${moneyTxt(P.slabAddon)})`;
+  let grading = "";
+  if (service && (kind === "grading" || $(".kgb", r).checked)) {
+    grading = $(".kgs", r).value;
+    if (!grading) return { error: `Choose a grading company for ${label} (or "Not sure yet").` };
+    service = withGrading(service, grading, P);
+  }
+  return { service, grading, value: $(".kv", r).value.trim().replace(/^\$/, "") };
+}
+/** Save changed services: portal first, then the Sheet (so a website order's quote follows). Returns a message. */
+async function saveServices(s, changes) {
+  for (const { k, service, grading, value } of changes) {
+    Object.assign(k, await api.update("cards", k.id, { service, grading, customer_notes: withValue(k.customer_notes, value) }));
+  }
+  if (!changes.length) return "Nothing changed.";
+  try {
+    const out = await saveServicesToSheet(s.code, changes.map(({ k, service, value }) => ({ num: k.card_number, service, value })));
+    return out.onSheet ? `Saved. The Sheet and the quote are updated (${out.updated} card${out.updated === 1 ? "" : "s"}).`
+      : "Saved. This order was made in the portal, so its quote uses these services.";
+  } catch (e) {
+    return `Saved in the portal, but the Sheet wasn't updated: ${e.message}`;
+  }
+}
+
 function cardTile(c) {
   const s = byId("submissions", c.submission_id) || {}, cu = customerOf(s) || {};
   const t = thumbOf(cardScans(c.id));
@@ -408,6 +493,10 @@ function submission(id) {
       <td><a class="btn sm" target="rr-scan" href="${esc(scanUrl(id, k.card_number, ns))}"
         title="Scan this card (${esc(STAGE_LABEL[ns])})">📷 Scan</a></td></tr>`; }).join("")
       || `<tr><td colspan="8" class="muted">No cards.</td></tr>`}</tbody></table></div>
+    <div class="panel" id="svpanel" style="margin-top:12px"><div class="row"><h3 class="grow" style="margin:0">Services &amp; levels</h3>
+      <button class="btn sm" id="svopen">Adjust services</button></div>
+      <p class="muted small" style="margin:6px 0 0">Change any card's service, add-ons, grading company or value. Saving updates the Sheet and the quote.</p>
+      <div id="svbody" hidden></div></div>
     <div class="panel" style="margin-top:12px"><h3 style="margin-top:0">Add a card</h3><div class="row">
       <input type="text" id="kn" placeholder="Card name" class="grow" style="width:auto">
       <input type="text" id="kd" placeholder="Set / number / year" class="grow" style="width:auto">
@@ -416,6 +505,28 @@ function submission(id) {
     <h2>Photos</h2>${photosAdmin(S.photos.filter((p) => p.submission_id === id), { cards })}`;
   $$("[data-go]").forEach((r) => r.onclick = (e) => { if (!e.target.closest("a")) go(r.dataset.go); });
   window.RRCardSearch?.attach($("#kn"), { details: $("#kd") });
+  $("#svopen").onclick = async () => {
+    const body = $("#svbody");
+    if (!body.hidden) { body.hidden = true; $("#svopen").textContent = "Adjust services"; return; }
+    $("#svopen").textContent = "Close"; body.hidden = false; body.innerHTML = `<p class="muted small">Loading your services…</p>`;
+    const P = await currentPrices(), M = buildMenu(P);
+    body.innerHTML = cards.map((k) => `<div style="border-top:1px solid var(--line);margin-top:12px;padding-top:10px">
+        <b>#${k.card_number} ${esc(k.name || "")}</b> ${cardServiceText(k) ? `<span class="muted small">— now: ${esc(cardServiceText(k))}</span>` : ""}
+        ${serviceFields(k, M, P)}</div>`).join("") +
+      `<div class="row" style="margin-top:14px"><button class="btn gold" id="svsave">Save services</button><span class="muted small" id="svmsg"></span></div>`;
+    $$(".svrow", body).forEach((r) => wireServiceFields(r, M));
+    $("#svsave").onclick = async () => {
+      const changes = [];
+      for (const r of $$(".svrow", body)) {
+        const k = byId("cards", r.dataset.id), got = readServiceFields(r, M, P, `card #${k.card_number}`);
+        if (got.error) return toast(got.error, 6000);
+        if (got.service !== cardServiceText(k) || got.grading !== (k.grading || "") || got.value !== valueOf(k)) changes.push({ k, ...got });
+      }
+      $("#svsave").disabled = true; $("#svmsg").textContent = "Saving…";
+      try { toast(await saveServices(s, changes), 7000); route(); }
+      catch (e) { toast(e.message, 6000); $("#svsave").disabled = false; $("#svmsg").textContent = ""; }
+    };
+  };
   wireEmailBar(s);
   wireQuote(s, cards);
   wirePhotosAdmin({ customer: c, cards, submissionId: id });
@@ -463,11 +574,8 @@ function card(id) {
     <div class="panel" style="margin-top:14px"><div class="grid2">
       <div><label class="f">Card name</label><input type="text" id="kn" value="${esc(k.name)}"></div>
       <div><label class="f">Set / number / year</label><input type="text" id="kd" value="${esc(k.details)}"></div>
-      <div><label class="f">Status</label>${statusSelect("ks", k.status)}</div>
-      <div><label class="f">Grading submission</label>${gradingSelect("kg", k.grading)}</div>
-      <div style="grid-column:1/-1"><label class="f">Service</label><input type="text" id="ksv" value="${esc(k.service || ((k.customer_notes || "").match(/^Service:\s*(.+)$/mi) || [])[1] || "")}"
-        placeholder="e.g. Base Repair ($35) + Grading Submission ($5)">
-        <p class="muted small" style="margin:4px 0 0">Changing the grading company updates the service text too. Website orders are quoted from the Sheet.</p></div>
+      <div><label class="f">Status</label>${statusSelect("ks", k.status)}</div><div></div>
+      <div style="grid-column:1/-1" id="ksvc"><span class="muted small">Loading services…</span></div>
       <div><label class="f">Note to customer (they see this)</label><textarea id="kp">${esc(k.public_notes)}</textarea></div>
       <div><label class="f">Private notes (only you)</label><textarea id="ki">${esc(k.internal_notes)}</textarea></div>
     </div>
@@ -526,14 +634,20 @@ function card(id) {
   };
   wirePhotosAdmin({ customer: c, cards: [k], fixedCard: id });
   window.RRCardSearch?.attach($("#kn"), { details: $("#kd") });
+  let SV = null;   // the service editor, once the price list has loaded
+  currentPrices().then((P) => {
+    const M = buildMenu(P), box = $("#ksvc"); if (!box) return;
+    box.innerHTML = serviceFields(k, M, P) + `<p class="muted small" style="margin:4px 0 0">Saving updates the Sheet and the quote too.</p>`;
+    wireServiceFields($(".svrow", box), M); SV = { M, P };
+  });
   $("#ksave").onclick = async () => {
     try {
-      const grading = $("#kg").value;
-      let service = $("#ksv").value.trim();
-      if (grading !== (k.grading || "") || /—\s*grading/i.test(service)) service = withGrading(service, grading, await currentPrices());
+      const got = SV ? readServiceFields($(".svrow", app), SV.M, SV.P, "this card") : null;
+      if (got && got.error) return toast(got.error, 6000);
       Object.assign(k, await api.update("cards", id, { name: $("#kn").value.trim(), details: $("#kd").value.trim(),
-        status: $("#ks").value, public_notes: $("#kp").value, internal_notes: $("#ki").value, service, grading }));
-      toast("Saved."); route();
+        status: $("#ks").value, public_notes: $("#kp").value, internal_notes: $("#ki").value }));
+      const changed = got && (got.service !== cardServiceText(k) || got.grading !== (k.grading || "") || got.value !== valueOf(k));
+      toast(changed ? await saveServices(s, [{ k, ...got }]) : "Saved.", 6000); route();
     } catch (e) { toast(e.message, 5000); }
   };
   $("#kdel").onclick = async () => {
@@ -549,18 +663,7 @@ async function newSubmission(customerId) {
   const opts = [...S.customers].sort((a, b) => (a.name || "").localeCompare(b.name || ""))
     .map((c) => `<option value="${c.id}" ${c.id === customerId ? "selected" : ""}>${esc(c.name)}${c.email ? " — " + esc(c.email) : ""}</option>`).join("");
   app.innerHTML = `<div class="empty">Loading your services…</div>`;
-  const P = await currentPrices();
-  // Service menu from the price list (same names and wording as the website order form)
-  const MENU = P.services.filter((x) => x && x.title).map((x) => {
-    const solo = x.type === "addon" || x.type === "grading";
-    return { kind: x.type === "addon" ? "slab" : x.type === "grading" ? "grading" : x.type, title: x.title,
-      value: solo ? `${x.title} only (${moneyTxt(x.price)})` : `${x.title} (${moneyTxt(x.price)})`,
-      label: x.type === "grading" ? `${x.title} only — ${moneyTxt(x.price)} first card, ${moneyTxt(P.gradingNext)} each after`
-        : solo ? `${x.title} only — ${moneyTxt(x.price)}` : `${x.title} — ${moneyTxt(x.price)}${x.bulk ? " (bulk pricing in the quote)" : ""}` };
-  });
-  const GROUP = { clean: "Cleaning & grading prep", repair: "Repairs", slab: "On its own", grading: "On its own" };
-  const menuHtml = `<option value="">Choose a service</option>` + Object.entries(GROUP).filter(([k], i, a) => a.findIndex(([, l]) => l === GROUP[k]) === i)
-    .map(([, label]) => `<optgroup label="${esc(label)}">${MENU.map((m, i) => GROUP[m.kind] === label ? `<option value="${i}">${esc(m.label)}</option>` : "").join("")}</optgroup>`).join("");
+  const P = await currentPrices(), M = buildMenu(P), MENU = M.items, menuHtml = M.html();
   app.innerHTML = `<h1>New submission</h1>
     <div class="panel"><label class="f">Customer</label>
       <select id="nc"><option value="">➕ New customer…</option>${opts}</select>
