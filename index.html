@@ -201,6 +201,9 @@
   .addon-check input{width:17px; height:17px; accent-color:var(--cyan); flex-shrink:0; cursor:pointer;}
   .grade-co{margin-top:12px;}
   .grade-co label{display:block; margin-bottom:6px;}
+  .grade-fee-note{font-size:12px; line-height:1.55; color:var(--muted); margin:8px 0 0;}
+  .grade-fee-note b{color:var(--white);}
+  .grade-fee-note a{color:var(--cyan);}
   .value-basis-note{margin-top:16px; padding:14px 16px; border-radius:var(--radius); border:1px solid var(--cyan); background:rgba(73,219,232,.07); font-size:13px; line-height:1.6; color:var(--muted);}
   .value-basis-note .vb-title{color:var(--cyan); font-weight:700; font-size:13px; margin-bottom:6px;}
   .value-basis-note p{margin:0 0 8px;}
@@ -1250,6 +1253,13 @@
       </div>
     </div></div>
 
+    <div class="value-basis-note" id="grading-fees" role="note" style="margin-top:18px;">
+      <div class="vb-title">How grading submission fees work</div>
+      <p>My grading submission fee (<span class="grade-first-amt">$15</span> for the first card and <span class="grade-next-amt">$5</span> for each one after on its own, or <span class="grade-addon-amt">$5</span> per card added to another service) covers evaluating, packaging and sending your card to the grading company you choose: PSA, CGC, BGS or TAG.</p>
+      <p><b>The grading company&rsquo;s own fee is due once your card has been evaluated and is ready to ship to them.</b> At that point you pay only the base fee for the service level you picked. For example, if you choose a value level, only that level&rsquo;s base charge is due then.</p>
+      <p>If the grading company adds an upcharge, for example because your card&rsquo;s value puts it in a higher service level, that difference is billed to you (or invoiced) when the grading company invoices Restored Rarity.</p>
+    </div>
+
     <div class="ladder-group-label" style="margin-top:36px;">Card value surcharge</div>
     <p id="surcharge-free-text" style="font-size:13px; color:var(--muted); margin:0 0 12px; line-height:1.6;">
       For cards with a card value of $250 or less, no value surcharge applies.
@@ -1881,7 +1891,7 @@
 
   <footer>
     <div class="fname pixel" style="font-size:10px; color:var(--muted);">RESTORED RARITY</div>
-    <div class="fyear">© <span id="year"></span> · Card cleaning, repair &amp; grading prep <span style="opacity:.55;">· build v11-07a</span></div>
+    <div class="fyear">© <span id="year"></span> · Card cleaning, repair &amp; grading prep <span style="opacity:.55;">· build v11-07b</span></div>
   </footer>
 </div>
 
@@ -2001,7 +2011,7 @@ let REPAIR_TIERS = [
 ];
 let ADDON_TIERS = [
   {price:"$15", title:"Slab Cracking", type:"addon", sub:"Only $10 when combined with another service.", desc:"Careful removal of your card from a graded slab so it can be cleaned, restored, or resubmitted. The slab is opened with care to protect the card's surface, edges, and corners."},
-  {price:"$15", title:"Grading Submission (PSA, CGC, BGS, TAG)", type:"grading", sub:"$5 each additional card on its own. Only $5 per card when combined with another service.", desc:"We package your card and submit it to the grading company you choose: PSA, CGC, BGS or TAG. The grading company\u2019s own fees and return shipping are separate."}
+  {price:"$15", title:"Grading Submission (PSA, CGC, BGS, TAG)", type:"grading", sub:"$5 each additional card on its own. Only $5 per card when combined with another service.", desc:"We package your card and submit it to the grading company you choose: PSA, CGC, BGS or TAG. The grading company\u2019s own fees are separate (see How grading fees work)."}
 ];
 /* Bulk Card Cleaning: $10/card (1–20), $8/card (21–40), $6/card (41+) */
 /* Rules the admin portal can change (Website → Prices). These are the defaults. */
@@ -2095,6 +2105,7 @@ const calcGradeInput = document.getElementById('calc-grade');
 const calcGradeWrap = document.getElementById('calc-grade-wrap');
 const calcGradeLine = document.getElementById('calc-grade-line');
 const calcGradeAmt = document.getElementById('calc-grade-amt');
+let calcGradeFeeNote = '';
 function runCalculator(){
   const tier = ALL_TIERS[Number(calcServiceSelect.value)];
   const qty = Math.max(1, Math.floor(Number(calcQtyInput.value.replace(/[^0-9]/g, '')) || 1));
@@ -2117,6 +2128,7 @@ function runCalculator(){
   calcGradeLine.style.display = grade ? 'flex' : 'none';
   if(grade) calcGradeAmt.textContent = `+$${GRADING_ADDON * qty}`;
   const basePrice = baseTotal + ((crack ? SLAB_CRACK_ADDON : 0) + (grade ? GRADING_ADDON : 0)) * qty;
+  calcGradeFeeNote = (isGradeOnly || grade) ? " Grading company fees are extra: the base fee for your service level is due when the card is ready to ship to the grader; any upcharge is billed when they invoice Restored Rarity." : "";
 
   const rawValue = calcValueInput.value.trim();
   const value = rawValue ? Number(rawValue.replace(/[^0-9.]/g, '')) : 0;
@@ -2127,7 +2139,7 @@ function runCalculator(){
   if(tier.type !== 'repair'){
     calcSurchargeLine.style.display = 'none';
     applyDiscountAndTotal(basePrice, refValid);
-    calcHintEl.textContent = (rawValue ? CLEAN_CALC_HINT : DEFAULT_CALC_HINT) + (tier.bulk && qty <= 20 ? " Submit 21+ cards for bulk cleaning pricing." : "");
+    calcHintEl.textContent = ((rawValue ? CLEAN_CALC_HINT : DEFAULT_CALC_HINT) + (tier.bulk && qty <= 20 ? " Submit 21+ cards for bulk cleaning pricing." : "")) + calcGradeFeeNote;
     return;
   }
 
@@ -2135,7 +2147,7 @@ function runCalculator(){
     calcSurchargeLine.style.display = 'none';
     calcDiscountLine.style.display = 'none';
     calcTotalEl.textContent = 'Custom quote';
-    calcHintEl.textContent = "Cards valued above $3,000 need a custom quote — reach out directly for pricing.";
+    calcHintEl.textContent = ("Cards valued above $3,000 need a custom quote — reach out directly for pricing.") + calcGradeFeeNote;
     return;
   }
 
@@ -2147,7 +2159,7 @@ function runCalculator(){
     calcSurchargeLine.style.display = 'none';
   }
   applyDiscountAndTotal(basePrice + surcharge, refValid);
-  calcHintEl.textContent = qty > 1 ? DEFAULT_CALC_HINT + " Assumes the same service and value for each card." : DEFAULT_CALC_HINT;
+  calcHintEl.textContent = (qty > 1 ? DEFAULT_CALC_HINT + " Assumes the same service and value for each card." : DEFAULT_CALC_HINT) + calcGradeFeeNote;
 }
 function applyDiscountAndTotal(subtotal, refValid){
   if(refValid){
@@ -2696,6 +2708,7 @@ function cardEntryTemplate(id){
         <div class="grade-co" id="f-gradeco-wrap-${id}" hidden>
           <label for="f-gradeco-${id}">Which grading company? <span class="req">*</span></label>
           <select id="f-gradeco-${id}"><option value="">Choose a company</option>${GRADING_COMPANIES.map(c => `<option>${c}</option>`).join('')}<option value="Not sure yet">Not sure yet — help me decide</option></select>
+          <p class="grade-fee-note">Grading company fees are separate from my fee. <b>The base fee for the service level you choose is due once your card is evaluated and ready to ship to the grader.</b> Any upcharge from the grading company (for example for a higher card value) is billed when they invoice Restored Rarity. <a href="#grading-fees">How grading fees work</a></p>
         </div>
       </div>
       <div class="field">
@@ -3436,6 +3449,8 @@ function applyPrices(pr){
   const sP = document.getElementById('surcharge-text'); if(sP) sP.textContent = surchargeSentence();
   document.querySelectorAll('.slab-addon-amt').forEach(el => { el.textContent = money(SLAB_CRACK_ADDON); });
   document.querySelectorAll('.grade-addon-amt').forEach(el => { el.textContent = money(GRADING_ADDON); });
+  document.querySelectorAll('.grade-next-amt').forEach(el => { el.textContent = money(GRADING_NEXT); });
+  if(grad) document.querySelectorAll('.grade-first-amt').forEach(el => { el.textContent = grad.price; });
   document.querySelectorAll('.ref-pct').forEach(el => { el.textContent = PRICE_RULES.referral + '%'; });
 
   // Calculator: keep the same service picked if it still exists

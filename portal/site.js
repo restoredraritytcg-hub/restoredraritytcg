@@ -61,7 +61,7 @@ export const DEFAULT_PRICES = {
       "title": "Grading Submission (PSA, CGC, BGS, TAG)",
       "price": 15,
       "type": "grading",
-      "desc": "We package your card and submit it to the grading company you choose: PSA, CGC, BGS or TAG. The grading company\u2019s own fees and return shipping are separate.",
+      "desc": "We package your card and submit it to the grading company you choose: PSA, CGC, BGS or TAG. The grading company\u2019s own fees are separate (see How grading fees work).",
       "sub": ""
     }
   ],

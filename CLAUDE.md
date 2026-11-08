@@ -414,5 +414,13 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    portal-only answer, capability flag); portal editor in `?demo` on desktop + phone (pre-select, missing company caught, save,
    Grading column/summary refresh, card page editor); website eval note.
 
+21. **Built Nov 7, 2026 (same PR #7): grading fee terms.** Owner's rule: the grading company's **base fee for the chosen
+   service level is due once the card is evaluated and ready to ship to the grader**; any grading-company upcharge (e.g. a
+   higher value tier) is billed/invoiced to the customer when the grading company invoices Restored Rarity. Shown in a
+   "How grading submission fees work" box under Additional services (`#grading-fees`, amounts follow saved prices), a short
+   note under the order form's "Which grading company?" picker, and the calculator hint whenever grading is included.
+   The grading tier's description no longer says return shipping is separate (index.html + site.js default). Terms &
+   Conditions not changed (owner's rule). Owner reported Nov 7 that grading wasn't showing on the live site: PR #7 isn't merged yet.
+
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
