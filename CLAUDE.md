@@ -316,6 +316,11 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    memory on the Windows PC (its one lesson — merge origin/main before handing out files — is in item 12).
    Habits that also apply on the Mac: `git pull` before starting (the owner edits main on GitHub's website), and
    prefer committing + pushing over handing files to upload once git is signed in there.
+   **Owner's standing rule (Nov 8, 2026): when the owner asks for a change to any of their websites (Restored Rarity,
+   RipperDoc TCG `restoredraritytcg-hub/theripperdoctcg`, PH Restoration Lab `restoredraritytcg-hub/phrestorationlab`),
+   Claude makes it on GitHub directly — commit, push and merge — instead of handing files to upload.** Pull/merge main first
+   (the owner also uploads on GitHub.com). Apps Script (`Code.gs`) and Supabase SQL still have to be pasted/run by the owner, so
+   anything that depends on them is held until the owner confirms they're done.
 
 16. **Built (Oct 31, 2026), not yet set up/uploaded: standalone "Scan Station by Restored Rarity" (`scanner/`,
    URL stays `/scanner/`).** Goal: a paid product, so ease of use comes first. Any browser/device. Adding is bulk and
@@ -377,7 +382,28 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    `portal/cards.json`** (`{v, img, sets:[[id,name,year,total,path]], cards:[[name,setIndex,number,pic]]}`) without
    updating those sites.
 
-19. **Built Nov 7, 2026 (branch `feature/grading-addon`), not yet live: grading submission service + company per card.**
+19. **Built Nov 8, 2026: scan station for the client sites (RipperDoc TCG, PH Restoration Lab), PR #2 on each repo.**
+   Owner's choices: keep their Sheets + Apps Script + Cloudinary backend; scan station **inside the intake page only**
+   (Scan tab), **no eBay zip** (reserved for the paid standalone app); **don't change their services, prices or terms**
+   (Restored Rarity's grading service / services editor / fee terms are NOT ported). Each repo has `scan/` with copies of
+   `portal/scanproc.js`, `portal/centering.js`, `scanner/photo.js`, `scanner/camera.js` (**keep in sync**) plus new
+   `scanview.js` (viewer + grade caps, copy of `CENTERING_RULES`), `station.js`, `scan.css`, and `help.html`. One straightened
+   JPEG (≤3200 px) per side goes to their Cloudinary; close-ups are Cloudinary `c_crop` URLs from `boxes`; the scan JSON lives
+   in the Items tab column V "Scans" (Code.gs `saveScanAction_`, `itemMedia_` feeds the customer link). Shared guide:
+   Claude Docs "Scan Station & Intake App — Setup Guide". Merge each PR only after that site's new Code.gs is deployed.
+   **RipperDoc: owner pasted the new Code.gs (Nov 8); PR #2 merged, help.html confirmed live.** PH: waiting on its Code.gs.
+
+20. **Nov 8, 2026: standalone Scan Station split out + launch plan.** Built locally at `/home/claude/scan-station` (new repo
+   `restoredraritytcg-hub/scan-station`, **not created yet — the owner must create it empty**; Claude sessions can't create
+   repos). Contents: `app/` (copy of `scanner/` with `shared/` copies of portal modules, plans + upgrade prompts, eBay zip only
+   on paid plans), `supabase/plans.sql` (plans, `whop_memberships`, `sync_plan`/`sync_membership`/`my_plan`; tested on local
+   Postgres), Edge Functions `whop-webhook` + `create-checkout` (Whop field names unverified — sandbox), `discord/` (server
+   blueprint + `setup-server.mjs`, tested on a mock API), `business/` (go-to-market, launch checklist, support). Docs: Claude
+   docs "Scan Station — Launch Plan". The `scanner/` folder here stays as the origin; future work goes to the new repo.
+   Owner's Mac packages: "Card Business Projects" zip (one folder per project + Claude Project briefs) — folder access to the
+   Mac was refused, so it was sent as a download. The "Websites" Claude project is over its knowledge limit (writes refused).
+
+21. **Built Nov 7, 2026 (branch `feature/grading-addon`), not yet live: grading submission service + company per card.**
    Owner's decisions: grading submissions to **PSA, CGC, BGS or TAG**; **$15 first card + $5 each after on its own, $5 per card
    as an add-on**; shown on the website and in the portal; **the customer picks the company on the order form ("Not sure yet"
    allowed) and the owner can change it in the portal**. Built: `cards.service` + `cards.grading` (check: '' / PSA / CGC / BGS /
@@ -393,12 +419,12 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    can't read cards, customer link shows the company); quote math in Node (first/next, add-on with crack + surcharge, cancelled,
    price list saved before grading, custom grading prices, old orders unchanged); Playwright on the site (built-in and saved
    price lists, desktop + phone) and the portal in `?demo` (desktop + phone). Website orders are quoted from the Sheet's
-   Service column; since item 20, saving a card's service in the portal writes it there too.
+   Service column; since item 22, saving a card's service in the portal writes it there too.
    Owner steps, in order: run `supabase/2026-11-07_card_grading.sql` → paste `apps-script/Code.gs`, deploy a new version →
    merge (uploads `index.html`, `portal/admin.js`, `portal/site.js`) → in the portal open Website → Prices and Save once
-   (optional: keeps the grading prices with the rest of the saved list). Item 20 ships in the same PR with the same steps.
+   (optional: keeps the grading prices with the rest of the saved list). Item 22 ships in the same PR with the same steps.
 
-20. **Built Nov 7, 2026 (same branch / PR #7): adjust services in the portal + evaluation → grading note.**
+22. **Built Nov 7, 2026 (same branch / PR #7): adjust services in the portal + evaluation → grading note.**
    Owner wants to correct customers' services and levels so quotes are accurate. Submission page: **Services & levels** panel
    ("Adjust services") with one editor per card; card page: the same editor in place of the old free-text Service field.
    Editor = service menu from the price list (pre-selects the card's current service via `parseService`; unmatched text is kept
@@ -414,7 +440,7 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    portal-only answer, capability flag); portal editor in `?demo` on desktop + phone (pre-select, missing company caught, save,
    Grading column/summary refresh, card page editor); website eval note.
 
-21. **Built Nov 7, 2026 (same PR #7): grading fee terms.** Owner's rule: the grading company's **base fee for the chosen
+23. **Built Nov 7, 2026 (same PR #7): grading fee terms.** Owner's rule: the grading company's **base fee for the chosen
    service level is due once the card is evaluated and ready to ship to the grader**; any grading-company upcharge (e.g. a
    higher value tier) is billed/invoiced to the customer when the grading company invoices Restored Rarity. Shown in a
    "How grading submission fees work" box under Additional services (`#grading-fees`, amounts follow saved prices), a short
