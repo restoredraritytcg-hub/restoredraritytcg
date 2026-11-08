@@ -422,7 +422,9 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    The grading tier's description no longer says return shipping is separate (index.html + site.js default). Terms &
    Conditions: on Nov 8 the owner asked for the same rule in the T&C: section 6 (Grading) got "Grading submission service",
    "When grading fees are due", "Grading company upcharges" and a fees-set-by-the-grader paragraph; section 19 (Payment) and
-   the Acknowledgment got one sentence each; Effective Date → November 8, 2026 (build v11-08a). Owner reported Nov 7 that grading wasn't showing on the live site: PR #7 isn't merged yet.
+   the Acknowledgment got one sentence each; Effective Date → November 8, 2026 (build v11-08a). Same day, owner changed the rule to staged payment: **50% of the
+   grader's base fee when the card is ready to ship, the other 50% when it enters the holder and label stage; return shipping
+   + any upcharge once grades are complete** (box, form note, calculator, T&C §6/§19/Acknowledgment; build v11-08b). Owner reported Nov 7 that grading wasn't showing on the live site: PR #7 isn't merged yet.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
