@@ -402,6 +402,9 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    docs "Scan Station — Launch Plan". The `scanner/` folder here stays as the origin; future work goes to the new repo.
    Owner's Mac packages: "Card Business Projects" zip (one folder per project + Claude Project briefs) — folder access to the
    Mac was refused, so it was sent as a download. The "Websites" Claude project is over its knowledge limit (writes refused).
+   **Nov 9, 2026:** the owner created the repo as **`restoredraritytcg-hub/ScanStationIQ`** (public, not `scan-station`).
+   Only the docs are pushed so far (from the owner's "Scan Station - Claude Project" zip). The Nov 8 code (`app/`, `supabase/`,
+   Whop functions, Discord script) was not in that zip; it's needed from the owner's download, or it gets rebuilt from `scanner/`.
 
 21. **Built Nov 7, 2026 (branch `feature/grading-addon`), not yet live: grading submission service + company per card.**
    Owner's decisions: grading submissions to **PSA, CGC, BGS or TAG**; **$15 first card + $5 each after on its own, $5 per card
