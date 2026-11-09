@@ -394,8 +394,8 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    **RipperDoc: owner pasted the new Code.gs (Nov 8); PR #2 merged, help.html confirmed live.** PH: waiting on its Code.gs.
 
 20. **Nov 8, 2026: standalone Scan Station split out + launch plan.** Built locally at `/home/claude/scan-station` (new repo
-   `restoredraritytcg-hub/scan-station`, **not created yet — the owner must create it empty**; Claude sessions can't create
-   repos). Contents: `app/` (copy of `scanner/` with `shared/` copies of portal modules, plans + upgrade prompts, eBay zip only
+   `restoredraritytcg-hub/scan-station` → the owner created it as **`restoredraritytcg-hub/ScanStationIQ`** (public); full app pushed
+   Nov 8 evening, `business/` kept out because the repo is public). Contents: `app/` (copy of `scanner/` with `shared/` copies of portal modules, plans + upgrade prompts, eBay zip only
    on paid plans), `supabase/plans.sql` (plans, `whop_memberships`, `sync_plan`/`sync_membership`/`my_plan`; tested on local
    Postgres), Edge Functions `whop-webhook` + `create-checkout` (Whop field names unverified — sandbox), `discord/` (server
    blueprint + `setup-server.mjs`, tested on a mock API), `business/` (go-to-market, launch checklist, support). Docs: Claude
