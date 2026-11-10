@@ -402,6 +402,8 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    docs "Scan Station — Launch Plan". The `scanner/` folder here stays as the origin; future work goes to the new repo.
    Owner's Mac packages: "Card Business Projects" zip (one folder per project + Claude Project briefs) — folder access to the
    Mac was refused, so it was sent as a download. The "Websites" Claude project is over its knowledge limit (writes refused).
+   **Later Nov 8:** repo made private (`business/` back in), live on Cloudflare at `scanstationiq.restoredraritytcg.workers.dev`,
+   own Supabase project `djkbpiaaqxspmbknluky`. ScanStationIQ's own CLAUDE.md is the status log from here on.
 
 21. **Built Nov 7, 2026 (branch `feature/grading-addon`), not yet live: grading submission service + company per card.**
    Owner's decisions: grading submissions to **PSA, CGC, BGS or TAG**; **$15 first card + $5 each after on its own, $5 per card
