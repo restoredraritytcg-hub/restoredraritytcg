@@ -8,7 +8,13 @@
 // Typing anything is still allowed; suggestions only help. The list loads on first focus.
 (function () {
   const SRC = (document.currentScript && document.currentScript.src) || "";
-  const URL_ = SRC ? new URL("cards.json", SRC).href : "cards.json";
+  // Where the list comes from, in order: a page setting (window.RR_CARDS_URL, or ScanStationIQ's SCANNER_CONFIG.cardsUrl),
+  // the cards.json next to this script (Restored Rarity's portal), then the GitHub copy of Restored Rarity's list.
+  const URLS = [...new Set([
+    window.RR_CARDS_URL || (window.SCANNER_CONFIG && window.SCANNER_CONFIG.cardsUrl) || "",
+    SRC ? new URL("cards.json", SRC).href : "cards.json",
+    "https://raw.githubusercontent.com/restoredraritytcg-hub/restoredraritytcg/main/portal/cards.json",
+  ].filter(Boolean))];
   const MAX = 8;
   let loading = null, DB = null;
 
@@ -17,7 +23,9 @@
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
   function load() {
-    if (!loading) loading = fetch(URL_).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }).then((d) => {
+    const get = (i) => fetch(URLS[i]).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .catch((e) => { if (i + 1 < URLS.length) return get(i + 1); throw e; });
+    if (!loading) loading = get(0).then((d) => {
       const cards = d.cards.map(([name, si, num, img]) => {
         const [, set, year, total, path] = d.sets[si];
         const number = /^\d+$/.test(num) && total ? `${num}/${total}` : num;

@@ -404,6 +404,9 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    Mac was refused, so it was sent as a download. The "Websites" Claude project is over its knowledge limit (writes refused).
    **Later Nov 8:** repo made private (`business/` back in), live on Cloudflare at `scanstationiq.restoredraritytcg.workers.dev`,
    own Supabase project `djkbpiaaqxspmbknluky`. ScanStationIQ's own CLAUDE.md is the status log from here on.
+   **Nov 11, 2026:** `portal/cardsearch.js` now tries `window.RR_CARDS_URL` / `SCANNER_CONFIG.cardsUrl` first, then the
+   `cards.json` next to the script (unchanged behavior here), then the raw GitHub copy — so ScanStationIQ's identical copy loads
+   this site's live card list. Keep the two files identical.
 
 21. **Built Nov 7, 2026 (branch `feature/grading-addon`), not yet live: grading submission service + company per card.**
    Owner's decisions: grading submissions to **PSA, CGC, BGS or TAG**; **$15 first card + $5 each after on its own, $5 per card
