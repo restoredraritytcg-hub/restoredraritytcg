@@ -78,6 +78,16 @@ export const DEFAULT_PRICES = {
   "slabAddon": 10,
   "gradingNext": 5,
   "gradingAddon": 5,
+  "psaDeposit": 75,
+  "psaLevels": [
+    { "name": "Value", "price": 39.99, "maxValue": 500, "days": "90–100 business days" },
+    { "name": "Standard", "price": 59.99, "maxValue": 1000, "days": "70–80 business days" },
+    { "name": "Priority", "price": 79.99, "maxValue": 1500, "days": "50–60 business days" },
+    { "name": "Express", "price": 199, "maxValue": 2500, "days": "20–30 business days" },
+    { "name": "Super Express", "price": 349, "maxValue": 5000, "days": "10–15 business days" },
+    { "name": "Premier", "price": 599, "maxValue": 10000, "days": "7–10 business days" },
+    { "name": "Premium 1", "price": 999, "maxValue": 25000, "days": "5–7 business days" }
+  ],
   "surcharge": [
     {
       "upTo": 250,
@@ -114,7 +124,7 @@ async function gas(type, body = {}) {
   if (DEMO) return demoGas(type, body);
   if (!GAS) throw new Error("The Apps Script address isn't set (emailEndpoint in config.js).");
   if (!gasCaps) gasCaps = await fetch(`${GAS}?action=portalEmails`).then((r) => r.json()).catch(() => null);
-  const need = type === "portalReviews" ? "reviews" : type === "portalCardServices" ? "services" : "quotes";
+  const need = type === "portalReviews" ? "reviews" : type === "portalCardServices" ? "services" : type === "portalPsa" ? "psa" : "quotes";
   if (!gasCaps?.success || !gasCaps[need]) {
     gasCaps = null;
     throw new Error("The Apps Script hasn't been updated yet: paste the new Code.gs into the Sheet's Apps Script and deploy a new version.");
@@ -142,6 +152,8 @@ async function loadSite() {
 /** Send changed card services to the Sheet so the website order's quote follows them.
  *  Returns {onSheet, updated}; throws if the Apps Script is too old or refuses. */
 export async function saveServicesToSheet(code, cards) { return gas("portalCardServices", { code, cards }); }
+/** PSA panel → Sheet copy (website tracker) + the step email. */
+export async function savePsaToSheet(body) { return gas("portalPsa", body); }
 
 /** The current price list (saved in the portal, or the website's built-in one), for the New submission service menu. */
 export async function currentPrices() {
@@ -212,6 +224,8 @@ function withDefaults(P) {
   if (!P.services.some((x) => x.type === "grading")) P.services.push(clone(DEFAULT_PRICES.services.find((x) => x.type === "grading")));
   if (P.gradingNext == null) P.gradingNext = DEFAULT_PRICES.gradingNext;
   if (P.gradingAddon == null) P.gradingAddon = DEFAULT_PRICES.gradingAddon;
+  if (P.psaDeposit == null) P.psaDeposit = DEFAULT_PRICES.psaDeposit;
+  if (!Array.isArray(P.psaLevels) || !P.psaLevels.length) P.psaLevels = clone(DEFAULT_PRICES.psaLevels);
   return P;
 }
 async function prices(body) {
@@ -252,6 +266,19 @@ async function prices(body) {
         <div class="row">Added to another service, per card:
           <span class="money"><span>$</span><input type="text" id="gadd" inputmode="decimal" value="${esc(P.gradingAddon)}" aria-label="Grading added to another service"></span></div>
         <p class="muted small" style="margin:6px 0 0">The first card on its own is the Grading Submission price above. Customers pick PSA, CGC, BGS or TAG on the order form.</p></div>
+      <h2>PSA service levels <span class="muted small" style="text-transform:none">(PSA's own fees, passed through)</span></h2>
+      <div class="panel"><p class="muted small" style="margin:0 0 8px">PSA sets these and changes them often. Check psacard.com before saving.
+          The order form suggests the cheapest level that covers each card's value.</p>
+        ${P.psaLevels.map((l, i) => `<div class="row prow" style="margin-bottom:6px;flex-wrap:wrap">
+          <input type="text" class="pn" value="${esc(l.name)}" placeholder="Level name" aria-label="PSA level name" style="width:150px">
+          <span class="money"><span>$</span><input type="text" class="pp" inputmode="decimal" value="${esc(l.price)}" aria-label="Price per card"></span> per card,
+          cards worth up to <span class="money"><span>$</span><input type="text" class="pm" inputmode="decimal" value="${esc(l.maxValue || "")}" aria-label="Max card value"></span>
+          <input type="text" class="pd" value="${esc(l.days || "")}" placeholder="e.g. 70–80 business days" aria-label="Turnaround" style="width:190px">
+          <button class="btn sm danger" data-prm="${i}" aria-label="Remove level">✕</button></div>`).join("")}
+        <button class="btn sm" id="padd">+ Add a level</button>
+        <div class="row" style="margin-top:12px">Due once a card is evaluated:
+          <input type="text" id="pdep" inputmode="decimal" value="${esc(P.psaDeposit)}" style="width:70px" aria-label="Percent due once evaluated"> % of PSA's fee
+          <span class="muted small">(plus your grading fee; the rest goes on the final invoice)</span></div></div>
       <h2>Card value surcharge <span class="muted small" style="text-transform:none">(repairs only)</span></h2>
       <div class="panel">${P.surcharge.map((t, i) => `<div class="row srow" style="margin-bottom:6px">${i ? `${money(P.surcharge[i - 1].upTo + 1)} up to` : "Up to"}
           <span class="money"><span>$</span><input type="text" class="su" inputmode="decimal" value="${esc(t.upTo)}" aria-label="Up to card value"></span>:
@@ -281,6 +308,8 @@ async function prices(body) {
     $("#badd").onclick = () => { collect(); const l = P.bulk.at(-1); P.bulk.push({ min: l ? l.min + 20 : 21, price: l ? Math.max(0, l.price - 2) : 8 }); draw(); };
     $$("[data-brm]", body).forEach((b) => b.onclick = () => { collect(); P.bulk.splice(+b.dataset.brm, 1); draw(); });
     $("#sadd").onclick = () => { collect(); const l = P.surcharge.at(-1); P.surcharge.push({ upTo: l.upTo + 1000, rate: l.rate }); draw(); };
+    $("#padd").onclick = () => { collect(); P.psaLevels.push({ name: "", price: 0, maxValue: 0, days: "" }); draw(); };
+    $$("[data-prm]", body).forEach((b) => b.onclick = () => { collect(); P.psaLevels.splice(+b.dataset.prm, 1); draw(); });
     $$("[data-srm]", body).forEach((b) => b.onclick = () => { collect(); P.surcharge.splice(+b.dataset.srm, 1); draw(); });
     $("#pundo").onclick = () => { P = withDefaults(clone(SC.prices && SC.prices.services ? SC.prices : DEFAULT_PRICES)); draw(); toast("Changes undone."); };
     $("#preset").onclick = () => { if (confirm("Fill in the prices built into the website? Nothing is saved until you click Save prices.")) { P = clone(DEFAULT_PRICES); draw(); } };
@@ -304,6 +333,9 @@ async function prices(body) {
     P.slabAddon = num($("#slab").value);
     P.gradingNext = num($("#gnext").value);
     P.gradingAddon = num($("#gadd").value);
+    P.psaLevels = $$(".prow", body).map((r) => ({ name: $(".pn", r).value.trim(), price: num($(".pp", r).value),
+      maxValue: num($(".pm", r).value) || 0, days: $(".pd", r).value.trim() }));
+    P.psaDeposit = num($("#pdep").value);
     P.surcharge = $$(".srow", body).map((r) => ({ upTo: num($(".su", r).value), rate: num($(".sr", r).value) }));
     P.referral = num($("#ref").value);
   };
@@ -326,6 +358,14 @@ function check(P) {
   if (P.bulk.length && !P.services.some((x) => x.bulk)) return "Pick which cleaning service the bulk pricing applies to.";
   if (!(P.slabAddon >= 0)) return "The slab cracking add-on needs a price.";
   if (!(P.gradingNext >= 0) || !(P.gradingAddon >= 0)) return "The grading submission prices need numbers (like 5).";
+  const seenL = new Set();
+  for (const l of P.psaLevels || []) {
+    if (!l.name) return "Every PSA level needs a name.";
+    if (seenL.has(l.name.toLowerCase())) return `Two PSA levels are called "${l.name}".`;
+    seenL.add(l.name.toLowerCase());
+    if (!(l.price >= 0)) return `PSA level "${l.name}" needs a price.`;
+  }
+  if (!(P.psaDeposit >= 0 && P.psaDeposit <= 100)) return "The PSA amount due once evaluated must be a percent from 0 to 100.";
   for (const [i, t] of P.surcharge.entries()) {
     if (!(t.upTo > 0) || !(t.rate >= 0 && t.rate <= 100)) return "Each surcharge level needs a card value and a percent from 0 to 100.";
     if (i && t.upTo <= P.surcharge[i - 1].upTo) return "Surcharge levels must go from lower card values to higher ones.";
@@ -593,6 +633,7 @@ export async function wireQuote(s, cards) {
 
 // ------------------------------------------------------------ demo (?demo)
 function demoGas(type, body) {
+  if (type === "portalPsa") { window._rrDemoPsa = (window._rrDemoPsa || []).concat([body]); return { success: true, onSheet: false, emailed: !!body.email }; }
   if (type === "portalCardServices") { window._rrDemoSheetWrites = (window._rrDemoSheetWrites || []).concat([body]); return { success: true, onSheet: false, updated: 0 }; }
   if (type === "portalReviews") {
     window._rrDemoReviews ||= [

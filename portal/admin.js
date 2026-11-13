@@ -2,7 +2,8 @@
 import { api, DEMO, esc, $, $$, pill, STATUSES, renderReport, wireReport, thumbOf, mediaUrl, fmtDate,
   fmtDateTime, installLightbox, installHint, toast, customerLink, progressSteps, STAGE_LABEL } from "./common.js";
 import * as U from "./scanupload.js";
-import { sitePage, quotePanel, wireQuote, currentPrices, saveServicesToSheet } from "./site.js";
+import { sitePage, quotePanel, wireQuote, currentPrices, saveServicesToSheet, savePsaToSheet } from "./site.js";
+import { psaPanel, wirePsa, levelFromService } from "./psa.js";
 
 const app = $("#app");
 let S = null; // { customers, submissions, cards, scans, photos }
@@ -198,13 +199,17 @@ const gradingSelect = (id, val, blank = "Not being graded", cls = "") => `<selec
   <option value="Not sure yet" ${val === "Not sure yet" ? "selected" : ""}>Not sure yet</option></select>`;
 const moneyTxt = (n) => "$" + Number(n).toLocaleString("en-US", { maximumFractionDigits: 2 });
 /** Keep a card's service text in step with its grading company (same wording as the website order form). */
-function withGrading(service, grading, P) {
+function withGrading(service, grading, P, level = "") {
   let t = String(service || "").replace(/\s+—\s+grading.*$/i, "").trim();
   const solo = /^grading submission/i.test(t);
   if (!grading) return solo ? t : t.replace(/\s*\+\s*grading submission\s*\([^)]*\)/i, "").trim();
   if (t && !solo && !/\+\s*grading submission/i.test(t)) t += ` + Grading Submission (${moneyTxt(P ? P.gradingAddon : 5)})`;
-  return `${t} — ${grading === "Not sure yet" ? "grading company not chosen yet" : "grading: " + grading}`.trim();
+  return `${t} — ${grading === "Not sure yet" ? "grading company not chosen yet" : "grading: " + grading}${grading === "PSA" && level ? ` (${level})` : ""}`.trim();
 }
+/** PSA service level menu (from the price list). */
+const psaLevelSelect = (P, val) => `<select class="kgl"><option value="">Choose a level…</option>${(P.psaLevels || []).map((l) =>
+  `<option value="${esc(l.name)}" ${l.name === val ? "selected" : ""}>${esc(l.name)} — ${moneyTxt(l.price)}${l.maxValue ? `, up to ${moneyTxt(l.maxValue)}` : ""}</option>`).join("")}</select>`;
+const levelOf = (k) => k.grade_level || levelFromService(k.service);
 const gradingSummary = (cards) => {
   const n = {}; cards.forEach((k) => { if (k.grading) n[k.grading] = (n[k.grading] || 0) + 1; });
   return Object.entries(n).map(([g, c]) => `${c} × ${g}`).join(", ");
@@ -255,7 +260,8 @@ function serviceFields(k, M, P) {
     <div class="row" style="margin-top:6px;gap:16px;flex-wrap:wrap">
       <label class="small kcw"><input type="checkbox" class="kc" ${cur.crack ? "checked" : ""}> Slab cracking (+${moneyTxt(P.slabAddon)})</label>
       <label class="small kgw"><input type="checkbox" class="kgb" ${cur.grade ? "checked" : ""}> Grading submission (+${moneyTxt(P.gradingAddon)})</label>
-      <span class="kgco"><label class="small">Grading company ${gradingSelect("", k.grading || "", "Choose…", "kgs")}</label></span></div></div>`;
+      <span class="kgco"><label class="small">Grading company ${gradingSelect("", k.grading || "", "Choose…", "kgs")}</label></span>
+      <span class="kglw"><label class="small">PSA level ${psaLevelSelect(P, levelOf(k))}</label></span></div></div>`;
 }
 function wireServiceFields(r, M) {
   const sync = () => {
@@ -263,8 +269,9 @@ function wireServiceFields(r, M) {
     $(".kcw", r).hidden = m.kind === "slab"; if (m.kind === "slab") $(".kc", r).checked = false;
     $(".kgw", r).hidden = m.kind === "grading"; if (m.kind === "grading") $(".kgb", r).checked = false;
     $(".kgco", r).hidden = !(m.kind === "grading" || $(".kgb", r).checked);
+    $(".kglw", r).hidden = $(".kgco", r).hidden || $(".kgs", r).value !== "PSA";
   };
-  $(".ksv", r).onchange = sync; $(".kgb", r).onchange = sync; sync();
+  $(".ksv", r).onchange = sync; $(".kgb", r).onchange = sync; $(".kgs", r).onchange = sync; sync();
 }
 /** Read one editor → {service, grading, value} or {error}. */
 function readServiceFields(r, M, P, label) {
@@ -272,18 +279,22 @@ function readServiceFields(r, M, P, label) {
   let service = sel === "other" ? $(".ksv option[value=other]", r).textContent.replace(/^As written:\s*/, "") : m ? m.value : "";
   const kind = m ? m.kind : "";
   if (service && $(".kc", r).checked && kind !== "slab") service += ` + Slab Cracking (${moneyTxt(P.slabAddon)})`;
-  let grading = "";
+  let grading = "", level = "";
   if (service && (kind === "grading" || $(".kgb", r).checked)) {
     grading = $(".kgs", r).value;
     if (!grading) return { error: `Choose a grading company for ${label} (or "Not sure yet").` };
-    service = withGrading(service, grading, P);
+    level = grading === "PSA" ? $(".kgl", r).value : "";
+    if (grading === "PSA" && !level) return { error: `Choose a PSA service level for ${label}.` };
+    service = withGrading(service, grading, P, level);
   }
-  return { service, grading, value: $(".kv", r).value.trim().replace(/^\$/, "") };
+  return { service, grading, grade_level: level, value: $(".kv", r).value.trim().replace(/^\$/, "") };
 }
 /** Save changed services: portal first, then the Sheet (so a website order's quote follows). Returns a message. */
 async function saveServices(s, changes) {
-  for (const { k, service, grading, value } of changes) {
-    Object.assign(k, await api.update("cards", k.id, { service, grading, customer_notes: withValue(k.customer_notes, value) }));
+  for (const { k, service, grading, grade_level, value } of changes) {
+    const row = { service, grading, customer_notes: withValue(k.customer_notes, value) };
+    if ("grade_level" in k || grade_level) row.grade_level = grade_level || "";   // column added by 2026-11-13_psa_tracking.sql
+    Object.assign(k, await api.update("cards", k.id, row));
   }
   if (!changes.length) return "Nothing changed.";
   try {
@@ -469,7 +480,7 @@ function submission(id) {
     <div class="row"><h1 class="grow">${esc(s.code)}</h1>${pill(s.status)}</div>
     <div class="meta"><span>Customer <b><a href="#/customer/${c.id}">${esc(c.name)}</a></b></span>
       <span>Received <b>${esc(fmtDate(s.created_at))}</b></span><span><b>${cards.length}</b> cards</span></div>
-    ${progressSteps(s.status)}${emailBar(s)}${quotePanel()}
+    ${progressSteps(s.status)}${emailBar(s)}${quotePanel()}${psaPanel(cards)}
     <div class="panel" style="margin-top:14px"><div class="grid2">
       <div><label class="f">Status</label>${statusSelect("ss", s.status)}
         <label class="small" style="display:block;margin-top:6px"><input type="checkbox" id="sall" checked> Also set every card to this status</label></div>
@@ -521,7 +532,7 @@ function submission(id) {
       for (const r of $$(".svrow", body)) {
         const k = byId("cards", r.dataset.id), got = readServiceFields(r, M, P, `card #${k.card_number}`);
         if (got.error) return toast(got.error, 6000);
-        if (got.service !== cardServiceText(k) || got.grading !== (k.grading || "") || got.value !== valueOf(k)) changes.push({ k, ...got });
+        if (got.service !== cardServiceText(k) || got.grading !== (k.grading || "") || got.value !== valueOf(k) || (got.grade_level || "") !== levelOf(k)) changes.push({ k, ...got });
       }
       $("#svsave").disabled = true; $("#svmsg").textContent = "Saving…";
       try { toast(await saveServices(s, changes), 7000); route(); }
@@ -530,6 +541,7 @@ function submission(id) {
   };
   wireEmailBar(s);
   wireQuote(s, cards);
+  wirePsa(s, cards, { prices: currentPrices, saveToSheet: savePsaToSheet });
   wirePhotosAdmin({ customer: c, cards, submissionId: id });
   $("#ssave").onclick = async () => {
     try {
@@ -648,7 +660,7 @@ function card(id) {
       if (!$("#kd").value.trim() && window.RRCardSearch?.info) $("#kd").value = RRCardSearch.detailsOf(await RRCardSearch.info($("#kn")));
       Object.assign(k, await api.update("cards", id, { name: $("#kn").value.trim(), details: $("#kd").value.trim(),
         status: $("#ks").value, public_notes: $("#kp").value, internal_notes: $("#ki").value }));
-      const changed = got && (got.service !== cardServiceText(k) || got.grading !== (k.grading || "") || got.value !== valueOf(k));
+      const changed = got && (got.service !== cardServiceText(k) || got.grading !== (k.grading || "") || got.value !== valueOf(k) || (got.grade_level || "") !== levelOf(k));
       toast(changed ? await saveServices(s, [{ k, ...got }]) : "Saved.", 6000); route();
     } catch (e) { toast(e.message, 5000); }
   };
@@ -691,7 +703,8 @@ async function newSubmission(customerId) {
       <div class="row" style="margin-top:8px;gap:16px;flex-wrap:wrap">
         <label class="small kcw"><input type="checkbox" class="kc"> Slab cracking (+${moneyTxt(P.slabAddon)})</label>
         <label class="small kgw"><input type="checkbox" class="kgb"> Grading submission (+${moneyTxt(P.gradingAddon)})</label>
-        <span class="kgco" hidden><label class="small">Grading company ${gradingSelect("", "", "Choose…", "kgs")}</label></span></div></div>`);
+        <span class="kgco" hidden><label class="small">Grading company ${gradingSelect("", "", "Choose…", "kgs")}</label></span>
+        <span class="kglw" hidden><label class="small">PSA level ${psaLevelSelect(P, "")}</label></span></div></div>`);
     const r = $$("#ncards .ncard").at(-1);
     window.RRCardSearch?.attach($(".kn", r), { details: $(".kd", r) });
     const sync = () => {
@@ -699,8 +712,17 @@ async function newSubmission(customerId) {
       $(".kcw", r).hidden = m.kind === "slab"; if (m.kind === "slab") $(".kc", r).checked = false;
       $(".kgw", r).hidden = m.kind === "grading"; if (m.kind === "grading") $(".kgb", r).checked = false;
       $(".kgco", r).hidden = !(m.kind === "grading" || $(".kgb", r).checked);
+      $(".kglw", r).hidden = $(".kgco", r).hidden || $(".kgs", r).value !== "PSA";
+      // suggest the cheapest PSA level that covers the card's value
+      const v = parseFloat($(".kv", r).value.replace(/[$,]/g, "")) || 0;
+      if (!$(".kglw", r).hidden && !$(".kgl", r).dataset.touched) {
+        const l = (P.psaLevels || []).find((x) => !(x.maxValue > 0) || !v || v <= x.maxValue) || (P.psaLevels || []).at(-1);
+        if (l) $(".kgl", r).value = l.name;
+      }
     };
-    $(".ksv", r).onchange = sync; $(".kgb", r).onchange = sync; sync();
+    $(".ksv", r).onchange = sync; $(".kgb", r).onchange = sync; $(".kgs", r).onchange = sync; $(".kv", r).oninput = sync;
+    $(".kgl", r).onchange = () => { $(".kgl", r).dataset.touched = "1"; };
+    sync();
     $(".nrm", r)?.addEventListener("click", () => { r.remove(); $$("#ncards .ncard b").forEach((b, i) => { b.textContent = `Card #${i + 1}`; }); });
   };
   addRow();
@@ -715,18 +737,20 @@ async function newSubmission(customerId) {
       const name = $(".kn", r).value.trim(), details = $(".kd", r).value.trim(), m = MENU[$(".ksv", r).value];
       if (!name && !details && !m) continue;
       if (!name) return toast(`Card #${i + 1} needs a name.`);
-      let service = "", grading = "";
+      let service = "", grading = "", grade_level = "";
       if (m) {
         service = m.value;
         if ($(".kc", r).checked && m.kind !== "slab") service += ` + Slab Cracking (${moneyTxt(P.slabAddon)})`;
         if (m.kind === "grading" || $(".kgb", r).checked) {
           grading = $(".kgs", r).value;
           if (!grading) return toast(`Choose a grading company for card #${i + 1} (or "Not sure yet").`);
-          service = withGrading(service, grading, P);
+          grade_level = grading === "PSA" ? $(".kgl", r).value : "";
+          if (grading === "PSA" && !grade_level) return toast(`Choose a PSA service level for card #${i + 1}.`);
+          service = withGrading(service, grading, P, grade_level);
         }
       }
       const v = $(".kv", r).value.trim().replace(/^\$/, "");
-      rows.push({ name, details, service, grading, customer_notes: v ? `Card value: $${v}` : "", title: m ? m.title : "" });
+      rows.push({ name, details, service, grading, ...(grade_level ? { grade_level } : {}), customer_notes: v ? `Card value: $${v}` : "", title: m ? m.title : "" });
     }
     if (!rows.length) return toast("Add at least one card.");
     $("#ncreate").disabled = true;
@@ -749,6 +773,7 @@ async function newSubmission(customerId) {
       go(`#/submission/${sub.id}`);
     } catch (e) {
       $("#ncreate").disabled = false;
+      if (/grade_level/i.test(e.message)) return toast("The database needs a one-time update first: in Supabase → SQL Editor, run supabase/2026-11-13_psa_tracking.sql, then try again.", 9000);
       if (/service|grading|column/i.test(e.message)) return toast("The database needs a one-time update first: in Supabase → SQL Editor, run supabase/2026-11-07_card_grading.sql, then try again.", 9000);
       toast(e.message, 6000);
     }
