@@ -206,6 +206,23 @@
   .grade-fee-note{font-size:12px; line-height:1.55; color:var(--muted); margin:8px 0 0;}
   .grade-fee-note b{color:var(--white);}
   .grade-fee-note a{color:var(--cyan);}
+  .psa-level{margin-top:12px;}
+  .psa-level label{display:block; margin-bottom:6px;}
+  .psa-est{font-size:12px; line-height:1.55; color:var(--muted); margin:8px 0 0;}
+  .psa-est b{color:var(--white);}
+  .psa-est .warn{color:var(--orange);}
+  .psa-table{width:100%; border-collapse:collapse; margin:4px 0 10px; font-size:13px;}
+  .psa-table th, .psa-table td{padding:6px 8px; border-bottom:1px solid var(--line); text-align:left;}
+  .psa-table th{color:var(--muted); font-weight:600; font-size:11px; letter-spacing:.04em; text-transform:uppercase;}
+  .psa-table td:nth-child(2){color:var(--white); font-weight:700; white-space:nowrap;}
+  .psa-table-wrap{overflow-x:auto;}
+  .trk-psa{margin:16px 0 4px; padding:14px 16px; border:1px solid var(--yellow); border-radius:var(--radius); background:rgba(255,210,63,.05);}
+  .trk-psa .lbl{color:var(--yellow); font-size:11px; letter-spacing:.08em; font-weight:700;}
+  .trk-psa .psa-now{font-size:16px; color:var(--white); font-weight:700; margin:4px 0 2px;}
+  .trk-psa .psa-meta{font-size:13px; color:var(--muted); margin:2px 0;}
+  .trk-psa .psa-meta b{color:var(--white);}
+  .trk-psa ul{margin:8px 0 0; padding-left:18px; font-size:13px; color:var(--muted);}
+  .trk-psa ul b{color:var(--white);}
   .value-basis-note{margin-top:16px; padding:14px 16px; border-radius:var(--radius); border:1px solid var(--cyan); background:rgba(73,219,232,.07); font-size:13px; line-height:1.6; color:var(--muted);}
   .value-basis-note .vb-title{color:var(--cyan); font-weight:700; font-size:13px; margin-bottom:6px;}
   .value-basis-note p{margin:0 0 8px;}
@@ -1258,12 +1275,14 @@
     <div class="value-basis-note" id="grading-fees" role="note" style="margin-top:18px;">
       <div class="vb-title">How grading submission fees work</div>
       <p>My grading submission fee (<span class="grade-first-amt">$15</span> for the first card and <span class="grade-next-amt">$5</span> for each one after on its own, or <span class="grade-addon-amt">$5</span> per card added to another service) covers evaluating, packaging and sending your card to the grading company you choose: PSA, CGC, BGS or TAG.</p>
-      <p>The grading company&rsquo;s own fees are paid in stages, based on the <b>base fee</b> for the service level you picked:</p>
+      <p>The grading company&rsquo;s own fee for the service level you pick is paid in two parts:</p>
       <ol class="grade-steps">
-        <li><b>50% of the base fee</b> is due when your card has been evaluated and is ready to ship to the grading company.</li>
-        <li><b>The other 50%</b> is due when your card reaches the grading company&rsquo;s holder and label stage.</li>
-        <li><b>When grades are complete</b>, only return shipping and any grading company upcharge remain. An upcharge happens when, for example, the grading company places your card in a higher value tier; it&rsquo;s billed to you (or invoiced) when the grading company invoices Restored Rarity.</li>
+        <li><b>Once I&rsquo;ve evaluated your card</b> and it&rsquo;s cleared to ship: my grading submission fee plus <b><span class="psa-dep-pct">75</span>% of the grading company&rsquo;s fee</b>.</li>
+        <li><b>On the final invoice, when grades are back:</b> the other <span class="psa-final-pct">25</span>%, return shipping, and any grading company upcharge (for example, if the grader moves your card to a higher value tier).</li>
       </ol>
+      <p style="margin-top:4px;"><b style="color:var(--white);">PSA service levels</b> <span style="font-size:12px;">(set by PSA and subject to change; checked <span id="psa-checked">November 2026</span>)</span></p>
+      <div class="psa-table-wrap"><table class="psa-table" id="psa-levels-table"><thead><tr><th>Level</th><th>Per card</th><th>Cards worth up to</th><th>Est. turnaround</th></tr></thead><tbody></tbody></table></div>
+      <p>PSA submissions are tracked step by step: you&rsquo;ll see when your card ships to PSA, arrives, is graded and is on its way back, on your private card link and in <a href="#track" style="color:var(--cyan);">Track Your Submission</a>.</p>
     </div>
 
     <div class="ladder-group-label" style="margin-top:36px;">Card value surcharge</div>
@@ -1298,6 +1317,10 @@
       </div>
       <label class="addon-check" id="calc-crack-wrap" style="margin:-4px 0 16px;"><input type="checkbox" id="calc-crack"> <span>Also crack the card out of a graded slab (+<span class="slab-addon-amt">$10</span>)</span></label>
       <label class="addon-check" id="calc-grade-wrap" style="margin:-8px 0 16px;"><input type="checkbox" id="calc-grade"> <span>Also submit it for grading: PSA, CGC, BGS or TAG (+<span class="grade-addon-amt">$5</span>)</span></label>
+      <div class="field" id="calc-psa-wrap" style="display:none;">
+        <label for="calc-psa">PSA service level <span class="hint-inline">(adds PSA&rsquo;s own fee; optional)</span></label>
+        <select id="calc-psa"></select>
+      </div>
       <div class="field">
         <label for="calc-qty">Number of cards</label>
         <input type="text" id="calc-qty" inputmode="numeric" placeholder="1" value="1">
@@ -1314,6 +1337,7 @@
         <div class="calc-line"><span id="calc-base-label">Base service</span><span id="calc-base">—</span></div>
         <div class="calc-line" id="calc-crack-line" style="display:none;"><span>Slab cracking add-on</span><span id="calc-crack-amt">—</span></div>
         <div class="calc-line" id="calc-grade-line" style="display:none;"><span>Grading submission add-on</span><span id="calc-grade-amt">—</span></div>
+        <div class="calc-line" id="calc-psa-line" style="display:none;"><span id="calc-psa-label">PSA fee</span><span id="calc-psa-amt">—</span></div>
         <div class="calc-line" id="calc-surcharge-line" style="display:none;"><span id="calc-surcharge-label">Value surcharge</span><span id="calc-surcharge">—</span></div>
         <div class="calc-line" id="calc-discount-line" style="display:none;"><span>Referral discount (<span class="ref-pct">10%</span>)</span><span id="calc-discount">—</span></div>
         <div class="calc-line calc-total"><span>Estimated total</span><span id="calc-total">—</span></div>
@@ -1491,7 +1515,7 @@
             <span class="terms-embed-status" id="terms-status">Not yet accepted</span>
           </div>
           <div class="terms-embed-scroll" id="terms-scroll">
-          <p><strong>Effective Date: November 8, 2026</strong></p>
+          <p><strong>Effective Date: November 13, 2026</strong></p>
           <p>Please read carefully before submitting your request.</p>
           <p>By clicking &ldquo;I Agree&rdquo; below and submitting a service request to Restored Rarity, you confirm that you have read, understand, and agree to these Terms &amp; Conditions and Waiver of Liability.</p>
 
@@ -1535,7 +1559,7 @@
           <p>You acknowledge that cleaning, repair, or restoration may affect how a third-party grading company evaluates, authenticates, labels, or grades a card.</p>
           <p>Unless expressly stated otherwise, Restored Rarity is not affiliated with PSA, TAG, CGC, BGS, or any other third-party grading company.</p>
           <p><strong>Grading submission service.</strong> If you choose a grading submission, Restored Rarity&rsquo;s grading submission fee covers evaluating, packaging, and submitting your card to the grading company you select. The grading company&rsquo;s own fees are separate and are not included in Restored Rarity&rsquo;s service price.</p>
-          <p><strong>When grading fees are due.</strong> The grading company&rsquo;s base fee for the service level you select is paid in two parts: (a) 50% of the base fee is due once your card has been evaluated and is ready to ship to the grading company; and (b) the remaining 50% of the base fee is due once your card enters the grading company&rsquo;s holder and label stage. Once grades are complete, only return shipping and any grading company upcharges remain due.</p>
+          <p><strong>When grading fees are due.</strong> Restored Rarity&rsquo;s grading submission fee and 75% of the grading company&rsquo;s base fee for the service level you select are due once Restored Rarity has evaluated your card and it is cleared to ship to the grading company. The remaining 25% of the base fee, return shipping, and any grading company upcharges are due on Restored Rarity&rsquo;s final invoice, issued once grades are complete. Cards are not shipped to the grading company until the first payment is received.</p>
           <p><strong>Grading company upcharges.</strong> Any additional charge assessed by the grading company, including an upcharge because the grading company places your card in a higher value tier or service level, is your responsibility. Restored Rarity will bill or invoice you for that amount when the grading company invoices Restored Rarity. Return shipping from the grading company is also your responsibility.</p>
           <p>Grading company fees, service levels, value tiers, and turnaround times are set by the grading company and may change without notice. Restored Rarity does not control them and is not responsible for grading company delays.</p>
 
@@ -1621,7 +1645,7 @@
 
           <h4>19. Payment</h4>
           <p>Customers are responsible for all approved service charges, applicable card-value surcharges, shipping charges, and any other charges specifically agreed upon during the submission process.</p>
-          <p>For grading submissions, 50% of the grading company&rsquo;s base fee is due when the card is ready to ship to the grading company, the remaining 50% is due when the card enters the holder and label stage, and return shipping and any grading company upcharge are due once grades are complete, as described in Section 6.</p>
+          <p>For grading submissions, Restored Rarity&rsquo;s grading submission fee and 75% of the grading company&rsquo;s base fee are due once the card is evaluated and cleared to ship to the grading company, and the remaining 25%, return shipping, and any grading company upcharge are due on the final invoice once grades are complete, as described in Section 6.</p>
           <p>Payment must be completed according to the payment instructions provided by Restored Rarity before cards are returned unless another arrangement has been agreed upon in writing.</p>
 
           <h4>20. Limitation of Liability</h4>
@@ -1642,7 +1666,7 @@
 
       <div class="terms-ack-block">
         <h4>Acknowledgment</h4>
-        <p>I have read, understand, and agree to the Restored Rarity Terms &amp; Conditions and Waiver of Liability. I understand that card cleaning, repair, and restoration involve inherent risks; specific restoration and grading results are not guaranteed; and turnaround times vary. I understand that shipping costs are my responsibility and that I must wait for Restored Rarity to contact me and authorize shipment before sending my cards. I understand that submitted card values will be verified and that my card-value surcharge may change if the verified card value differs from the value provided on my submission. I understand that the card value used for service pricing does not establish a replacement or guaranteed value for my card. If I choose a grading submission, I understand that 50% of the grading company&rsquo;s base fee for my selected service level is due when my card is ready to ship to the grading company, the remaining 50% is due when my card enters the holder and label stage, and return shipping and any grading company upcharge are due once grades are complete, with upcharges billed to me when the grading company invoices Restored Rarity. I authorize Restored Rarity to perform the services I approve and acknowledge that submitted cards may be photographed and/or recorded and that this content may be used by Restored Rarity for documentation, website, social media, educational, portfolio, advertising, and promotional purposes in accordance with these Terms.</p>
+        <p>I have read, understand, and agree to the Restored Rarity Terms &amp; Conditions and Waiver of Liability. I understand that card cleaning, repair, and restoration involve inherent risks; specific restoration and grading results are not guaranteed; and turnaround times vary. I understand that shipping costs are my responsibility and that I must wait for Restored Rarity to contact me and authorize shipment before sending my cards. I understand that submitted card values will be verified and that my card-value surcharge may change if the verified card value differs from the value provided on my submission. I understand that the card value used for service pricing does not establish a replacement or guaranteed value for my card. If I choose a grading submission, I understand that Restored Rarity&rsquo;s grading submission fee and 75% of the grading company&rsquo;s base fee for my selected service level are due once my card is evaluated and cleared to ship to the grading company, and that the remaining 25%, return shipping, and any grading company upcharge are due on the final invoice once grades are complete. I authorize Restored Rarity to perform the services I approve and acknowledge that submitted cards may be photographed and/or recorded and that this content may be used by Restored Rarity for documentation, website, social media, educational, portfolio, advertising, and promotional purposes in accordance with these Terms.</p>
         <div id="terms-end" aria-hidden="true"></div>
       </div>
           </div>
@@ -1902,7 +1926,7 @@
 
   <footer>
     <div class="fname pixel" style="font-size:10px; color:var(--muted);">RESTORED RARITY</div>
-    <div class="fyear">© <span id="year"></span> · Card cleaning, repair &amp; grading prep <span style="opacity:.55;">· build v11-08c</span></div>
+    <div class="fyear">© <span id="year"></span> · Card cleaning, repair &amp; grading prep <span style="opacity:.55;">· build v11-13a</span></div>
   </footer>
 </div>
 
@@ -2031,6 +2055,17 @@ let PRICE_RULES = {
   slabAddon: 10,                                              // slab cracking added to another service
   gradingNext: 5,                                             // grading submission on its own: each card after the first
   gradingAddon: 5,                                            // grading submission added to another service, per card
+  psaDeposit: 75,                                             // % of the grader's fee due once the card is evaluated; the rest on the final invoice
+  // PSA service levels (PSA sets these; checked Nov 2026 — edit in the portal: Website → Prices)
+  psaLevels: [
+    { name: 'Value',         price: 39.99, maxValue: 500,   days: '90–100 business days' },
+    { name: 'Standard',      price: 59.99, maxValue: 1000,  days: '70–80 business days' },
+    { name: 'Priority',      price: 79.99, maxValue: 1500,  days: '50–60 business days' },
+    { name: 'Express',       price: 199,   maxValue: 2500,  days: '20–30 business days' },
+    { name: 'Super Express', price: 349,   maxValue: 5000,  days: '10–15 business days' },
+    { name: 'Premier',       price: 599,   maxValue: 10000, days: '7–10 business days' },
+    { name: 'Premium 1',     price: 999,   maxValue: 25000, days: '5–7 business days' }
+  ],
   surcharge: [{ upTo: 250, rate: 0 }, { upTo: 1500, rate: 10 }, { upTo: 3000, rate: 12 }],  // % of card value; above the last = custom quote
   referral: 10                                                // referral code discount, %
 };
@@ -2042,6 +2077,29 @@ function bulkCleaningPrice(qty){
 }
 let SLAB_CRACK_SOLO = 15, SLAB_CRACK_ADDON = 10;
 let GRADING_NEXT = 5, GRADING_ADDON = 5;
+/* ---------- PSA service levels + the 75% / 25% split ---------- */
+const PSA_STEPS = [['cleared', 'Cleared for PSA'], ['shipped', 'Shipped to PSA'], ['arrived', 'Arrived at PSA'], ['grading', 'Being graded'],
+  ['assembly', 'Slabbing & quality check'], ['graded', 'Grades are in'], ['returning', 'On the way back'], ['back', 'Back at Restored Rarity']];
+function psaLevels(){ return (PRICE_RULES.psaLevels || []).filter(l => l && l.name); }
+function psaLevel(name){ return psaLevels().find(l => l.name === name) || null; }
+/* The cheapest level that covers the card's value (PSA charges by declared value). */
+function psaLevelFor(value){
+  const ls = psaLevels(); if(!ls.length) return null;
+  if(!(value > 0)) return ls[0];
+  return ls.find(l => !(l.maxValue > 0) || value <= l.maxValue) || ls[ls.length - 1];
+}
+function cents(n){ return Math.round(n * 100) / 100; }
+function money2(n){ return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 }); }
+function psaSplit(fee){ const now = cents(fee * PRICE_RULES.psaDeposit / 100); return { now, later: cents(fee - now) }; }
+function psaLevelLabel(l){ return `${l.name} — ${money2(l.price)} per card${l.maxValue ? `, cards worth up to ${money2(l.maxValue)}` : ''}${l.days ? ` (~${l.days})` : ''}`; }
+function psaOptionsHtml(sel){ return psaLevels().map(l => `<option value="${siteEsc(l.name)}"${l.name === sel ? ' selected' : ''}>${siteEsc(psaLevelLabel(l))}</option>`).join(''); }
+function renderPsaTable(){
+  const tb = document.querySelector('#psa-levels-table tbody'); if(!tb) return;
+  tb.innerHTML = psaLevels().map(l => `<tr><td>${siteEsc(l.name)}</td><td>${money2(l.price)}</td><td>${l.maxValue ? money2(l.maxValue) : '—'}</td><td>${siteEsc(l.days || '')}</td></tr>`).join('');
+  document.querySelectorAll('.psa-dep-pct').forEach(el => { el.textContent = PRICE_RULES.psaDeposit; });
+  document.querySelectorAll('.psa-final-pct').forEach(el => { el.textContent = 100 - PRICE_RULES.psaDeposit; });
+}
+renderPsaTable();
 const GRADING_COMPANIES = ['PSA', 'CGC', 'BGS', 'TAG'];
 /* The built-in grading service, added back if a saved price list (portal → Website → Prices) predates it */
 const DEFAULT_GRADING_TIER = Object.assign({}, ADDON_TIERS.find(t => t.type === 'grading'));
@@ -2116,7 +2174,16 @@ const calcGradeInput = document.getElementById('calc-grade');
 const calcGradeWrap = document.getElementById('calc-grade-wrap');
 const calcGradeLine = document.getElementById('calc-grade-line');
 const calcGradeAmt = document.getElementById('calc-grade-amt');
-let calcGradeFeeNote = '';
+const calcPsaWrap = document.getElementById('calc-psa-wrap');
+const calcPsaSel = document.getElementById('calc-psa');
+const calcPsaLine = document.getElementById('calc-psa-line');
+function fillCalcPsa(){
+  const keep = calcPsaSel.value;
+  calcPsaSel.innerHTML = `<option value="">Not sending to PSA / skip</option>` + psaOptionsHtml(keep);
+  if(keep && !psaLevel(keep)) calcPsaSel.value = '';
+}
+fillCalcPsa();
+let calcGradeFeeNote = '', calcPsaExtra = 0;
 function runCalculator(){
   const tier = ALL_TIERS[Number(calcServiceSelect.value)];
   const qty = Math.max(1, Math.floor(Number(calcQtyInput.value.replace(/[^0-9]/g, '')) || 1));
@@ -2139,7 +2206,18 @@ function runCalculator(){
   calcGradeLine.style.display = grade ? 'flex' : 'none';
   if(grade) calcGradeAmt.textContent = `+$${GRADING_ADDON * qty}`;
   const basePrice = baseTotal + ((crack ? SLAB_CRACK_ADDON : 0) + (grade ? GRADING_ADDON : 0)) * qty;
-  calcGradeFeeNote = (isGradeOnly || grade) ? " Grading company fees are extra: 50% of the base fee is due when the card is ready to ship to the grader, 50% at the holder and label stage; return shipping and any upcharge are due when grades are complete." : "";
+  calcPsaWrap.style.display = (isGradeOnly || grade) ? 'block' : 'none';
+  const lvl = (isGradeOnly || grade) ? psaLevel(calcPsaSel.value) : null;
+  const psaFee = lvl ? cents(lvl.price * qty) : 0;
+  calcPsaLine.style.display = lvl ? 'flex' : 'none';
+  if(lvl){
+    document.getElementById('calc-psa-label').textContent = qty > 1 ? `PSA ${lvl.name} fee (${money2(lvl.price)} × ${qty})` : `PSA ${lvl.name} fee`;
+    document.getElementById('calc-psa-amt').textContent = `+${money2(psaFee)}`;
+  }
+  const sp = psaSplit(psaFee);
+  calcGradeFeeNote = lvl ? ` PSA's fee is paid in two parts: ${money2(sp.now)} (${PRICE_RULES.psaDeposit}%) once your card is evaluated, ${money2(sp.later)} on the final invoice with return shipping and any PSA upcharge.`
+    : (isGradeOnly || grade) ? ` Grading company fees are extra: ${PRICE_RULES.psaDeposit}% once your card is evaluated and cleared to ship, the rest on the final invoice with return shipping and any upcharge.` : "";
+  calcPsaExtra = psaFee;
 
   const rawValue = calcValueInput.value.trim();
   const value = rawValue ? Number(rawValue.replace(/[^0-9.]/g, '')) : 0;
@@ -2173,14 +2251,16 @@ function runCalculator(){
   calcHintEl.textContent = (qty > 1 ? DEFAULT_CALC_HINT + " Assumes the same service and value for each card." : DEFAULT_CALC_HINT) + calcGradeFeeNote;
 }
 function applyDiscountAndTotal(subtotal, refValid){
+  // The referral discount applies to my services only, not the grading company's fee.
+  const extra = calcPsaExtra || 0;
   if(refValid){
     const discount = Math.round(subtotal * REFERRAL_DISCOUNT * 100) / 100;
     calcDiscountLine.style.display = 'flex';
     calcDiscountEl.textContent = `-$${discount.toFixed(2)}`;
-    calcTotalEl.textContent = `$${(subtotal - discount).toFixed(2)}`;
+    calcTotalEl.textContent = `$${(subtotal - discount + extra).toFixed(2)}`;
   } else {
     calcDiscountLine.style.display = 'none';
-    calcTotalEl.textContent = `$${subtotal}`;
+    calcTotalEl.textContent = extra ? money2(cents(subtotal + extra)) : `$${subtotal}`;
   }
 }
 
@@ -2190,6 +2270,7 @@ calcReferralInput.addEventListener('input', runCalculator);
 calcQtyInput.addEventListener('input', runCalculator);
 calcCrackInput.addEventListener('change', runCalculator);
 calcGradeInput.addEventListener('change', runCalculator);
+calcPsaSel.addEventListener('change', runCalculator);
 runCalculator();
 
 /* ---------- Centering calculator ----------
@@ -2719,7 +2800,12 @@ function cardEntryTemplate(id){
         <div class="grade-co" id="f-gradeco-wrap-${id}" hidden>
           <label for="f-gradeco-${id}">Which grading company? <span class="req">*</span></label>
           <select id="f-gradeco-${id}"><option value="">Choose a company</option>${GRADING_COMPANIES.map(c => `<option>${c}</option>`).join('')}<option value="Not sure yet">Not sure yet — help me decide</option></select>
-          <p class="grade-fee-note">Grading company fees are separate from my fee and are paid in stages: <b>50% of the base fee for your service level when your card is ready to ship to the grader, the other 50% when it reaches the holder and label stage.</b> Once grades are complete, only return shipping and any grading company upcharge (for example for a higher value tier) remain. <a href="#grading-fees">How grading fees work</a></p>
+          <div class="psa-level" id="f-psalvl-wrap-${id}" hidden>
+            <label for="f-psalvl-${id}">PSA service level <span class="req">*</span></label>
+            <select id="f-psalvl-${id}">${psaOptionsHtml('')}</select>
+            <p class="psa-est" id="f-psaest-${id}"></p>
+          </div>
+          <p class="grade-fee-note">Grading company fees are separate from my fee and are paid in two parts: <b><span class="psa-dep-pct">${PRICE_RULES.psaDeposit}</span>% of the fee for your service level once I&rsquo;ve evaluated your card</b>, and the other <span class="psa-final-pct">${100 - PRICE_RULES.psaDeposit}</span>% on the final invoice with return shipping and any grading company upcharge. <a href="#grading-fees">How grading fees work</a></p>
         </div>
       </div>
       <div class="field">
@@ -2848,8 +2934,27 @@ function addCardEntry(){
     // which grading company: asked when grading is the service or the add-on
     document.getElementById(`f-gradeco-wrap-${id}`).hidden = !(kind === 'grading' || gradeBox.checked);
   };
-  svcSel.addEventListener('change', syncAddons);
-  gradeBox.addEventListener('change', syncAddons);
+  // PSA: suggest the level that covers the card's value until the customer picks one themselves
+  const coSel = document.getElementById(`f-gradeco-${id}`), lvlSel = document.getElementById(`f-psalvl-${id}`);
+  const valEl = document.getElementById(`f-value-${id}`), estEl = document.getElementById(`f-psaest-${id}`);
+  const syncPsa = () => {
+    const show = coSel.value === 'PSA' && !document.getElementById(`f-gradeco-wrap-${id}`).hidden;
+    document.getElementById(`f-psalvl-wrap-${id}`).hidden = !show;
+    if(!show) return;
+    const v = Number(String(valEl.value).replace(/[^0-9.]/g, '')) || 0;
+    if(!lvlSel.dataset.touched){ const s = psaLevelFor(v); if(s) lvlSel.value = s.name; }
+    const l = psaLevel(lvlSel.value);
+    if(!l){ estEl.textContent = ''; return; }
+    const sp = psaSplit(l.price);
+    estEl.innerHTML = `PSA&rsquo;s fee: <b>${money2(l.price)}</b>. You pay <b>${money2(sp.now)}</b> (${PRICE_RULES.psaDeposit}%) once I&rsquo;ve evaluated your card, and <b>${money2(sp.later)}</b> on the final invoice.`
+      + (v && l.maxValue && v > l.maxValue ? ` <span class="warn">This level covers cards worth up to ${money2(l.maxValue)}; PSA may upcharge a card worth ${money2(v)}.</span>` : '');
+  };
+  lvlSel.addEventListener('change', () => { lvlSel.dataset.touched = '1'; syncPsa(); });
+  coSel.addEventListener('change', syncPsa);
+  valEl.addEventListener('input', syncPsa);
+  cardEntries[id].syncPsa = syncPsa;
+  svcSel.addEventListener('change', () => { syncAddons(); syncPsa(); });
+  gradeBox.addEventListener('change', () => { syncAddons(); syncPsa(); });
   cardsContainer.querySelector(`[data-card-id="${id}"] .remove-card-btn`).addEventListener('click', () => {
     delete cardEntries[id];
     cardsContainer.querySelector(`[data-card-id="${id}"]`).remove();
@@ -3004,7 +3109,14 @@ form.addEventListener('submit', async (e) => {
       formMsg.className = 'form-msg err';
       return;
     }
-    if(grading) service += ` — ${grading === 'Not sure yet' ? 'grading company not chosen yet' : 'grading: ' + grading}`;
+    const psaEl = document.getElementById(`f-psalvl-${cid}`);
+    const gradeLevel = grading === 'PSA' && psaEl ? psaEl.value : '';
+    if(grading === 'PSA' && !gradeLevel){
+      formMsg.textContent = `Please choose a PSA service level for card ${cards.length + 1}.`;
+      formMsg.className = 'form-msg err';
+      return;
+    }
+    if(grading) service += ` — ${grading === 'Not sure yet' ? 'grading company not chosen yet' : 'grading: ' + grading}${gradeLevel ? ` (${gradeLevel})` : ''}`;
     const notes = document.getElementById(`f-notes-${cid}`).value.trim();
     if(!cardName || !service){
       formMsg.textContent = 'Please fill in the card name and service tier for each card.';
@@ -3013,7 +3125,7 @@ form.addEventListener('submit', async (e) => {
     }
     const ci = window.RRCardSearch && RRCardSearch.info ? await RRCardSearch.info(document.getElementById(`f-card-${cid}`)).catch(() => ({})) : {};
     cards.push({
-      card: cardName, value, service, notes, grading,
+      card: cardName, value, service, notes, grading, gradeLevel,
       set: ci.set || '', cardNo: ci.cardNo || '', year: ci.year || '',
       photos: {
         front: cardEntries[cid].photos.front,
@@ -3063,6 +3175,7 @@ form.addEventListener('submit', async (e) => {
     ].filter(Boolean).join('\n'),
     cards: cards.map(c => ({
       name: c.card, details: [c.set, c.cardNo, c.year].filter(Boolean).join(' · '), service: c.service, grading: c.grading,
+      grade_level: c.gradeLevel || '',
       notes: [`Service: ${c.service}`, c.value ? `NM value: $${c.value.replace(/^\$/, '')}` : '', c.notes].filter(Boolean).join('\n')
     }))
   });
@@ -3193,6 +3306,34 @@ form.addEventListener('submit', async (e) => {
     return b;
   }
 
+  /* PSA submission: where it is, PSA order #, tracking, grades and payments */
+  function psaBlock(p, allCards){
+    const box = el('div', 'trk-psa');
+    box.appendChild(el('div', 'lbl', 'PSA SUBMISSION'));
+    const idx = PSA_STEPS.findIndex(s => s[0] === p.step);
+    box.appendChild(el('div', 'psa-now', idx >= 0 ? PSA_STEPS[idx][1] : p.step));
+    const when = {}; (p.history || []).forEach(h => { const s = PSA_STEPS.find(x => x[0] === h.step); if(s) when[s[1]] = h.at; });
+    box.appendChild(stepper(PSA_STEPS.map(s => s[1]), idx, when));
+    const meta = (k, v) => { if(!v) return; const m = el('div', 'psa-meta'); m.append(k + ': '); m.appendChild(el('b', null, v)); box.appendChild(m); };
+    meta('PSA order #', p.orderNo); meta('Tracking to PSA', p.shipTracking); meta('Return tracking', p.returnTracking);
+    const graded = (p.cards || []).filter(c => c.level || c.grade);
+    if(graded.length){
+      const ul = el('ul');
+      graded.forEach(c => { const li = el('li'); li.append(`${c.card || 'Card ' + c.num}${c.level ? ' · ' + c.level : ''}`);
+        if(c.grade){ li.append(' — '); li.appendChild(el('b', null, c.grade)); }
+        if(c.cert) li.append(` (cert #${c.cert})`); ul.appendChild(li); });
+      box.appendChild(ul);
+    }
+    const pay = p.pay || {};
+    if(pay.deposit || pay.final){
+      const ul = el('ul');
+      if(pay.deposit){ const li = el('li'); li.append(`${PRICE_RULES.psaDeposit}% of PSA's fee${pay.fee ? ' + my grading fee' : ''}: `); li.appendChild(el('b', null, money2(pay.deposit))); li.append(pay.depositPaid ? ' — paid ✓' : ' — due'); ul.appendChild(li); }
+      if(pay.final){ const li = el('li'); li.append('Final invoice: '); li.appendChild(el('b', null, money2(pay.final))); li.append(pay.finalPaid ? ' — paid ✓' : (idx >= 5 ? ' — due' : ' — due when grades are in')); ul.appendChild(li); }
+      box.appendChild(ul);
+    }
+    return box;
+  }
+
   function render(d){
     tOut.innerHTML = '';
     const stages = Array.isArray(d.stages) ? d.stages : [];
@@ -3206,6 +3347,7 @@ form.addEventListener('submit', async (e) => {
     if(d.updated) right.appendChild(el('div','upd', 'Updated ' + fmt(d.updated)));
     head.append(left, right); tOut.appendChild(head);
 
+    if(d.psa && d.psa.step) tOut.appendChild(psaBlock(d.psa, d.cards || []));
     const cards = (d.cards || []).filter(c => c && c.status);
     if(cards.length){
       if(cards.length > 1) tOut.appendChild(el('div','trk-sub', `YOUR CARDS (${cards.length}) — TAP A CARD FOR DETAILS`));
@@ -3426,6 +3568,9 @@ function applyPrices(pr){
   if(pr.slabAddon != null) PRICE_RULES.slabAddon = clean(pr.slabAddon);
   if(pr.gradingNext != null) PRICE_RULES.gradingNext = clean(pr.gradingNext);
   if(pr.gradingAddon != null) PRICE_RULES.gradingAddon = clean(pr.gradingAddon);
+  if(pr.psaDeposit != null) PRICE_RULES.psaDeposit = Math.min(100, clean(pr.psaDeposit));
+  if(Array.isArray(pr.psaLevels) && pr.psaLevels.length) PRICE_RULES.psaLevels = pr.psaLevels
+    .filter(l => l && String(l.name || '').trim()).map(l => ({ name: String(l.name).trim().slice(0, 40), price: clean(l.price), maxValue: clean(l.maxValue), days: String(l.days || '').slice(0, 40) }));
   if(Array.isArray(pr.surcharge) && pr.surcharge.length) PRICE_RULES.surcharge = pr.surcharge.map(x => ({ upTo: clean(x.upTo), rate: clean(x.rate) })).sort((a, b) => a.upTo - b.upTo);
   if(pr.referral != null) PRICE_RULES.referral = clean(pr.referral);
 
@@ -3463,6 +3608,12 @@ function applyPrices(pr){
   document.querySelectorAll('.slab-addon-amt').forEach(el => { el.textContent = money(SLAB_CRACK_ADDON); });
   document.querySelectorAll('.grade-addon-amt').forEach(el => { el.textContent = money(GRADING_ADDON); });
   document.querySelectorAll('.grade-next-amt').forEach(el => { el.textContent = money(GRADING_NEXT); });
+  renderPsaTable(); fillCalcPsa();
+  document.querySelectorAll('select[id^="f-psalvl-"]').forEach(sel => {
+    const keep = sel.value; sel.innerHTML = psaOptionsHtml(keep);
+    if(keep && !psaLevel(keep)) delete sel.dataset.touched;
+  });
+  Object.values(cardEntries).forEach(e => { if(e && e.syncPsa) e.syncPsa(); });
   if(grad) document.querySelectorAll('.grade-first-amt').forEach(el => { el.textContent = grad.price; });
   document.querySelectorAll('.ref-pct').forEach(el => { el.textContent = PRICE_RULES.referral + '%'; });
 
