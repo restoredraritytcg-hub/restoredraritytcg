@@ -481,7 +481,7 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    PR #8 (set/year) merged, site shows build v11-08c. Not yet confirmed: the Apps Script "New version" deploy, a real test order.
    RipperDoc/PH PR #3 still waiting on their Code.gs.
 
-25. **Built Nov 13, 2026 (branch `feature/psa-submissions`), not yet live: PSA submission service levels, tracking + 50/50 payments.**
+25. **Live Nov 13, 2026 (PR #9 merged after the owner ran the SQL and deployed Code.gs): PSA submission service levels, tracking + 50/50 payments.**
    Owner's request: PSA submissions for clients, $15 first card / $5 each after (existing grading fee), PSA's own service-level
    fee, and tracking when the service is chosen on the order form or switched on in the portal. Owner's payment rule (final,
    Nov 13 — replaces item 23's 50/50-at-invoice, an interim 75/25 and a $500-threshold version): **for all grading
@@ -509,7 +509,7 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    step emails, Sheet columns, tracker, portal-only email, non-admin/bad step refused); Playwright site + portal `?demo` +
    customer link at 390/1280 px.
    Owner steps, in order: run `supabase/2026-11-13_psa_tracking.sql` → paste `apps-script/Code.gs` and deploy a new version →
-   then merge (held per the standing rule) → portal Website → Prices: check PSA levels against psacard.com and Save.
+   then merge — all done Nov 13. **Still to do (owner):** portal Website → Prices: check PSA levels against psacard.com and Save.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
