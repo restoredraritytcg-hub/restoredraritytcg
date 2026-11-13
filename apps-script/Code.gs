@@ -676,8 +676,9 @@ function quoteBox_(q) {
       line(q.complete ? 'Total to charge' : 'Total so far (plus custom-quote cards)', quoteMoney_(q.total), BRAND.yellow, true) +
       (q.psa ? line('PSA fees (' + q.psa.cards.map(function (c) { return c.level; }).join(', ') + ')', '+' + quoteMoney_(q.psa.fees)) +
         line('Due up front (grading + evaluation fees)', quoteMoney_(q.psa.upfront)) +
-        line('Due once evaluated (' + q.psa.depositPct + '% of PSA)', quoteMoney_(q.psa.deposit)) +
-        line('Final invoice (' + (q.psa.final ? 'rest of PSA + ' : '') + 'return shipping + upcharges, ' + q.psa.dueHours + ' hrs)', quoteMoney_(q.psa.final) + ' +') : '') +
+        line('Due when shipped to PSA (' + q.psa.depositPct + '% of PSA)', quoteMoney_(q.psa.deposit)) +
+        line('Due ' + q.psa.laterDays + ' days after shipping (rest of PSA)', quoteMoney_(q.psa.balance)) +
+        line('Final invoice (return shipping + upcharges, ' + q.psa.dueHours + ' hrs)', '+') : '') +
     '</table>' +
     (q.notes.length ? '<ul style="margin:8px 0 0;padding-left:18px;color:' + BRAND.orange + ';font-size:13px;">' +
       q.notes.map(function (n) { return '<li>' + esc_(n) + '</li>'; }).join('') + '</ul>' : '') +
@@ -958,9 +959,10 @@ var QUOTE_PRICING = {
   slabAddon: 10,                 // slab cracking added to another service
   gradingNext: 5,                // grading submission on its own: each card after the first
   gradingAddon: 5,               // grading submission added to another service, per card
-  // Grading payments: grading + evaluation fees up front; PSA's fee once evaluated — 100% when the order's PSA fees are
-  // $500 or less, otherwise 75% before shipping and the rest on the final invoice (due within 72 hours).
-  psaPay: { threshold: 500, under: 100, over: 75, dueHours: 72 },
+  // Grading payments (all graders): grading + evaluation fees up front; 50% of the grader's base fee when the cards ship
+  // to the grader, the other 50% 14 days later (unless agreed otherwise); return shipping + upcharges on the final
+  // invoice, due within 72 hours.
+  psaPay: { atShip: 50, laterDays: 14, dueHours: 72 },
   psaLevels: [                   // PSA's own fees per card (pass-through; checked Nov 2026)
     { name: 'Value', price: 39.99, maxValue: 500 },     { name: 'Standard', price: 59.99, maxValue: 1000 },
     { name: 'Priority', price: 79.99, maxValue: 1500 }, { name: 'Express', price: 199, maxValue: 2500 },
@@ -1029,8 +1031,8 @@ function quotePricingFrom_(pr) {
     slabAddon: pr.slabAddon != null ? num(pr.slabAddon) : QUOTE_PRICING.slabAddon,
     gradingNext: pr.gradingNext != null ? num(pr.gradingNext) : QUOTE_PRICING.gradingNext,
     gradingAddon: pr.gradingAddon != null ? num(pr.gradingAddon) : QUOTE_PRICING.gradingAddon,
-    psaPay: pr.psaPay ? { threshold: num(pr.psaPay.threshold != null ? pr.psaPay.threshold : 500), under: Math.min(100, num(pr.psaPay.under != null ? pr.psaPay.under : 100)),
-                          over: Math.min(100, num(pr.psaPay.over != null ? pr.psaPay.over : 75)), dueHours: num(pr.psaPay.dueHours) || 72 } : QUOTE_PRICING.psaPay,
+    psaPay: pr.psaPay ? { atShip: Math.min(100, num(pr.psaPay.atShip != null ? pr.psaPay.atShip : 50)),
+                          laterDays: num(pr.psaPay.laterDays) || 14, dueHours: num(pr.psaPay.dueHours) || 72 } : QUOTE_PRICING.psaPay,
     psaLevels: (pr.psaLevels && pr.psaLevels.length ? pr.psaLevels : QUOTE_PRICING.psaLevels)
       .filter(function (l) { return l && l.name; }).map(function (l) { return { name: String(l.name).trim(), price: num(l.price), maxValue: num(l.maxValue) }; }),
     surcharge: surcharge.length ? surcharge : QUOTE_PRICING.surcharge,
@@ -1114,8 +1116,9 @@ function computeQuote_(cards, opts, pricing) {
     }
     return { num: num, price: quoteRound2_(price), breakdown: parts.join(' + ') + ' → ' + quoteMoney_(price), flag: flag, gradeFee: gradeFee, evalFee: evalFee };
   });
-  // PSA's own fee (pass-through, not discounted): due 75% once evaluated (with my grading fee), the rest on the final invoice.
-  var psa = { cards: [], fees: 0, gradingFees: 0, evalFees: 0, upfront: 0, deposit: 0, final: 0, depositPct: 100, dueHours: QP.psaPay.dueHours };
+  // PSA's own fee (pass-through, not discounted): 50% when the cards ship to PSA, the other 50% 14 days later.
+  var psa = { cards: [], fees: 0, gradingFees: 0, evalFees: 0, upfront: 0, deposit: 0, balance: 0, depositPct: 50,
+              laterDays: QP.psaPay.laterDays, dueHours: QP.psaPay.dueHours };
   parsed.forEach(function (p, i) {
     if (p.cancelled || !p.psaLevel) return;
     var lvl = (QP.psaLevels || []).filter(function (l) { return l.name.toLowerCase() === p.psaLevel.toLowerCase(); })[0];
@@ -1126,13 +1129,13 @@ function computeQuote_(cards, opts, pricing) {
     if (v !== null && lvl.maxValue && v > lvl.maxValue) notes.push('Card ' + p.c.num + ': value ' + quoteMoney_(v) + ' is over PSA ' + lvl.name + '\'s ' + quoteMoney_(lvl.maxValue) + ' limit — PSA may upcharge');
   });
   psa.fees = quoteRound2_(psa.fees);
-  // Up front: every grading fee + any Grade-Ready Evaluation in the order. Once evaluated: PSA's fee (all, or 75% over $500).
+  // Up front: every grading fee + any Grade-Ready Evaluation in the order. Then PSA's fee: 50% at shipping, 50% 14 days later.
   psa.gradingFees = 0; psa.evalFees = 0;
   lines.forEach(function (l) { psa.gradingFees += l.gradeFee || 0; psa.evalFees += l.evalFee || 0; });
   psa.upfront = quoteRound2_(psa.gradingFees + psa.evalFees);
-  psa.depositPct = psa.fees > QP.psaPay.threshold ? QP.psaPay.over : QP.psaPay.under;
+  psa.depositPct = QP.psaPay.atShip;
   psa.deposit = quoteRound2_(psa.fees * psa.depositPct / 100);
-  psa.final = quoteRound2_(psa.fees - psa.deposit);
+  psa.balance = quoteRound2_(psa.fees - psa.deposit);
 
   var subtotal = 0, pending = [];
   lines.forEach(function (l) {
@@ -1346,7 +1349,7 @@ function portalCardServices_(record) {
  *  PSA SUBMISSIONS  (tracking + emails from the admin portal's PSA panel)
  *  The portal keeps the full record in Supabase (submissions.grading_track).
  *  {type:'portalPsa', token, code, step, email:true|false, orderNo, shipTracking, returnTracking,
- *   cards:[{num, card, level, grade, cert}], pay:{upfront, upfrontPaid, deposit, depositPct, depositPaid, final, finalPaid, dueBy}}
+ *   cards:[{num, card, level, grade, cert}], pay:{upfront, upfrontPaid, deposit, depositPct, depositPaid, balance, balanceDue, balancePaid, final, finalPaid, dueBy}}
  *  → copies it to the Sheet (Submissions: PSA Step / PSA Order # / PSA Tracking / PSA Return Tracking /
  *    PSA History / PSA Payments; Cards: PSA Level / Grade / Cert #) so Track Your Submission shows it,
  *    and emails the customer about the new step when email is true.
@@ -1395,6 +1398,7 @@ function portalPsa_(record) {
         var pay = info.pay;
         subSheet.getRange(row, col['PSA Payments']).setValue(JSON.stringify({ upfront: Number(pay.upfront) || 0, upfrontPaid: !!pay.upfrontPaid,
           deposit: Number(pay.deposit) || 0, depositPct: Number(pay.depositPct) || 0, depositPaid: !!pay.depositPaid,
+          balance: Number(pay.balance) || 0, balanceDue: String(pay.balanceDue || ''), balancePaid: !!pay.balancePaid,
           final: Number(pay.final) || 0, finalPaid: !!pay.finalPaid, dueBy: String(pay.dueBy || '') }));
         var n = cardSheet.getLastRow() - 1;
         if (n > 0 && info.cards.length) {
@@ -1457,13 +1461,20 @@ function sendPsaEmail_(who, info) {
   }), info.step === 'graded' || info.step === 'returning' || info.step === 'back' ? 'GRADE' : 'STATUS') : '';
   var money = '';
   var hrs = Number(pay.dueHours) || 72;
+  var dueDate = function (iso) { var d = new Date(iso); return isNaN(d) ? '' : Utilities.formatDate(d, TIMEZONE, 'MMMM d, yyyy'); };
+  var pctOf = Number(pay.depositPct) && pay.depositPct < 100 ? pay.depositPct + '% of ' : '';
   if (info.step === 'cleared' && Number(pay.deposit) && !pay.depositPaid)
-    money = callout_('<p style="margin:0;"><b>Amount due now: ' + mm(pay.deposit) + '</b> (' + (Number(pay.depositPct) && pay.depositPct < 100 ? pay.depositPct + '% of ' : '') +
+    money = callout_('<p style="margin:0;"><b>Due before your cards ship: ' + mm(pay.deposit) + '</b> (' + pctOf +
                      'PSA&rsquo;s fee for the cards going to PSA' + (Number(pay.upfront) && !pay.upfrontPaid ? ', plus ' + mm(pay.upfront) + ' in grading and evaluation fees not yet paid' : '') + '). ' +
+                     (Number(pay.balance) ? 'The other ' + mm(pay.balance) + ' is due two weeks after they ship. ' : '') +
                      'I&rsquo;ll ship to PSA as soon as it&rsquo;s received. Reply to this email if you have questions.</p>');
+  if (info.step === 'shipped' && Number(pay.balance) && !pay.balancePaid)
+    money = callout_('<p style="margin:0;"><b>Rest of PSA&rsquo;s fee: ' + mm(pay.balance) + '</b>, due ' +
+                     (pay.balanceDue && dueDate(pay.balanceDue) ? '<b>' + dueDate(pay.balanceDue) + '</b>' : 'two weeks from today') + '. Reply to this email to arrange payment.</p>');
   if (info.step === 'graded' && Number(pay.final) && !pay.finalPaid)
-    money = callout_('<p style="margin:0;"><b>Final invoice: ' + mm(pay.final) + '</b> (' + (Number(pay.psaRest) ? 'the rest of PSA&rsquo;s fee, ' : '') +
-                     'return shipping and any PSA upcharge). <b>Due within ' + hrs + ' hours.</b> Reply to this email to arrange payment.</p>');
+    money = callout_('<p style="margin:0;"><b>Final invoice: ' + mm(pay.final) + '</b> (return shipping and any PSA upcharge' +
+                     (Number(pay.balance) && !pay.balancePaid ? '; the remaining ' + mm(pay.balance) + ' of PSA&rsquo;s fee is also still open' : '') +
+                     '). <b>Due within ' + hrs + ' hours.</b> Reply to this email to arrange payment.</p>');
   var inner = p_('Hi ' + esc_(firstName_(who.name)) + ',') + p_(body) +
     meta('PSA order #', info.orderNo) + meta(info.step === 'returning' ? 'Tracking' : 'Tracking to PSA', info.step === 'returning' ? info.returnTracking : (info.step === 'shipped' ? info.shipTracking : '')) +
     table + money + refBox_(info.ref) + trackButton_(info.ref);
@@ -1498,7 +1509,8 @@ function psaTrackFor_(subSheet, row, id) {
     return { step: step, orderNo: String(get('PSA Order #') || ''), shipTracking: String(get('PSA Tracking') || ''),
              returnTracking: String(get('PSA Return Tracking') || ''), history: parse(get('PSA History'), []),
              cards: cards, pay: { upfront: pay.upfront || 0, upfrontPaid: !!pay.upfrontPaid, deposit: pay.deposit || 0, depositPct: pay.depositPct || 0,
-               depositPaid: !!pay.depositPaid, final: pay.final || 0, finalPaid: !!pay.finalPaid, dueBy: pay.dueBy || '' } };
+               depositPaid: !!pay.depositPaid, balance: pay.balance || 0, balanceDue: pay.balanceDue || '', balancePaid: !!pay.balancePaid,
+               final: pay.final || 0, finalPaid: !!pay.finalPaid, dueBy: pay.dueBy || '' } };
   } catch (err) { console.error('PSA tracking not read: ' + err); return null; }
 }
 
