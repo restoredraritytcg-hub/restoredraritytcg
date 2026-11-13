@@ -675,8 +675,9 @@ function quoteBox_(q) {
       (q.referralAmt ? line('Referral code (' + referralPctText_() + ')', '−' + quoteMoney_(q.referralAmt)) : '') +
       line(q.complete ? 'Total to charge' : 'Total so far (plus custom-quote cards)', quoteMoney_(q.total), BRAND.yellow, true) +
       (q.psa ? line('PSA fees (' + q.psa.cards.map(function (c) { return c.level; }).join(', ') + ')', '+' + quoteMoney_(q.psa.fees)) +
-        line('Due once evaluated (grading fee + ' + q.psa.depositPct + '% of PSA)', quoteMoney_(q.psa.deposit)) +
-        line('Final invoice (rest of PSA + return shipping + upcharges)', quoteMoney_(q.psa.final) + ' +') : '') +
+        line('Due up front (grading + evaluation fees)', quoteMoney_(q.psa.upfront)) +
+        line('Due once evaluated (' + q.psa.depositPct + '% of PSA)', quoteMoney_(q.psa.deposit)) +
+        line('Final invoice (' + (q.psa.final ? 'rest of PSA + ' : '') + 'return shipping + upcharges, ' + q.psa.dueHours + ' hrs)', quoteMoney_(q.psa.final) + ' +') : '') +
     '</table>' +
     (q.notes.length ? '<ul style="margin:8px 0 0;padding-left:18px;color:' + BRAND.orange + ';font-size:13px;">' +
       q.notes.map(function (n) { return '<li>' + esc_(n) + '</li>'; }).join('') + '</ul>' : '') +
@@ -957,7 +958,9 @@ var QUOTE_PRICING = {
   slabAddon: 10,                 // slab cracking added to another service
   gradingNext: 5,                // grading submission on its own: each card after the first
   gradingAddon: 5,               // grading submission added to another service, per card
-  psaDeposit: 75,                // % of PSA's fee due once the card is evaluated; the rest on the final invoice
+  // Grading payments: grading + evaluation fees up front; PSA's fee once evaluated — 100% when the order's PSA fees are
+  // $500 or less, otherwise 75% before shipping and the rest on the final invoice (due within 72 hours).
+  psaPay: { threshold: 500, under: 100, over: 75, dueHours: 72 },
   psaLevels: [                   // PSA's own fees per card (pass-through; checked Nov 2026)
     { name: 'Value', price: 39.99, maxValue: 500 },     { name: 'Standard', price: 59.99, maxValue: 1000 },
     { name: 'Priority', price: 79.99, maxValue: 1500 }, { name: 'Express', price: 199, maxValue: 2500 },
@@ -1026,7 +1029,8 @@ function quotePricingFrom_(pr) {
     slabAddon: pr.slabAddon != null ? num(pr.slabAddon) : QUOTE_PRICING.slabAddon,
     gradingNext: pr.gradingNext != null ? num(pr.gradingNext) : QUOTE_PRICING.gradingNext,
     gradingAddon: pr.gradingAddon != null ? num(pr.gradingAddon) : QUOTE_PRICING.gradingAddon,
-    psaDeposit: pr.psaDeposit != null ? Math.min(100, num(pr.psaDeposit)) : QUOTE_PRICING.psaDeposit,
+    psaPay: pr.psaPay ? { threshold: num(pr.psaPay.threshold != null ? pr.psaPay.threshold : 500), under: Math.min(100, num(pr.psaPay.under != null ? pr.psaPay.under : 100)),
+                          over: Math.min(100, num(pr.psaPay.over != null ? pr.psaPay.over : 75)), dueHours: num(pr.psaPay.dueHours) || 72 } : QUOTE_PRICING.psaPay,
     psaLevels: (pr.psaLevels && pr.psaLevels.length ? pr.psaLevels : QUOTE_PRICING.psaLevels)
       .filter(function (l) { return l && l.name; }).map(function (l) { return { name: String(l.name).trim(), price: num(l.price), maxValue: num(l.maxValue) }; }),
     surcharge: surcharge.length ? surcharge : QUOTE_PRICING.surcharge,
@@ -1066,11 +1070,12 @@ function computeQuote_(cards, opts, pricing) {
     var ov = quoteParseMoney_(c.override);
     if (ov !== null) return { num: num, price: quoteRound2_(ov), breakdown: 'Your price override: ' + quoteMoney_(ov), flag: '' };
 
-    var parts = [], price = 0, flag = '', gradeFee = 0;
+    var parts = [], price = 0, flag = '', gradeFee = 0, evalFee = 0;
     if (p.tier) {
       var basePrice = p.tier.bulk ? QP.bulkCleaning(cleanQty) : p.tier.price;
       if (p.tier.type === 'grading' && gradingSeen++ > 0) basePrice = QP.gradingNext;
       if (p.tier.type === 'grading') gradeFee = basePrice;
+      if (p.tier.type === 'clean' && /evaluation|grade-ready/i.test(p.tier.title)) evalFee = basePrice;
       price += basePrice;
       parts.push(p.tier.title + ' ' + quoteMoney_(basePrice) + (p.tier.bulk && basePrice !== p.tier.price ? ' (bulk, ' + cleanQty + ' cleanings)' : '')
         + (p.tier.type === 'grading' && basePrice !== p.tier.price ? ' (additional card)' : ''));
@@ -1107,24 +1112,27 @@ function computeQuote_(cards, opts, pricing) {
         if (rate > 0 && !/^\$?\s*[\d,]+(\.\d+)?$/.test(raw)) flag = 'Card ' + num + ': value read as ' + quoteMoney_(v) + ' from "' + raw + '" — check it';
       }
     }
-    return { num: num, price: quoteRound2_(price), breakdown: parts.join(' + ') + ' → ' + quoteMoney_(price), flag: flag, gradeFee: gradeFee };
+    return { num: num, price: quoteRound2_(price), breakdown: parts.join(' + ') + ' → ' + quoteMoney_(price), flag: flag, gradeFee: gradeFee, evalFee: evalFee };
   });
   // PSA's own fee (pass-through, not discounted): due 75% once evaluated (with my grading fee), the rest on the final invoice.
-  var psa = { cards: [], fees: 0, gradingFees: 0, deposit: 0, final: 0, depositPct: QP.psaDeposit };
+  var psa = { cards: [], fees: 0, gradingFees: 0, evalFees: 0, upfront: 0, deposit: 0, final: 0, depositPct: 100, dueHours: QP.psaPay.dueHours };
   parsed.forEach(function (p, i) {
     if (p.cancelled || !p.psaLevel) return;
     var lvl = (QP.psaLevels || []).filter(function (l) { return l.name.toLowerCase() === p.psaLevel.toLowerCase(); })[0];
     if (!lvl) { notes.push('Card ' + p.c.num + ': PSA level "' + p.psaLevel + '" isn\'t in the price list'); return; }
     psa.cards.push({ num: p.c.num, level: lvl.name, fee: lvl.price });
     psa.fees += lvl.price;
-    psa.gradingFees += lines[i].gradeFee || 0;
     var v = quoteParseValue_(p.c.value);
     if (v !== null && lvl.maxValue && v > lvl.maxValue) notes.push('Card ' + p.c.num + ': value ' + quoteMoney_(v) + ' is over PSA ' + lvl.name + '\'s ' + quoteMoney_(lvl.maxValue) + ' limit — PSA may upcharge');
   });
   psa.fees = quoteRound2_(psa.fees);
-  var psaNow = quoteRound2_(psa.fees * QP.psaDeposit / 100);
-  psa.deposit = quoteRound2_(psa.gradingFees + psaNow);
-  psa.final = quoteRound2_(psa.fees - psaNow);
+  // Up front: every grading fee + any Grade-Ready Evaluation in the order. Once evaluated: PSA's fee (all, or 75% over $500).
+  psa.gradingFees = 0; psa.evalFees = 0;
+  lines.forEach(function (l) { psa.gradingFees += l.gradeFee || 0; psa.evalFees += l.evalFee || 0; });
+  psa.upfront = quoteRound2_(psa.gradingFees + psa.evalFees);
+  psa.depositPct = psa.fees > QP.psaPay.threshold ? QP.psaPay.over : QP.psaPay.under;
+  psa.deposit = quoteRound2_(psa.fees * psa.depositPct / 100);
+  psa.final = quoteRound2_(psa.fees - psa.deposit);
 
   var subtotal = 0, pending = [];
   lines.forEach(function (l) {
@@ -1338,7 +1346,7 @@ function portalCardServices_(record) {
  *  PSA SUBMISSIONS  (tracking + emails from the admin portal's PSA panel)
  *  The portal keeps the full record in Supabase (submissions.grading_track).
  *  {type:'portalPsa', token, code, step, email:true|false, orderNo, shipTracking, returnTracking,
- *   cards:[{num, card, level, grade, cert}], pay:{deposit, depositPaid, final, finalPaid}}
+ *   cards:[{num, card, level, grade, cert}], pay:{upfront, upfrontPaid, deposit, depositPct, depositPaid, final, finalPaid, dueBy}}
  *  → copies it to the Sheet (Submissions: PSA Step / PSA Order # / PSA Tracking / PSA Return Tracking /
  *    PSA History / PSA Payments; Cards: PSA Level / Grade / Cert #) so Track Your Submission shows it,
  *    and emails the customer about the new step when email is true.
@@ -1385,8 +1393,9 @@ function portalPsa_(record) {
         subSheet.getRange(row, col['PSA Return Tracking']).setNumberFormat('@').setValue(info.returnTracking);
         subSheet.getRange(row, col['PSA History']).setValue(JSON.stringify(hist.slice(-40)));
         var pay = info.pay;
-        subSheet.getRange(row, col['PSA Payments']).setValue(JSON.stringify({ deposit: Number(pay.deposit) || 0, depositPaid: !!pay.depositPaid,
-          final: Number(pay.final) || 0, finalPaid: !!pay.finalPaid }));
+        subSheet.getRange(row, col['PSA Payments']).setValue(JSON.stringify({ upfront: Number(pay.upfront) || 0, upfrontPaid: !!pay.upfrontPaid,
+          deposit: Number(pay.deposit) || 0, depositPct: Number(pay.depositPct) || 0, depositPaid: !!pay.depositPaid,
+          final: Number(pay.final) || 0, finalPaid: !!pay.finalPaid, dueBy: String(pay.dueBy || '') }));
         var n = cardSheet.getLastRow() - 1;
         if (n > 0 && info.cards.length) {
           var lv = quoteCol_(cardSheet, 'PSA Level'), gr = quoteCol_(cardSheet, 'Grade'), ce = quoteCol_(cardSheet, 'Cert #');
@@ -1447,12 +1456,14 @@ function sendPsaEmail_(who, info) {
              right: c.grade || '—' };
   }), info.step === 'graded' || info.step === 'returning' || info.step === 'back' ? 'GRADE' : 'STATUS') : '';
   var money = '';
+  var hrs = Number(pay.dueHours) || 72;
   if (info.step === 'cleared' && Number(pay.deposit) && !pay.depositPaid)
-    money = callout_('<p style="margin:0;"><b>Amount due now: ' + mm(pay.deposit) + '</b> (my grading submission fee plus your share of PSA&rsquo;s fee for your service level). ' +
+    money = callout_('<p style="margin:0;"><b>Amount due now: ' + mm(pay.deposit) + '</b> (' + (Number(pay.depositPct) && pay.depositPct < 100 ? pay.depositPct + '% of ' : '') +
+                     'PSA&rsquo;s fee for the cards going to PSA' + (Number(pay.upfront) && !pay.upfrontPaid ? ', plus ' + mm(pay.upfront) + ' in grading and evaluation fees not yet paid' : '') + '). ' +
                      'I&rsquo;ll ship to PSA as soon as it&rsquo;s received. Reply to this email if you have questions.</p>');
   if (info.step === 'graded' && Number(pay.final) && !pay.finalPaid)
-    money = callout_('<p style="margin:0;"><b>Final invoice: ' + mm(pay.final) + '</b> (the rest of PSA&rsquo;s fee, return shipping and any PSA upcharge). ' +
-                     'Reply to this email to arrange payment.</p>');
+    money = callout_('<p style="margin:0;"><b>Final invoice: ' + mm(pay.final) + '</b> (' + (Number(pay.psaRest) ? 'the rest of PSA&rsquo;s fee, ' : '') +
+                     'return shipping and any PSA upcharge). <b>Due within ' + hrs + ' hours.</b> Reply to this email to arrange payment.</p>');
   var inner = p_('Hi ' + esc_(firstName_(who.name)) + ',') + p_(body) +
     meta('PSA order #', info.orderNo) + meta(info.step === 'returning' ? 'Tracking' : 'Tracking to PSA', info.step === 'returning' ? info.returnTracking : (info.step === 'shipped' ? info.shipTracking : '')) +
     table + money + refBox_(info.ref) + trackButton_(info.ref);
@@ -1486,7 +1497,8 @@ function psaTrackFor_(subSheet, row, id) {
     var pay = parse(get('PSA Payments'), {});
     return { step: step, orderNo: String(get('PSA Order #') || ''), shipTracking: String(get('PSA Tracking') || ''),
              returnTracking: String(get('PSA Return Tracking') || ''), history: parse(get('PSA History'), []),
-             cards: cards, pay: { deposit: pay.deposit || 0, depositPaid: !!pay.depositPaid, final: pay.final || 0, finalPaid: !!pay.finalPaid, fee: true } };
+             cards: cards, pay: { upfront: pay.upfront || 0, upfrontPaid: !!pay.upfrontPaid, deposit: pay.deposit || 0, depositPct: pay.depositPct || 0,
+               depositPaid: !!pay.depositPaid, final: pay.final || 0, finalPaid: !!pay.finalPaid, dueBy: pay.dueBy || '' } };
   } catch (err) { console.error('PSA tracking not read: ' + err); return null; }
 }
 

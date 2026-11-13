@@ -78,7 +78,7 @@ export const DEFAULT_PRICES = {
   "slabAddon": 10,
   "gradingNext": 5,
   "gradingAddon": 5,
-  "psaDeposit": 75,
+  "psaPay": { "threshold": 500, "under": 100, "over": 75, "dueHours": 72 },
   "psaLevels": [
     { "name": "Value", "price": 39.99, "maxValue": 500, "days": "90–100 business days" },
     { "name": "Standard", "price": 59.99, "maxValue": 1000, "days": "70–80 business days" },
@@ -224,7 +224,7 @@ function withDefaults(P) {
   if (!P.services.some((x) => x.type === "grading")) P.services.push(clone(DEFAULT_PRICES.services.find((x) => x.type === "grading")));
   if (P.gradingNext == null) P.gradingNext = DEFAULT_PRICES.gradingNext;
   if (P.gradingAddon == null) P.gradingAddon = DEFAULT_PRICES.gradingAddon;
-  if (P.psaDeposit == null) P.psaDeposit = DEFAULT_PRICES.psaDeposit;
+  if (!P.psaPay || typeof P.psaPay !== "object") P.psaPay = clone(DEFAULT_PRICES.psaPay);
   if (!Array.isArray(P.psaLevels) || !P.psaLevels.length) P.psaLevels = clone(DEFAULT_PRICES.psaLevels);
   return P;
 }
@@ -276,9 +276,15 @@ async function prices(body) {
           <input type="text" class="pd" value="${esc(l.days || "")}" placeholder="e.g. 70–80 business days" aria-label="Turnaround" style="width:190px">
           <button class="btn sm danger" data-prm="${i}" aria-label="Remove level">✕</button></div>`).join("")}
         <button class="btn sm" id="padd">+ Add a level</button>
-        <div class="row" style="margin-top:12px">Due once a card is evaluated:
-          <input type="text" id="pdep" inputmode="decimal" value="${esc(P.psaDeposit)}" style="width:70px" aria-label="Percent due once evaluated"> % of PSA's fee
-          <span class="muted small">(plus your grading fee; the rest goes on the final invoice)</span></div></div>
+        <h3 style="margin:14px 0 6px">When PSA's fee is due</h3>
+        <p class="muted small" style="margin:0 0 8px">Your grading fee and any Grade-Ready Evaluation are due up front. PSA's fee is due once you've evaluated the cards:</p>
+        <div class="row" style="margin-bottom:6px;flex-wrap:wrap">Orders with PSA fees up to
+          <span class="money"><span>$</span><input type="text" id="pthr" inputmode="decimal" value="${esc(P.psaPay.threshold)}" style="width:80px" aria-label="PSA fee threshold"></span>:
+          <input type="text" id="punder" inputmode="decimal" value="${esc(P.psaPay.under)}" style="width:60px" aria-label="Percent due for smaller orders"> % once evaluated</div>
+        <div class="row" style="margin-bottom:6px;flex-wrap:wrap">Larger orders:
+          <input type="text" id="pover" inputmode="decimal" value="${esc(P.psaPay.over)}" style="width:60px" aria-label="Percent due for larger orders"> % before shipping to PSA, the rest on the final invoice</div>
+        <div class="row" style="flex-wrap:wrap">Final invoice due within
+          <input type="text" id="phrs" inputmode="numeric" value="${esc(P.psaPay.dueHours)}" style="width:60px" aria-label="Hours to pay the final invoice"> hours</div></div>
       <h2>Card value surcharge <span class="muted small" style="text-transform:none">(repairs only)</span></h2>
       <div class="panel">${P.surcharge.map((t, i) => `<div class="row srow" style="margin-bottom:6px">${i ? `${money(P.surcharge[i - 1].upTo + 1)} up to` : "Up to"}
           <span class="money"><span>$</span><input type="text" class="su" inputmode="decimal" value="${esc(t.upTo)}" aria-label="Up to card value"></span>:
@@ -335,7 +341,7 @@ async function prices(body) {
     P.gradingAddon = num($("#gadd").value);
     P.psaLevels = $$(".prow", body).map((r) => ({ name: $(".pn", r).value.trim(), price: num($(".pp", r).value),
       maxValue: num($(".pm", r).value) || 0, days: $(".pd", r).value.trim() }));
-    P.psaDeposit = num($("#pdep").value);
+    P.psaPay = { threshold: num($("#pthr").value), under: num($("#punder").value), over: num($("#pover").value), dueHours: num($("#phrs").value) };
     P.surcharge = $$(".srow", body).map((r) => ({ upTo: num($(".su", r).value), rate: num($(".sr", r).value) }));
     P.referral = num($("#ref").value);
   };
@@ -365,7 +371,10 @@ function check(P) {
     seenL.add(l.name.toLowerCase());
     if (!(l.price >= 0)) return `PSA level "${l.name}" needs a price.`;
   }
-  if (!(P.psaDeposit >= 0 && P.psaDeposit <= 100)) return "The PSA amount due once evaluated must be a percent from 0 to 100.";
+  const pp = P.psaPay || {};
+  if (!(pp.threshold >= 0)) return "The PSA fee amount for 'smaller orders' needs a number (like 500).";
+  if (!(pp.under >= 0 && pp.under <= 100) || !(pp.over >= 0 && pp.over <= 100)) return "The PSA percents must be from 0 to 100.";
+  if (!(pp.dueHours > 0)) return "The final invoice needs a number of hours (like 72).";
   for (const [i, t] of P.surcharge.entries()) {
     if (!(t.upTo > 0) || !(t.rate >= 0 && t.rate <= 100)) return "Each surcharge level needs a card value and a percent from 0 to 100.";
     if (i && t.upTo <= P.surcharge[i - 1].upTo) return "Surcharge levels must go from lower card values to higher ones.";
