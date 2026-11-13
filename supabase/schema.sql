@@ -82,6 +82,16 @@ create table if not exists public.cards (
 -- and the grading company it's being submitted to ('' = not being graded).
 alter table public.cards add column if not exists service text not null default '';
 alter table public.cards add column if not exists grading text not null default '';
+-- PSA service level picked for the card (e.g. "Value"), and the result once PSA grades it.
+alter table public.cards add column if not exists grade_level  text not null default '';
+alter table public.cards add column if not exists grade_result text not null default '';   -- e.g. "PSA 10 GEM MT"
+alter table public.cards add column if not exists cert_no      text not null default '';   -- PSA certification number
+
+-- PSA tracking + payments for a submission, edited in the admin portal (PSA panel). Customers see it on
+-- their private link. Shape: {"stage":"shipped","history":[{"stage","at"}],"order_no","ship_tracking",
+-- "return_tracking","pay":{"fees","deposit","deposit_paid_at","final","shipping","upcharge","final_paid_at"}}
+alter table public.submissions add column if not exists grading_track jsonb not null default '{}'::jsonb;
+
 do $$ begin
   if not exists (select 1 from pg_constraint where conname = 'cards_grading_check') then
     alter table public.cards add constraint cards_grading_check
@@ -159,11 +169,13 @@ begin
       select jsonb_agg(jsonb_build_object(
         'id', s.id, 'code', s.code, 'status', s.status, 'service', s.service,
         'public_notes', s.public_notes, 'created_at', s.created_at, 'updated_at', s.updated_at,
+        'grading_track', s.grading_track,
         'cards', coalesce((
           select jsonb_agg(jsonb_build_object(
             'id', k.id, 'card_number', k.card_number, 'name', k.name, 'details', k.details,
             'status', k.status, 'public_notes', k.public_notes, 'customer_notes', k.customer_notes,
-            'service', k.service, 'grading', k.grading,
+            'service', k.service, 'grading', k.grading, 'grade_level', k.grade_level,
+            'grade_result', k.grade_result, 'cert_no', k.cert_no,
             'scans', coalesce((
               select jsonb_agg(jsonb_build_object('stage', x.stage, 'side', x.side, 'dpi', x.dpi,
                                                   'files', x.files, 'scanned_at', x.scanned_at))
@@ -267,10 +279,11 @@ begin
 
   for card in select * from jsonb_array_elements(p -> 'cards') loop
     n := n + 1;
-    insert into public.cards (submission_id, card_number, name, details, status, customer_notes, service, grading)
+    insert into public.cards (submission_id, card_number, name, details, status, customer_notes, service, grading, grade_level)
       values (s.id, n, left(coalesce(card ->> 'name', ''), 200), left(coalesce(card ->> 'details', ''), 300),
               'submitted', left(coalesce(card ->> 'notes', ''), 2000), left(coalesce(card ->> 'service', ''), 300),
-              case when card ->> 'grading' in ('PSA', 'CGC', 'BGS', 'TAG', 'Not sure yet') then card ->> 'grading' else '' end)
+              case when card ->> 'grading' in ('PSA', 'CGC', 'BGS', 'TAG', 'Not sure yet') then card ->> 'grading' else '' end,
+              left(coalesce(card ->> 'grade_level', ''), 60))
       returning id into v_card;
     v_ids := v_ids || to_jsonb(v_card);
   end loop;

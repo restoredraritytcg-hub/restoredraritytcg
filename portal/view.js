@@ -1,6 +1,7 @@
 // Customer view: everything under one profile, opened by a private link.
 import { api, DEMO, esc, $, $$, pill, progressSteps, renderReport, wireReport, thumbOf, mediaUrl,
   fmtDate, installLightbox, installHint, toast } from "./common.js";
+import { psaCustomerHtml } from "./psa.js";
 
 const CFG = window.RR_CONFIG || {};
 const app = $("#app");
@@ -122,6 +123,7 @@ function home() {
         <div>${pill(s.status)}</div></div>
       ${progressSteps(s.status)}
       ${s.public_notes ? `<p style="margin:12px 0 0">${esc(s.public_notes)}</p>` : ""}
+      ${psaCustomerHtml(s)}
       <div class="tiles" style="margin-top:14px">${s.cards.map(tile).join("") || '<p class="muted">No cards listed.</p>'}</div>
     </section>`;
   }

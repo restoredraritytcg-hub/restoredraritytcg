@@ -1,6 +1,6 @@
 /*******************************************************************
  * RESTORED RARITY — Submission backend
- * Version: 2026-11-08 (branded emails + pickup reminders + automatic quotes + portal reviews + grading + card set/number/year)
+ * Version: 2026-11-13 (branded emails + pickup reminders + automatic quotes + portal reviews + grading + card set/number/year + PSA levels, tracking + emails)
  *
  * What this does
  *  • Saves website submissions to the "Submissions" + "Cards" tabs
@@ -233,6 +233,7 @@ function doPost(e) {
     if (record.type === 'portalQuote') return json_(portalQuote_(record));
     if (record.type === 'portalCardServices') return json_(portalCardServices_(record));
     if (record.type === 'portalReviews') return json_(portalReviews_(record));
+    if (record.type === 'portalPsa') return json_(portalPsa_(record));
 
     // Submissions
     var lock = LockService.getScriptLock();
@@ -310,7 +311,7 @@ function doGet(e) {
     if (action === 'track') {
       return json_(trackSubmission_(e.parameter.ref || '', e.parameter.email || ''));
     }
-        if (action === 'portalEmails') return json_({ success: true, version: 1, quotes: true, reviews: true, services: true });
+        if (action === 'portalEmails') return json_({ success: true, version: 1, quotes: true, reviews: true, services: true, psa: true });
 
     return json_({ success: false, error: 'Unknown action' });
   } catch (err) {
@@ -357,7 +358,8 @@ function trackSubmission_(refInput, emailInput) {
       submitted: isoOrBlank_(r[SC.TIMESTAMP - 1]),
       updated: isoOrBlank_(r[SC.STATUS_UPDATED - 1] || r[SC.TIMESTAMP - 1]),
       delivery: String(r[SC.DELIVERY - 1] || ''),
-      cards: cards
+      cards: cards,
+      psa: psaTrackFor_(sheet, i + 2, id)
     };
   }
   return notFound;
@@ -672,6 +674,11 @@ function quoteBox_(q) {
       line('Subtotal', quoteMoney_(q.subtotal)) +
       (q.referralAmt ? line('Referral code (' + referralPctText_() + ')', '−' + quoteMoney_(q.referralAmt)) : '') +
       line(q.complete ? 'Total to charge' : 'Total so far (plus custom-quote cards)', quoteMoney_(q.total), BRAND.yellow, true) +
+      (q.psa ? line('PSA fees (' + q.psa.cards.map(function (c) { return c.level; }).join(', ') + ')', '+' + quoteMoney_(q.psa.fees)) +
+        line('Due up front (grading + evaluation fees)', quoteMoney_(q.psa.upfront)) +
+        line('Due when shipped to PSA (' + q.psa.depositPct + '% of PSA)', quoteMoney_(q.psa.deposit)) +
+        line('Due ' + q.psa.laterDays + ' days after shipping (rest of PSA)', quoteMoney_(q.psa.balance)) +
+        line('Final invoice (return shipping + upcharges, ' + q.psa.dueHours + ' hrs)', '+') : '') +
     '</table>' +
     (q.notes.length ? '<ul style="margin:8px 0 0;padding-left:18px;color:' + BRAND.orange + ';font-size:13px;">' +
       q.notes.map(function (n) { return '<li>' + esc_(n) + '</li>'; }).join('') + '</ul>' : '') +
@@ -952,6 +959,16 @@ var QUOTE_PRICING = {
   slabAddon: 10,                 // slab cracking added to another service
   gradingNext: 5,                // grading submission on its own: each card after the first
   gradingAddon: 5,               // grading submission added to another service, per card
+  // Grading payments (all graders): grading + evaluation fees up front; 50% of the grader's base fee when the cards ship
+  // to the grader, the other 50% 14 days later (unless agreed otherwise); return shipping + upcharges on the final
+  // invoice, due within 72 hours.
+  psaPay: { atShip: 50, laterDays: 14, dueHours: 72 },
+  psaLevels: [                   // PSA's own fees per card (pass-through; checked Nov 2026)
+    { name: 'Value', price: 39.99, maxValue: 500 },     { name: 'Standard', price: 59.99, maxValue: 1000 },
+    { name: 'Priority', price: 79.99, maxValue: 1500 }, { name: 'Express', price: 199, maxValue: 2500 },
+    { name: 'Super Express', price: 349, maxValue: 5000 }, { name: 'Premier', price: 599, maxValue: 10000 },
+    { name: 'Premium 1', price: 999, maxValue: 25000 }
+  ],
   surcharge: [                   // repairs only, on estimated card value
     { upTo: 250,  rate: 0 },
     { upTo: 1500, rate: 0.10 },
@@ -1014,6 +1031,10 @@ function quotePricingFrom_(pr) {
     slabAddon: pr.slabAddon != null ? num(pr.slabAddon) : QUOTE_PRICING.slabAddon,
     gradingNext: pr.gradingNext != null ? num(pr.gradingNext) : QUOTE_PRICING.gradingNext,
     gradingAddon: pr.gradingAddon != null ? num(pr.gradingAddon) : QUOTE_PRICING.gradingAddon,
+    psaPay: pr.psaPay ? { atShip: Math.min(100, num(pr.psaPay.atShip != null ? pr.psaPay.atShip : 50)),
+                          laterDays: num(pr.psaPay.laterDays) || 14, dueHours: num(pr.psaPay.dueHours) || 72 } : QUOTE_PRICING.psaPay,
+    psaLevels: (pr.psaLevels && pr.psaLevels.length ? pr.psaLevels : QUOTE_PRICING.psaLevels)
+      .filter(function (l) { return l && l.name; }).map(function (l) { return { name: String(l.name).trim(), price: num(l.price), maxValue: num(l.maxValue) }; }),
     surcharge: surcharge.length ? surcharge : QUOTE_PRICING.surcharge,
     referralRate: pr.referral != null ? num(pr.referral) / 100 : QUOTE_PRICING.referralRate
   };
@@ -1037,7 +1058,9 @@ function computeQuote_(cards, opts, pricing) {
     for (var i = 0; i < QP.services.length; i++) {
       if (base.toLowerCase().indexOf(QP.services[i].title.toLowerCase()) === 0) { tier = QP.services[i]; break; }
     }
-    return { c: c, tier: tier, crack: crack, grade: grade, base: base, cancelled: canonicalStatus_(c.status) === 'Cancelled' };
+    var psaM = svc.match(/grading:\s*PSA\s*\(([^)]+)\)/i);
+    return { c: c, tier: tier, crack: crack, grade: grade, base: base, cancelled: canonicalStatus_(c.status) === 'Cancelled',
+             psaLevel: psaM ? psaM[1].trim() : (c.psaLevel || '') };
   });
   var gradingSeen = 0;   // grading on its own: first card full price, each after at gradingNext
   var cleanQty = parsed.filter(function (p) { return !p.cancelled && p.tier && p.tier.bulk; }).length;
@@ -1049,10 +1072,12 @@ function computeQuote_(cards, opts, pricing) {
     var ov = quoteParseMoney_(c.override);
     if (ov !== null) return { num: num, price: quoteRound2_(ov), breakdown: 'Your price override: ' + quoteMoney_(ov), flag: '' };
 
-    var parts = [], price = 0, flag = '';
+    var parts = [], price = 0, flag = '', gradeFee = 0, evalFee = 0;
     if (p.tier) {
       var basePrice = p.tier.bulk ? QP.bulkCleaning(cleanQty) : p.tier.price;
       if (p.tier.type === 'grading' && gradingSeen++ > 0) basePrice = QP.gradingNext;
+      if (p.tier.type === 'grading') gradeFee = basePrice;
+      if (p.tier.type === 'clean' && /evaluation|grade-ready/i.test(p.tier.title)) evalFee = basePrice;
       price += basePrice;
       parts.push(p.tier.title + ' ' + quoteMoney_(basePrice) + (p.tier.bulk && basePrice !== p.tier.price ? ' (bulk, ' + cleanQty + ' cleanings)' : '')
         + (p.tier.type === 'grading' && basePrice !== p.tier.price ? ' (additional card)' : ''));
@@ -1065,7 +1090,7 @@ function computeQuote_(cards, opts, pricing) {
       flag = 'Card ' + num + ': service not in price list, used ' + quoteMoney_(guess) + ' from its name';
     }
     if (p.crack && !(p.tier && p.tier.type === 'addon')) { price += QP.slabAddon; parts.push('slab cracking ' + quoteMoney_(QP.slabAddon)); }
-    if (p.grade && !(p.tier && p.tier.type === 'grading')) { price += QP.gradingAddon; parts.push('grading submission ' + quoteMoney_(QP.gradingAddon)); }
+    if (p.grade && !(p.tier && p.tier.type === 'grading')) { price += QP.gradingAddon; gradeFee = QP.gradingAddon; parts.push('grading submission ' + quoteMoney_(QP.gradingAddon)); }
 
     if (p.tier && p.tier.type === 'repair') {
       var v = quoteParseValue_(c.value);
@@ -1089,8 +1114,28 @@ function computeQuote_(cards, opts, pricing) {
         if (rate > 0 && !/^\$?\s*[\d,]+(\.\d+)?$/.test(raw)) flag = 'Card ' + num + ': value read as ' + quoteMoney_(v) + ' from "' + raw + '" — check it';
       }
     }
-    return { num: num, price: quoteRound2_(price), breakdown: parts.join(' + ') + ' → ' + quoteMoney_(price), flag: flag };
+    return { num: num, price: quoteRound2_(price), breakdown: parts.join(' + ') + ' → ' + quoteMoney_(price), flag: flag, gradeFee: gradeFee, evalFee: evalFee };
   });
+  // PSA's own fee (pass-through, not discounted): 50% when the cards ship to PSA, the other 50% 14 days later.
+  var psa = { cards: [], fees: 0, gradingFees: 0, evalFees: 0, upfront: 0, deposit: 0, balance: 0, depositPct: 50,
+              laterDays: QP.psaPay.laterDays, dueHours: QP.psaPay.dueHours };
+  parsed.forEach(function (p, i) {
+    if (p.cancelled || !p.psaLevel) return;
+    var lvl = (QP.psaLevels || []).filter(function (l) { return l.name.toLowerCase() === p.psaLevel.toLowerCase(); })[0];
+    if (!lvl) { notes.push('Card ' + p.c.num + ': PSA level "' + p.psaLevel + '" isn\'t in the price list'); return; }
+    psa.cards.push({ num: p.c.num, level: lvl.name, fee: lvl.price });
+    psa.fees += lvl.price;
+    var v = quoteParseValue_(p.c.value);
+    if (v !== null && lvl.maxValue && v > lvl.maxValue) notes.push('Card ' + p.c.num + ': value ' + quoteMoney_(v) + ' is over PSA ' + lvl.name + '\'s ' + quoteMoney_(lvl.maxValue) + ' limit — PSA may upcharge');
+  });
+  psa.fees = quoteRound2_(psa.fees);
+  // Up front: every grading fee + any Grade-Ready Evaluation in the order. Then PSA's fee: 50% at shipping, 50% 14 days later.
+  psa.gradingFees = 0; psa.evalFees = 0;
+  lines.forEach(function (l) { psa.gradingFees += l.gradeFee || 0; psa.evalFees += l.evalFee || 0; });
+  psa.upfront = quoteRound2_(psa.gradingFees + psa.evalFees);
+  psa.depositPct = QP.psaPay.atShip;
+  psa.deposit = quoteRound2_(psa.fees * psa.depositPct / 100);
+  psa.balance = quoteRound2_(psa.fees - psa.deposit);
 
   var subtotal = 0, pending = [];
   lines.forEach(function (l) {
@@ -1119,7 +1164,9 @@ function computeQuote_(cards, opts, pricing) {
   return {
     cards: lines, subtotal: subtotal, referral: !!opts.referral, referralAmt: referralAmt,
     discount: discText, discountAmt: discountAmt, total: total,
-    complete: pending.length === 0, notes: notes
+    complete: pending.length === 0, notes: notes,
+    psa: psa.cards.length ? psa : null,
+    grandTotal: quoteRound2_(total + (psa.cards.length ? psa.fees : 0))   // my services + PSA's fees
   };
 }
 
@@ -1296,6 +1343,175 @@ function portalCardServices_(record) {
   } catch (err) {
     return { success: false, error: String(err) };
   }
+}
+
+/* =================================================================
+ *  PSA SUBMISSIONS  (tracking + emails from the admin portal's PSA panel)
+ *  The portal keeps the full record in Supabase (submissions.grading_track).
+ *  {type:'portalPsa', token, code, step, email:true|false, orderNo, shipTracking, returnTracking,
+ *   cards:[{num, card, level, grade, cert}], pay:{upfront, upfrontPaid, deposit, depositPct, depositPaid, balance, balanceDue, balancePaid, final, finalPaid, dueBy}}
+ *  → copies it to the Sheet (Submissions: PSA Step / PSA Order # / PSA Tracking / PSA Return Tracking /
+ *    PSA History / PSA Payments; Cards: PSA Level / Grade / Cert #) so Track Your Submission shows it,
+ *    and emails the customer about the new step when email is true.
+ * ================================================================= */
+var PSA_STEPS_ = [
+  ['cleared', 'Cleared for PSA'], ['shipped', 'Shipped to PSA'], ['arrived', 'Arrived at PSA'], ['grading', 'Being graded'],
+  ['assembly', 'Slabbing & quality check'], ['graded', 'Grades are in'], ['returning', 'On the way back'], ['back', 'Back at Restored Rarity']
+];
+var PSA_SUB_HEADERS_ = ['PSA Step', 'PSA Order #', 'PSA Tracking', 'PSA Return Tracking', 'PSA History', 'PSA Payments'];
+function psaStepLabel_(k) { for (var i = 0; i < PSA_STEPS_.length; i++) if (PSA_STEPS_[i][0] === k) return PSA_STEPS_[i][1]; return ''; }
+
+function portalPsa_(record) {
+  try {
+    var token = String(record.token || ''), code = String(record.code || '').trim();
+    if (!token || !code) return { success: false, error: 'Missing sign-in or submission code.' };
+    if (typeof sbIsAdmin_ !== 'function' || !sbIsAdmin_(token)) return { success: false, error: 'Not signed in to the portal as an admin. Sign out and back in, then try again.' };
+    var step = String(record.step || '');
+    if (step && !psaStepLabel_(step)) return { success: false, error: 'Unknown PSA step "' + step + '".' };
+    var clip = function (v, n) { return String(v == null ? '' : v).replace(/[\r\n]+/g, ' ').trim().slice(0, n); };
+    var ss = SpreadsheetApp.getActiveSpreadsheet(), subSheet = ss.getSheetByName(SUBMISSIONS_TAB), cardSheet = ss.getSheetByName(CARDS_TAB);
+    var id = '', row = 0, last = subSheet.getLastRow();
+    if (last >= 2) {
+      var ids = subSheet.getRange(2, SC.ID, last - 1, 1).getValues();
+      for (var i = ids.length - 1; i >= 0; i--) {
+        var v = String(ids[i][0] || '');
+        if (v && (v === code || normRef_(refFromId_(v)) === normRef_(code))) { id = v; row = i + 2; break; }
+      }
+    }
+    var info = { ref: id ? refFromId_(id) : code, step: step, orderNo: clip(record.orderNo, 40), shipTracking: clip(record.shipTracking, 60),
+                 returnTracking: clip(record.returnTracking, 60), cards: (record.cards || []).slice(0, 100), pay: record.pay || {} };
+    var stepChanged = true;
+    if (row) {
+      var lock = LockService.getScriptLock();
+      lock.waitLock(20000);
+      try {
+        var col = {}; PSA_SUB_HEADERS_.forEach(function (h) { col[h] = quoteCol_(subSheet, h); });
+        var prev = String(subSheet.getRange(row, col['PSA Step']).getValue() || '');
+        stepChanged = prev !== step;
+        var hist = []; try { hist = JSON.parse(subSheet.getRange(row, col['PSA History']).getValue() || '[]'); } catch (e) { hist = []; }
+        if (step && stepChanged) hist.push({ step: step, at: new Date().toISOString() });
+        subSheet.getRange(row, col['PSA Step']).setValue(step);
+        subSheet.getRange(row, col['PSA Order #']).setNumberFormat('@').setValue(info.orderNo);
+        subSheet.getRange(row, col['PSA Tracking']).setNumberFormat('@').setValue(info.shipTracking);
+        subSheet.getRange(row, col['PSA Return Tracking']).setNumberFormat('@').setValue(info.returnTracking);
+        subSheet.getRange(row, col['PSA History']).setValue(JSON.stringify(hist.slice(-40)));
+        var pay = info.pay;
+        subSheet.getRange(row, col['PSA Payments']).setValue(JSON.stringify({ upfront: Number(pay.upfront) || 0, upfrontPaid: !!pay.upfrontPaid,
+          deposit: Number(pay.deposit) || 0, depositPct: Number(pay.depositPct) || 0, depositPaid: !!pay.depositPaid,
+          balance: Number(pay.balance) || 0, balanceDue: String(pay.balanceDue || ''), balancePaid: !!pay.balancePaid,
+          final: Number(pay.final) || 0, finalPaid: !!pay.finalPaid, dueBy: String(pay.dueBy || '') }));
+        var n = cardSheet.getLastRow() - 1;
+        if (n > 0 && info.cards.length) {
+          var lv = quoteCol_(cardSheet, 'PSA Level'), gr = quoteCol_(cardSheet, 'Grade'), ce = quoteCol_(cardSheet, 'Cert #');
+          var rows = cardSheet.getRange(2, 1, n, CC.NUM).getValues();
+          info.cards.forEach(function (c) {
+            for (var r = 0; r < rows.length; r++) {
+              if (String(rows[r][CC.ID - 1]) !== id || Number(rows[r][CC.NUM - 1]) !== Number(c.num)) continue;
+              cardSheet.getRange(r + 2, lv).setValue(clip(c.level, 40));
+              cardSheet.getRange(r + 2, gr).setNumberFormat('@').setValue(clip(c.grade, 60));
+              cardSheet.getRange(r + 2, ce).setNumberFormat('@').setValue(clip(c.cert, 30));
+              break;
+            }
+          });
+        }
+        SpreadsheetApp.flush();
+      } finally { lock.releaseLock(); }
+    }
+
+    var emailed = false;
+    if (record.email && step && SEND_CUSTOMER_EMAILS) {
+      var who = null;
+      if (row) {
+        var sv = subSheet.getRange(row, 1, 1, SC.STATUS_UPDATED).getValues()[0];
+        who = { name: sv[SC.NAME - 1], email: String(sv[SC.EMAIL - 1] || '').trim(), delivery: String(sv[SC.DELIVERY - 1] || '') };
+      } else if (typeof sbGet_ === 'function') {
+        var got = sbGet_(token, 'submissions?code=eq.' + encodeURIComponent(code) + '&select=customers(name,email)');
+        var cu = got && got[0] && got[0].customers;
+        if (cu) who = { name: cu.name, email: String(cu.email || '').trim(), delivery: '' };
+      }
+      if (!who || !who.email) return { success: true, onSheet: !!row, emailed: false, error: 'Saved, but this customer has no email address on file.' };
+      sendPsaEmail_(who, info);
+      emailed = true;
+    }
+    return { success: true, onSheet: !!row, emailed: emailed };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
+/** One email per PSA step, in the same branded style as the card updates. */
+function sendPsaEmail_(who, info) {
+  var label = psaStepLabel_(info.step), pay = info.pay || {}, mm = function (n) { return quoteMoney_(Number(n) || 0); };
+  var n = info.cards.length || 1, them = n === 1 ? 'your card' : 'your cards', They = n === 1 ? 'It' : 'They';
+  var meta = function (k, v) { return v ? '<p style="margin:0 0 6px;">' + k + ': <b>' + esc_(v) + '</b></p>' : ''; };
+  var body = {
+    cleared:   'I&rsquo;ve evaluated ' + them + ' and ' + (n === 1 ? 'it&rsquo;s' : 'they&rsquo;re') + ' cleared to send to PSA.',
+    shipped:   them.charAt(0).toUpperCase() + them.slice(1) + (n === 1 ? ' is' : ' are') + ' on the way to PSA.',
+    arrived:   'PSA has received ' + them + '. ' + They + '&rsquo;ll move through PSA&rsquo;s research, grading and quality checks next.',
+    grading:   them.charAt(0).toUpperCase() + them.slice(1) + (n === 1 ? ' is' : ' are') + ' being graded at PSA.',
+    assembly:  'Grading is done and ' + them + (n === 1 ? ' is' : ' are') + ' being slabbed and quality-checked at PSA.',
+    graded:    'Your grades are in!',
+    returning: 'PSA has shipped ' + them + ' back to me.',
+    back:      them.charAt(0).toUpperCase() + them.slice(1) + (n === 1 ? ' is' : ' are') + ' back at Restored Rarity. I&rsquo;ll be in touch about pickup or return shipping.'
+  }[info.step] || '';
+  var grades = info.cards.filter(function (c) { return c.grade || c.level; });
+  var table = grades.length ? cardTable_(grades.map(function (c) {
+    return { num: c.num, card: c.card || 'Card', sub: [c.level ? 'PSA ' + c.level : '', c.cert ? 'Cert #' + c.cert : ''].filter(Boolean).join(' · '),
+             right: c.grade || '—' };
+  }), info.step === 'graded' || info.step === 'returning' || info.step === 'back' ? 'GRADE' : 'STATUS') : '';
+  var money = '';
+  var hrs = Number(pay.dueHours) || 72;
+  var dueDate = function (iso) { var d = new Date(iso); return isNaN(d) ? '' : Utilities.formatDate(d, TIMEZONE, 'MMMM d, yyyy'); };
+  var pctOf = Number(pay.depositPct) && pay.depositPct < 100 ? pay.depositPct + '% of ' : '';
+  if (info.step === 'cleared' && Number(pay.deposit) && !pay.depositPaid)
+    money = callout_('<p style="margin:0;"><b>Due before your cards ship: ' + mm(pay.deposit) + '</b> (' + pctOf +
+                     'PSA&rsquo;s fee for the cards going to PSA' + (Number(pay.upfront) && !pay.upfrontPaid ? ', plus ' + mm(pay.upfront) + ' in grading and evaluation fees not yet paid' : '') + '). ' +
+                     (Number(pay.balance) ? 'The other ' + mm(pay.balance) + ' is due two weeks after they ship. ' : '') +
+                     'I&rsquo;ll ship to PSA as soon as it&rsquo;s received. Reply to this email if you have questions.</p>');
+  if (info.step === 'shipped' && Number(pay.balance) && !pay.balancePaid)
+    money = callout_('<p style="margin:0;"><b>Rest of PSA&rsquo;s fee: ' + mm(pay.balance) + '</b>, due ' +
+                     (pay.balanceDue && dueDate(pay.balanceDue) ? '<b>' + dueDate(pay.balanceDue) + '</b>' : 'two weeks from today') + '. Reply to this email to arrange payment.</p>');
+  if (info.step === 'graded' && Number(pay.final) && !pay.finalPaid)
+    money = callout_('<p style="margin:0;"><b>Final invoice: ' + mm(pay.final) + '</b> (return shipping and any PSA upcharge' +
+                     (Number(pay.balance) && !pay.balancePaid ? '; the remaining ' + mm(pay.balance) + ' of PSA&rsquo;s fee is also still open' : '') +
+                     '). <b>Due within ' + hrs + ' hours.</b> Reply to this email to arrange payment.</p>');
+  var inner = p_('Hi ' + esc_(firstName_(who.name)) + ',') + p_(body) +
+    meta('PSA order #', info.orderNo) + meta(info.step === 'returning' ? 'Tracking' : 'Tracking to PSA', info.step === 'returning' ? info.returnTracking : (info.step === 'shipped' ? info.shipTracking : '')) +
+    table + money + refBox_(info.ref) + trackButton_(info.ref);
+  sendHtml_(who.email, 'PSA update: ' + label + ' (' + info.ref + ')', inner,
+    'Hi ' + firstName_(who.name) + ', PSA update for ' + info.ref + ': ' + label + '. Track it: ' + trackUrl_(info.ref), label);
+}
+
+/** PSA block for Track Your Submission, or null when the order has no PSA step yet. */
+function psaTrackFor_(subSheet, row, id) {
+  try {
+    var lc = subSheet.getLastColumn();
+    var heads = subSheet.getRange(1, 1, 1, lc).getValues()[0].map(function (h) { return String(h).trim(); });
+    var at = function (h) { return heads.indexOf(h) + 1; };
+    if (!at('PSA Step')) return null;
+    var vals = subSheet.getRange(row, 1, 1, lc).getValues()[0];
+    var get = function (h) { var c = at(h); return c ? vals[c - 1] : ''; };
+    var step = String(get('PSA Step') || '');
+    if (!step) return null;
+    var parse = function (t, d) { try { return JSON.parse(t || '') || d; } catch (e) { return d; } };
+    var cardSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CARDS_TAB);
+    var cl = cardSheet.getLastColumn(), ch = cardSheet.getRange(1, 1, 1, cl).getValues()[0].map(function (h) { return String(h).trim(); });
+    var lv = ch.indexOf('PSA Level'), gr = ch.indexOf('Grade'), ce = ch.indexOf('Cert #');
+    var cards = [];
+    if (cardSheet.getLastRow() >= 2) cardSheet.getRange(2, 1, cardSheet.getLastRow() - 1, cl).getValues().forEach(function (r) {
+      if (String(r[CC.ID - 1]) !== id) return;
+      var level = lv >= 0 ? String(r[lv] || '') : '';
+      if (!level && !/grading:\s*PSA/i.test(String(r[CC.SERVICE - 1] || ''))) return;
+      cards.push({ num: r[CC.NUM - 1], card: String(r[CC.NAME - 1] || ''), level: level,
+                   grade: gr >= 0 ? String(r[gr] || '') : '', cert: ce >= 0 ? String(r[ce] || '') : '' });
+    });
+    var pay = parse(get('PSA Payments'), {});
+    return { step: step, orderNo: String(get('PSA Order #') || ''), shipTracking: String(get('PSA Tracking') || ''),
+             returnTracking: String(get('PSA Return Tracking') || ''), history: parse(get('PSA History'), []),
+             cards: cards, pay: { upfront: pay.upfront || 0, upfrontPaid: !!pay.upfrontPaid, deposit: pay.deposit || 0, depositPct: pay.depositPct || 0,
+               depositPaid: !!pay.depositPaid, balance: pay.balance || 0, balanceDue: pay.balanceDue || '', balancePaid: !!pay.balancePaid,
+               final: pay.final || 0, finalPaid: !!pay.finalPaid, dueBy: pay.dueBy || '' } };
+  } catch (err) { console.error('PSA tracking not read: ' + err); return null; }
 }
 
 // Each card's set, number in the set and year (from the website's card lookup) in "Set" / "Set No." / "Year" columns, found by

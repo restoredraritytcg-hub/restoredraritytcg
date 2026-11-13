@@ -11,6 +11,7 @@ grading prep). This adds a card-intake and customer portal to the existing site
 | `portal/` | Static web app (no build step). Deployed as-is under `/portal/` on GitHub Pages. |
 | `portal/admin.html` + `admin.js` | Owner's admin portal (Supabase email/password login): submissions, all cards, customer profiles, card detail, photos, notes, statuses, customer links. Hash router (`#/`, `#/cards`, `#/customers`, `#/customer/<id>`, `#/submission/<id>`, `#/card/<id>`, `#/new[/<customerId>]`). |
 | `portal/site.js` | Admin **Website** section (`#/site/<tab>`: reviews on/off, prices, announcement bar, news, events, Instagram) + the **Quote** panel on each submission. Content saved in Supabase `site_content`; reviews + quotes go through the Apps Script with the admin token. |
+| `portal/psa.js` | **PSA submissions**: admin PSA panel on each submission (step, PSA order #, tracking #s, grades + cert #s, 4-step payments (up front · 50% at shipping · 50% 14 days later · final invoice), per-order agreed date, email) and the PSA tracker on the customer link (`psaCustomerHtml`). |
 | `portal/view.html` + `view.js` | Customer view opened by a private link `view.html#t=<share_token>` (no login). Shows everything on that customer's profile; customer can upload/delete their own photos. |
 | `portal/scan.html` + `scan.js` | **Scan station** (Mac or Windows, Chrome/Edge): watches a scan folder via the File System Access API, processes each new scan in the browser and saves it to the portal. Front → back → auto-save → next card. Moves originals into `<folder>/<code>/<code>_C001_<stage>_<side>.<ext>`. Folder handle remembered in IndexedDB. |
 | `portal/scanproc.js` | Browser image processing: card detection, straighten/crop, corner/edge regions, centering measurement, dpi from PNG pHYs / JPEG JFIF/EXIF. Port of `desktop-scanner/cardcrop.py` + `detail.py`. |
@@ -104,6 +105,9 @@ arrow keys (Alt = outer marker), save, or reset to auto.
   `computeQuote_` parser: `Base Repair ($35) + Slab Cracking ($10) + Grading Submission ($5) — grading: PSA`,
   `Grading Submission (PSA, CGC, BGS, TAG) only ($15) — grading company not chosen yet`.
 
+- PSA: the step list (`cleared, shipped, arrived, grading, assembly, graded, returning, back`) lives in `index.html` `PSA_STEPS`,
+  `portal/psa.js` `PSA_STEPS` and `apps-script/Code.gs` `PSA_STEPS_`; built-in PSA levels + `psaPay` ({atShip 50, laterDays 14, dueHours 72}) in `index.html`
+  `PRICE_RULES`, `portal/site.js` `DEFAULT_PRICES` and `Code.gs` `QUOTE_PRICING`. Service text for PSA ends `— grading: PSA (Value)`.
 - `portal/centering.js` ⇄ `desktop-scanner/assets/centering.js` (identical copies).
 - `portal/scanproc.js` ⇄ `desktop-scanner/cardcrop.py` + `detail.py` (same constants: crop pad 0.06 in, corner 0.40 in,
   edge 0.22 in, outside 0.06 in, centering search 0.75 in, default inner 0.125 in, thresholds).
@@ -476,6 +480,36 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    verified: cards has service/grading/set_name/card_no/year) and pasted the new Code.gs; PR #7 (grading, items 21–23) and
    PR #8 (set/year) merged, site shows build v11-08c. Not yet confirmed: the Apps Script "New version" deploy, a real test order.
    RipperDoc/PH PR #3 still waiting on their Code.gs.
+
+25. **Built Nov 13, 2026 (branch `feature/psa-submissions`), not yet live: PSA submission service levels, tracking + 50/50 payments.**
+   Owner's request: PSA submissions for clients, $15 first card / $5 each after (existing grading fee), PSA's own service-level
+   fee, and tracking when the service is chosen on the order form or switched on in the portal. Owner's payment rule (final,
+   Nov 13 — replaces item 23's 50/50-at-invoice, an interim 75/25 and a $500-threshold version): **for all grading
+   submissions: (1) up front: grading fee ($15/$5) + Grade-Ready Evaluation fee if chosen; (2) 50% of the grader's base fee
+   when the cards ship to the grader; (3) the remaining 50% two weeks later, unless otherwise agreed by Restored Rarity and
+   the submitting party; (4) final invoice: return shipping + any upcharge, due within 72 hours.** % / days / hours editable
+   in portal Prices ("When PSA's fee is due"); the PSA panel has "Agreed on a different date?" per order
+   (`grading_track.pay.balance_due`; shown date `balance_due_on`). Updated everywhere: fee box, form note, calculator,
+   T&C §6/§19/Acknowledgment (Effective Date Nov 13, 2026), build **v11-13c**. Assumed (owner didn't answer): **PSA only**
+   gets levels + tracking (CGC/BGS/TAG unchanged; the Terms' 50/50 covers all graders), and customers see tracking **on
+   their private link and in Track Your Submission**, with an email per step (owner can untick).
+   PSA levels (pass-through, editable in portal Prices; defaults from cardgrade.io "last verified Oct 29, 2026": Value $39.99 ≤$500,
+   Standard $59.99 ≤$1,000, Priority $79.99 ≤$1,500, Express $199 ≤$2,500, Super Express $349 ≤$5,000, Premier $599 ≤$10,000,
+   Premium 1 $999 ≤$25,000; Value Bulk paused). Website: order form "PSA service level" (required for PSA; suggests the cheapest
+   level covering the card value until the customer picks; estimate + upcharge warning), calculator PSA level + fee lines
+   (referral discount not applied to PSA's fee), PSA level table in the fee box, PSA block in Track Your Submission.
+   Supabase (`supabase/2026-11-13_psa_tracking.sql` + schema.sql): `cards.grade_level/grade_result/cert_no`,
+   `submissions.grading_track` jsonb (stage, history, order_no, ship/return tracking, pay), `intake_submit` saves
+   `grade_level`, `portal_get` returns all of it. Apps Script: quotes add `psa` {fees, gradingFees, evalFees, upfront, deposit, balance, depositPct, laterDays, dueHours} +
+   `grandTotal` (owner email quote box shows PSA lines), `portalPsa` (admin token) copies step/order #/tracking/history/payments to
+   Submissions columns "PSA Step … PSA Payments" and Cards "PSA Level / Grade / Cert #" (by header), emails the step
+   (`sendPsaEmail_`; 50% due before shipping + any unpaid up-front fees on "cleared", the other 50% + its due date on "shipped", grades + final invoice (72 h) on "graded"; portal-only orders email via Supabase lookup),
+   `trackSubmission_` returns `psa`; `?action=portalEmails` reports `psa:true`. Tested: SQL on local Postgres (upgrade from main
+   with an old order, re-run, anon blocked, customer link fields, fresh schema twice); Apps Script on a mock Sheet (quote math,
+   step emails, Sheet columns, tracker, portal-only email, non-admin/bad step refused); Playwright site + portal `?demo` +
+   customer link at 390/1280 px.
+   Owner steps, in order: run `supabase/2026-11-13_psa_tracking.sql` → paste `apps-script/Code.gs` and deploy a new version →
+   then merge (held per the standing rule) → portal Website → Prices: check PSA levels against psacard.com and Save.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
