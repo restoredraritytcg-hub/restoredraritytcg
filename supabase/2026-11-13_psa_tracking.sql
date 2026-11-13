@@ -1,5 +1,5 @@
 -- One-time update (Nov 13, 2026): PSA submissions — service level per card, grades,
--- tracking steps and the 75% / 25% payments. Paste into Supabase -> SQL Editor -> Run.
+-- tracking steps and payments. Paste into Supabase -> SQL Editor -> Run.
 -- Safe to re-run. (schema.sql already includes this.)
 
 -- PSA service level picked for the card (e.g. "Value"), and the result once PSA grades it.
