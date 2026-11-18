@@ -537,6 +537,13 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    admin + work portal share the fonts/colours. **Logo refresh concept** for the pitch in `demos/shiny-asset-exchange/brand/`
    (outlined SVG/PNG + pitch PDF; generator `brand/source/make_logo.py`). Owner asked for its own repo: suggested
    `restoredraritytcg-hub/shinyassetexchange-demo` (private) — Claude can't create repos, so the owner creates it empty.
+   **In progress (Nov 18): shipping for product orders + card returns.** Owner asked for Pirate Ship. Pirate Ship has no
+   public API (labels via spreadsheet upload; tracking back via its shipment export). Done: checkout shipping choices (USPS
+   Ground Advantage / Priority, free-over per method), packed weight per product option, structured return address on the
+   intake (`submissions.return_address`), `pirateship.js` (queue, spreadsheet, tracking import, markShipped), tracking links
+   on Order Status. Not wired yet: the shop admin Shipping page. Owner then asked whether Shippo has an API (yes: rates,
+   labels, tracking webhooks, test keys; ~30 free labels/mo then ~5–7¢/label per third-party sources) — waiting for the
+   owner to choose Shippo, Pirate Ship, or both before finishing.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.

@@ -1,5 +1,6 @@
 // Shiny Asset Exchange demo — storefront (hash router).
-import { store, money, money0, esc, fmtDate, stockState, totals, quote, tierFor, demoCharge, STATUS_LABEL } from './data.js';
+import { store, money, money0, esc, fmtDate, stockState, totals, methodsOf, quote, tierFor, demoCharge, STATUS_LABEL } from './data.js';
+import { trackingLink } from './pirateship.js';
 import * as PS from './portal/demostore.js';
 import { FAQ, FAQ_INTRO, FAQ_OUTRO, TOOLS, RECS, PRIVACY, ASSESS, assessResult, CARE_GUIDE, NON_LIABILITY } from './content.js';
 
@@ -278,9 +279,9 @@ function bindCart(root, redraw) {
   $$('[data-rm]', root).forEach(b => b.onclick = () => { cart.qty(b.dataset.rm, 0); redraw(); });
 }
 function sumHtml(t) {
-  const s = C().shop;
+  const ms = methodsOf(C().shop), m = ms.find(x => x.key === t.method) || ms[0], s = m;
   return `<div class="sum"><span>Subtotal</span><span>${money(t.subtotal)}</span></div>
-    <div class="sum"><span>Shipping</span><span>${t.shipping ? money(t.shipping) : 'Free'}</span></div>
+    <div class="sum"><span>Shipping${t.method_name ? ` <span class="small muted">· ${esc(t.method_name)}</span>` : ''}</span><span>${t.shipping ? money(t.shipping) : 'Free'}</span></div>
     <div class="sum"><span>Estimated tax</span><span>${money(t.tax)}</span></div>
     <div class="sum total"><span>Total</span><span>${money(t.total)} USD</span></div>
     ${s.free_over && t.subtotal < s.free_over ? `<p class="small muted" style="margin-top:8px">Free shipping on orders over ${money0(s.free_over)}.</p>` : ''}`;
@@ -334,7 +335,8 @@ function charge(amount) {
 function checkout() {
   const lines = cart.lines();
   if (!lines.length) { location.hash = '#/cart'; return; }
-  const t = totals(C().shop, lines);
+  let method = methodsOf(C().shop)[0].key;
+  let t = totals(C().shop, lines, method);
   const saved = (() => { try { return JSON.parse(localStorage.getItem('sae-checkout') || '{}'); } catch { return {}; } })();
   const f = (id, label, ac, type = 'text', req = true) => `<div class="field"><label for="${id}">${label}</label><input id="${id}" type="${type}" autocomplete="${ac}" value="${esc(saved[id] || '')}" ${req ? 'required' : ''}></div>`;
   app.innerHTML = `<div class="wrap"><div class="checkout">
@@ -344,14 +346,18 @@ function checkout() {
       <div class="grid2">${f('first', 'First name', 'given-name')}${f('last', 'Last name', 'family-name')}</div>
       ${f('line1', 'Address', 'address-line1')}${f('line2', 'Apartment, suite, etc. (optional)', 'address-line2', 'text', false)}
       <div class="grid3">${f('city', 'City', 'address-level2')}${f('state', 'State', 'address-level1')}${f('zip', 'ZIP code', 'postal-code')}</div>
-      <h2 class="step-h"><i>3</i>Payment</h2><p class="small muted">All transactions are secure and encrypted.</p>
+      <h2 class="step-h"><i>3</i>Shipping method</h2><div class="ship-methods">${methodsOf(C().shop).map((m, i) => { const free = m.free_over && t.subtotal >= m.free_over;
+        return `<label class="ship-m"><input type="radio" name="sm" value="${esc(m.key)}" ${i === 0 ? 'checked' : ''}><span><b>${esc(m.name)}</b><small>${esc(m.days || '')}${m.free_over && !free ? ` · free over ${money0(m.free_over)}` : ''}</small></span><em>${free || !+m.price ? 'Free' : money(m.price)}</em></label>`; }).join('')}</div>
+      <p class="small muted" style="margin:8px 0 0">Ships from Elgin, TX with a tracking number emailed to you.</p>
+      <h2 class="step-h"><i>4</i>Payment</h2><p class="small muted">All transactions are secure and encrypted.</p>
       ${payFormHtml(t.total, 'Pay')}
       <div class="err hidden" id="coErr"></div>
     </form>
     <aside class="summary"><div class="panel">${lines.map(l => `<div class="line" style="grid-template-columns:56px 1fr auto"><div style="position:relative"><img src="${esc(l.p.images[0])}" alt="" style="width:56px;height:56px"><span class="badge" style="top:-6px;right:-6px">${l.qty}</span></div>
       <div><div class="t">${esc(l.p.title)}</div><div class="small muted">${esc(l.v.title)}</div></div><div class="num">${money(l.price * l.qty)}</div></div>`).join('')}
-      <div style="margin-top:12px">${sumHtml(t)}</div></div></aside></div></div>`;
+      <div style="margin-top:12px" id="coSum">${sumHtml(t)}</div></div></aside></div></div>`;
   bindPayForm();
+  $$('input[name=sm]').forEach(r => r.onchange = () => { method = r.value; t = totals(C().shop, lines, method); $('#coSum').innerHTML = sumHtml(t); $('#payBtn').textContent = 'Pay ' + money(t.total); });
   $('#co').onsubmit = e => e.preventDefault();
   $('#payBtn').onclick = e => {
     e.preventDefault();
@@ -363,7 +369,7 @@ function checkout() {
     const r = charge(t.total); if (!r.ok) return;
     const res = store.placeOrder({
       customer: { name: v('first') + ' ' + v('last'), email: v('email'), phone: v('phone') },
-      ship: { name: v('first') + ' ' + v('last'), line1: v('line1'), line2: v('line2'), city: v('city'), state: v('state'), zip: v('zip'), country: 'US' },
+      ship: { name: v('first') + ' ' + v('last'), line1: v('line1'), line2: v('line2'), city: v('city'), state: v('state'), zip: v('zip'), country: 'US', method },
       cart: lines.map(l => ({ variant_id: l.variant_id, qty: l.qty })), payment: r.payment,
     });
     if (!res.ok) { err.innerHTML = 'Some items sold out while you were checking out: ' + res.short.map(s => `${esc(s.title || '')} ${esc(s.variant || '')} (${s.have} left)`).join(', ') + '. You have not been charged — please update your cart.'; err.classList.remove('hidden'); return; }
@@ -542,7 +548,10 @@ function submit(args, params) {
         <div class="grid2"><div class="field"><label>Full name</label><input id="s_name" autocomplete="name" required></div><div class="field"><label>Email</label><input id="s_email" type="email" autocomplete="email" required></div></div>
         <div class="grid2"><div class="field"><label>Phone</label><input id="s_phone" type="tel" autocomplete="tel"></div>
           <div class="field"><label>How will your cards get to us?</label><select id="s_del"><option value="ship">I'll ship them</option><option value="dropoff">Drop-off at ${esc(c.dropoff.name)} (Austin)</option></select></div></div>
-        <div id="retWrap"><div class="field"><label>Return shipping address</label><textarea id="s_addr" autocomplete="street-address" placeholder="Street, city, state, ZIP"></textarea></div>
+        <div id="retWrap"><label style="margin-top:4px">Return shipping address <span class="dim">(we ship your cards back here)</span></label>
+          <div class="field"><input id="s_a1" autocomplete="address-line1" placeholder="Street address"></div>
+          <div class="field"><input id="s_a2" autocomplete="address-line2" placeholder="Apartment, suite, etc. (optional)"></div>
+          <div class="grid3"><div class="field"><input id="s_city" autocomplete="address-level2" placeholder="City"></div><div class="field"><input id="s_st" autocomplete="address-level1" placeholder="State"></div><div class="field"><input id="s_zip" autocomplete="postal-code" placeholder="ZIP"></div></div>
           <label class="check"><input type="checkbox" id="s_ins" checked> Insure my return shipping</label></div>
         <h2 class="step-h"><i>2</i>Your cards</h2><div id="cards"></div>
         <button type="button" class="btn ghost" id="addCard">+ Add another card</button>
@@ -590,7 +599,7 @@ function submit(args, params) {
     e.preventDefault(); const err = $('#sErr'); const v = id => $('#' + id).value.trim();
     const problems = [];
     if (!v('s_name')) problems.push('your name'); if (!/^\S+@\S+\.\S+$/.test(v('s_email'))) problems.push('a valid email');
-    if (v('s_del') === 'ship' && !v('s_addr')) problems.push('a return address');
+    if (v('s_del') === 'ship' && !(v('s_a1') && v('s_city') && v('s_st') && v('s_zip'))) problems.push('a full return address');
     cards.forEach((cd, i) => {
       if (!cd.name.trim()) problems.push(`card ${i + 1}'s name`);
       if (cd.service === 'restoration' && !(+cd.value > 0)) problems.push(`card ${i + 1}'s value`);
@@ -604,8 +613,9 @@ function submit(args, params) {
       name: v('s_name'), email: v('s_email'), phone: v('s_phone'),
       service: [...new Set(cards.map(cd => cd.service === 'cleaning' ? 'Cleaning' : 'Restoration'))].join(', '),
       notes: v('s_notes'),
+      return_address: ship ? { line1: v('s_a1'), line2: v('s_a2'), city: v('s_city'), state: v('s_st').toUpperCase(), zip: v('s_zip') } : null,
       // delivery / address / source → internal notes (never on the customer's link), like Restored Rarity's intake_info
-      intake_info: [`Delivery: ${ship ? 'Ship' : 'Drop-off at ' + C().dropoff.name}`, ship ? `Return address: ${v('s_addr')}` : '',
+      intake_info: [`Delivery: ${ship ? 'Ship' : 'Drop-off at ' + C().dropoff.name}`, ship ? `Return address: ${[v('s_a1'), v('s_a2'), v('s_city') + ' ' + v('s_st') + ' ' + v('s_zip')].filter(Boolean).join(', ')}` : '',
         ship ? `Insured return shipping: ${$('#s_ins').checked ? 'Yes' : 'No'}` : '', v('s_how') ? `Heard about us: ${v('s_how')}` : '',
         `Estimate on the form: ${money0(quote(pr, cards).total)}`].filter(Boolean).join('\n'),
       cards: cards.map((cd, i) => ({ name: cd.name.trim(), details: cd.details.trim(), service: svc[i], grading: cd.addons.includes('ship') ? cd.grading : '',
@@ -642,12 +652,13 @@ function orderBlock(o) {
   return `<div class="panel" style="margin-bottom:16px"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Order ${esc(o.number)}</h3><span class="small muted">${fmtDate(o.created)}</span></div>
     <p class="small muted">${o.items.map(i => `${i.qty} × ${esc(i.title)} ${esc(i.variant)}`).join(' · ')} — ${money(o.total)}</p>
     ${stopped ? `<span class="pill bad">${esc(STATUS_LABEL[o.status])}</span>` : timeline(ORDER_STEPS, o.status, o.history)}
-    ${o.tracking ? `<p class="small" style="margin:8px 0 0">Tracking: <b>${esc(o.tracking)}</b></p>` : ''}</div>`;
+    ${o.shipment ? `<p class="small" style="margin:8px 0 0">Tracking: ${trackingLink(o.shipment)}</p>` : o.tracking ? `<p class="small" style="margin:8px 0 0">Tracking: <b>${esc(o.tracking)}</b></p>` : ''}</div>`;
 }
 function subBlock({ submission: s, customer: c, cards }) {
   return `<div class="panel" style="margin-bottom:16px"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Restoration ${esc(s.code)}</h3><span class="small muted">${fmtDate(s.created_at)}</span></div>
     ${timeline(SUB_STEPS, s.status, [{ status: s.status, at: s.status_changed_at || s.updated_at }])}
     ${s.public_notes ? `<div class="callout" style="margin:10px 0">${esc(s.public_notes)}</div>` : ''}
+    ${s.return_shipment ? `<div class="notice" style="margin:10px 0"><span class="tag">SHIPPED</span><span>Your cards are on the way back: ${trackingLink(s.return_shipment)}</span></div>` : ''}
     <p class="small muted">${cards.map(k => esc(k.name)).join(' · ')}</p>
     <a class="btn red" href="${esc(portalLink(c.share_token))}">See every card, scan and photo</a></div>`;
 }

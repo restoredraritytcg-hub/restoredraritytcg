@@ -4,7 +4,7 @@
 // Swap `store` for a Supabase-backed version to go live (see README.md); the shape stays the same.
 import { SEED_PRODUCTS } from './seed.js';
 
-const KEY = 'sae-demo-v2';
+const KEY = 'sae-demo-v3';
 const listeners = new Set();
 
 export const STATUSES = {
@@ -41,7 +41,10 @@ export const DEFAULT_CONTENT = {
     ],
   },
   capacity: 40,
-  shop: { shipping: 5.99, free_over: 75, tax_rate: 8.25 },
+  shop: { tax_rate: 8.25, methods: [
+    { key: 'ground', name: 'USPS Ground Advantage', price: 5.99, days: '2–5 business days', free_over: 75 },
+    { key: 'priority', name: 'USPS Priority Mail', price: 9.99, days: '1–3 business days', free_over: 0 },
+  ] },
   contact: { email: 'shinyassetexchange@gmail.com', phone: '(512) 981-5869',
     address: ['Shiny Asset Exchange', '17912 Majestic Elm Lane', 'Elgin, TX 78621'] },
   dropoff: { name: 'Home Town Cards & Collectibles', address: ['1514 Ed Bluestein Blvd, Suite 101', 'Austin, TX 78721'], phone: '(512) 876-9702' },
@@ -53,9 +56,13 @@ export const token = () => Array.from(crypto.getRandomValues(new Uint8Array(12))
 const now = () => new Date().toISOString();
 const daysAgo = d => new Date(Date.now() - d * 864e5).toISOString();
 
+// Packed shipping weight per option (oz) for Pirate Ship labels — demo estimates, editable on each product.
+const WEIGHTS = { 'SAE-HPS': 12, 'SAE-HS-1ML': 1, 'SAE-HS-5ML': 1.5, 'SAE-HS-30ML': 3, 'SAE-MAP-1OZ': 2.5, 'SAE-MAP-34OZ': 5.5, 'SAE-IRS': 2.5,
+  'SAE-KIT': 22, 'SAE-CS-1OZ': 2.5, 'SAE-CS-8OZ': 10, 'SAE-ARS-1OZ': 2.5, 'SAE-ARS-8OZ': 10, 'SAE-RRP': 3, 'SAE-HPS-HALFGAL': 76, 'SAE-HPS-GAL': 144, 'SAE-HPS-GAL16': 160 };
 function seed() {
   const products = JSON.parse(JSON.stringify(SEED_PRODUCTS));
-  const db = { v: 2, products, movements: [], orders: [], customers: [], submissions: [], content: JSON.parse(JSON.stringify(DEFAULT_CONTENT)),
+  for (const p of products) for (const v of p.variants) v.weight_oz = WEIGHTS[v.sku] || 4;
+  const db = { v: 3, products, movements: [], orders: [], customers: [], submissions: [], content: JSON.parse(JSON.stringify(DEFAULT_CONTENT)),
     seq: { order: 1000 }, created: now() };
   // opening stock
   for (const p of products) for (const v of p.variants)
@@ -66,7 +73,7 @@ function seed() {
   const find = (h, i = 0) => { const p = products.find(x => x.handle === h); return { p, v: p.variants[i] }; };
   const mk = (cust, lines, days, status, extra = {}) => {
     const items = lines.map(([h, i, qty]) => { const { p, v } = find(h, i); return { variant_id: v.id, product_id: p.id, title: p.title, variant: v.title, price: v.price, qty, image: p.images[0] }; });
-    const o = buildOrder(db, cust, items, { name: cust.name, line1: '100 Example St', city: 'Austin', state: 'TX', zip: '78701', country: 'US' });
+    const o = buildOrder(db, cust, items, { name: cust.name, line1: '100 Example St', city: 'Austin', state: 'TX', zip: '78701', country: 'US', method: 'ground' });
     o.created = daysAgo(days); o.history = [{ at: o.created, status: 'paid', note: 'Paid by card ending 4242' }];
     o.status = status; Object.assign(o, extra);
     if (status === 'fulfilled') o.history.push({ at: daysAgo(days - 1), status: 'fulfilled', note: 'Shipped USPS ' + o.tracking });
@@ -88,7 +95,8 @@ function addCustomer(db, { name, email, phone }) {
 }
 
 function buildOrder(db, cust, items, ship) {
-  const t = totals(db.content.shop, items);
+  const t = totals(db.content.shop, items, ship && ship.method);
+  if (ship) ship.method_name = t.method_name;
   return { id: uid('o'), number: '#' + (++db.seq.order), customer_id: cust.id, email: cust.email, created: now(), items, ship, ...t,
     status: 'paid', tracking: '', notes: '', history: [] };
 }
@@ -101,11 +109,13 @@ function moveStock(db, variantId, delta, reason, ref = '', note = '', at = now()
 
 function variantById(db, id) { for (const p of db.products) { const v = p.variants.find(x => x.id === id); if (v) return v; } return null; }
 
-export function totals(shop, items) {
+export const methodsOf = shop => (shop.methods && shop.methods.length ? shop.methods : [{ key: 'ground', name: 'Shipping', price: +shop.shipping || 0, free_over: +shop.free_over || 0 }]);
+export function totals(shop, items, methodKey) {
   const subtotal = round(items.reduce((s, i) => s + i.price * i.qty, 0));
-  const shipping = !items.length ? 0 : (shop.free_over && subtotal >= shop.free_over ? 0 : +shop.shipping || 0);
+  const ms = methodsOf(shop), m = ms.find(x => x.key === methodKey) || ms[0];
+  const shipping = !items.length ? 0 : (m.free_over && subtotal >= m.free_over ? 0 : +m.price || 0);
   const tax = round(subtotal * (+shop.tax_rate || 0) / 100);
-  return { subtotal, shipping, tax, total: round(subtotal + shipping + tax) };
+  return { subtotal, shipping, tax, total: round(subtotal + shipping + tax), method: m.key, method_name: m.name };
 }
 const round = n => Math.round(n * 100) / 100;
 
@@ -134,7 +144,7 @@ let cache = null;
 function load() {
   if (cache) return cache;
   try { cache = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { cache = null; }
-  if (!cache || cache.v !== 2) { cache = seed(); save(); }
+  if (!cache || cache.v !== 3) { cache = seed(); save(); }
   return cache;
 }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(cache)); } catch {} listeners.forEach(f => f()); }

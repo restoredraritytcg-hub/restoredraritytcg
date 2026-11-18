@@ -2,13 +2,13 @@
 // Same tables as the Restored Rarity portal (customers, submissions, cards, scans, photos, site_content),
 // shared by the portal (common.js demoApi), the customer link (view.html) and the website's intake form.
 // Live version: these are the Supabase tables in supabase/schema.sql and intake() is the intake_submit RPC.
-const KEY = "sae-portal-v2";
+const KEY = "sae-portal-v3";
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "x" + Math.random().toString(16).slice(2) + Date.now().toString(16));
 const key18 = () => Array.from(crypto.getRandomValues(new Uint8Array(9)), (b) => b.toString(16).padStart(2, "0")).join("");
 const ago = (d) => new Date(Date.now() - d * 864e5).toISOString();
 
 function seed() {
-  const d = { v: 2, customers: [], submissions: [], cards: [], scans: [], photos: [], site_content: [], seq: 1040 };
+  const d = { v: 3, customers: [], submissions: [], cards: [], scans: [], photos: [], site_content: [], seq: 1040 };
   const cust = (name, email, phone) => { const c = { id: uid(), name, email, phone, share_token: key18(), storage_key: key18().slice(0, 12), notes: "", created_at: ago(20) }; d.customers.push(c); return c; };
   const sub = (c, days, status, cards, extra = {}) => {
     const s = { id: uid(), code: "SAE-" + (++d.seq), customer_id: c.id, status, service: [...new Set(cards.map((k) => k.service))].join(", "),
@@ -26,7 +26,14 @@ function seed() {
       customer_notes: "Service: Restoration — Tier 1 ($80) + Estimated Grade ($10)\nCard value: $420\nDamage: Light crease on the front, top right" },
     { name: "Blastoise", details: "Base Set · 2/102 · 1999", service: "Cleaning ($20)",
       customer_notes: "Service: Cleaning ($20)\nCard value: $180\nDamage: Fingerprints and dust" },
-  ], { public_notes: "Cards arrived safely. Charizard is on the press this week.", internal_notes: "Delivery: Ship\nReturn address: 100 Example St, Austin TX 78701\nPaid: invoice #INV-1041 (demo)" });
+  ], { public_notes: "Cards arrived safely. Charizard is on the press this week.", internal_notes: "Delivery: Ship\nReturn address: 100 Example St, Austin TX 78701\nInsured return shipping: Yes\nPaid: invoice #INV-1041 (demo)",
+    return_address: { line1: "100 Example St", line2: "", city: "Austin", state: "TX", zip: "78701" } });
+  // one restoration finished and waiting for its return label, so the Pirate Ship queue has a card return in it
+  sub(cust("Return Demo", "returns@example.com", "(512) 555-0110"), 12, "ready", [
+    { name: "Gengar", details: "Fossil · 5/62 · 1999", service: "Restoration — Tier 1 ($80)", customer_notes: "Service: Restoration — Tier 1 ($80)\nCard value: $310\nDamage: Corner indent" },
+    { name: "Dragonite", details: "Fossil · 4/62 · 1999", service: "Cleaning ($20)", customer_notes: "Service: Cleaning ($20)\nCard value: $140" },
+  ], { public_notes: "All done — both cards look great. Shipping back this week.", internal_notes: "Delivery: Ship\nReturn address: 42 Demo Ave, Round Rock TX 78664\nInsured return shipping: Yes",
+    return_address: { line1: "42 Demo Ave", line2: "", city: "Round Rock", state: "TX", zip: "78664" } });
   sub(b, 2, "received", [
     { name: "Umbreon VMAX", details: "Evolving Skies · 215/203 · 2021", service: "Restoration — Tier 3 ($200) + Grade Prep & Ship ($20) — grading: PSA", grading: "PSA",
       customer_notes: "Service: Restoration — Tier 3 ($200) + Grade Prep & Ship ($20) — grading: PSA\nCard value: $1,350\nDamage: Indent on the back, small scratch on the holo" },
@@ -40,7 +47,7 @@ let cache = null;
 export function db() {
   if (cache) return cache;
   try { cache = JSON.parse(localStorage.getItem(KEY) || "null"); } catch { cache = null; }
-  if (!cache || cache.v !== 2) { cache = seed(); save(); }
+  if (!cache || cache.v !== 3) { cache = seed(); save(); }
   return cache;
 }
 export function save() { try { localStorage.setItem(KEY, JSON.stringify(cache)); } catch (e) { console.warn("Demo store is full", e); throw e; } }
@@ -61,7 +68,7 @@ export function intake(p) {
   else if (!c.phone && p.phone) c.phone = p.phone;
   const s = { id: uid(), code: "SAE-" + (++d.seq), customer_id: c.id, status: "submitted", service: (p.service || "").slice(0, 200),
     customer_notes: p.notes || "", internal_notes: p.intake_info || "", public_notes: "", created_at: now, updated_at: now, status_changed_at: now,
-    emailed_status: null, emailed_at: null, grading_track: null, quote_discount: "" };
+    emailed_status: null, emailed_at: null, grading_track: null, quote_discount: "", return_address: p.return_address || null, return_shipment: null };
   d.submissions.push(s);
   const ids = p.cards.map((k, i) => {
     const r = { id: uid(), submission_id: s.id, card_number: i + 1, name: k.name || "", details: k.details || "", status: "submitted",

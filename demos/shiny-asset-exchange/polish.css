@@ -314,3 +314,10 @@ main{overflow-x:clip}
 .checklist li::before,.good li::before{position:absolute;left:0;top:0}
 .nav a{white-space:nowrap}
 @media(min-width:901px) and (max-width:1180px){.logo span{display:none}}
+
+/* checkout: shipping methods */
+.ship-methods{display:grid;gap:10px}
+.ship-m{display:flex;align-items:center;gap:12px;padding:14px 16px;border:1px solid var(--line2);border-radius:10px;background:var(--panel);cursor:pointer;color:var(--text);margin:0}
+.ship-m:has(input:checked){border-color:var(--gold);background:linear-gradient(90deg,var(--goldbg),var(--panel))}
+.ship-m span{flex:1;display:flex;flex-direction:column} .ship-m b{color:#fff;font-size:15px} .ship-m small{color:var(--muted);font-size:13px}
+.ship-m em{font-style:normal;font-weight:700;color:var(--gold)}
