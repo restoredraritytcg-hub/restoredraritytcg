@@ -24,7 +24,9 @@ Test cards: `4242 4242 4242 4242` (works), `4000 0000 0000 0002` (declined), any
 
 ## What's in it
 
-Storefront (`index.html` + `shop.js`), the same pages and wording as their site:
+Storefront (`index.html` + `shop.js`), the same pages and wording as their site, **restoration first, products second**
+(header: Pricing · Free Card Review · Submit Cards · Order Status · FAQ · Products + a "Restore My Card" button; Tools and
+Recs live in the footer and the phone menu). Every page uses the polished design in `polish.css`:
 - Home (hero, how-it-works graphic, featured products, Bestseller), Products (collections), product pages with
   sizes, live stock status (In stock / Low stock / Sold out), quantity, Add to cart / Buy it now.
 - Cart drawer + cart page, checkout (contact, address, card payment), order confirmation. Checkout re-checks
@@ -80,6 +82,7 @@ Work portal (`portal/`) — a copy of Restored Rarity's `portal/`, rebranded, ru
 | `sae.css` | Base styles for the store and shop admin. |
 | `polish.css` | Storefront look in the Restored Rarity style (owner's request, Nov 18): glow background, Space Grotesk + Playfair Display italic, gradient headlines, glowing Free Card Review strip, numbered steps, can/can't-fix panels, price tiles, pricing ladder with round badges + calculator, red CTA band, branded footer, fade-in on scroll. Colours: black, logo red #e3202a, gold #e8c27e (from their Instagram price list). |
 | `cardsearch.js` | Copy of `portal/cardsearch.js`, set to load restoredraritytcg.com's `cards.json`. |
+| `brand/` | **Logo refresh concept** to pitch: badge, horizontal (dark/light), round mark, app icon (SVG + PNG) and a one-page pitch sheet PDF. See `brand/README.md`. |
 | `portal/` | The work portal (copy of the RR portal). Changed vs RR: `common.js` (demo store), `site.js` (SAE prices/quotes, tabs), `admin.js` (SAE menu + extras), `config.js`, `portal.css` (theme), page titles. `demostore.js` is new. |
 
 ## Going live (not built yet)

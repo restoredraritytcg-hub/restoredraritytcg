@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="1000" height="1000">
+<title>Shiny Asset Exchange — icon</title><defs>
+  <radialGradient id="disc" cx="50%" cy="38%" r="65%"><stop offset="0" stop-color="#1d1d23"/><stop offset="1" stop-color="#0a0a0c"/></radialGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f8e4b8"/><stop offset=".5" stop-color="#e8c27e"/><stop offset="1" stop-color="#b0843f"/></linearGradient>
+  <linearGradient id="red" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff4a52"/><stop offset=".55" stop-color="#e3202a"/><stop offset="1" stop-color="#9e1119"/></linearGradient>
+  <linearGradient id="holo" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".35" stop-color="#e9ecf2"/>
+    <stop offset=".55" stop-color="#fbe9ef"/><stop offset=".75" stop-color="#e6eef8"/><stop offset="1" stop-color="#c9ced8"/></linearGradient>
+  <linearGradient id="shine" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".9"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+  <linearGradient id="backcard" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2c2c33"/><stop offset="1" stop-color="#141418"/></linearGradient>
+  <clipPath id="frontclip"><rect x="-105" y="-147" width="210" height="294" rx="18"/></clipPath>
+  <radialGradient id="glow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#e3202a" stop-opacity=".45"/><stop offset="1" stop-color="#e3202a" stop-opacity="0"/></radialGradient>
+</defs>
+<rect width="1000" height="1000" rx="220" fill="url(#disc)"/>
+<rect x="18" y="18" width="964" height="964" rx="204" fill="none" stroke="url(#gold)" stroke-width="8" stroke-opacity=".8"/>
+<g transform="translate(500 520) scale(1.45)">
+  <circle r="230" fill="url(#glow)"/>
+  <g transform="translate(-52 6) rotate(-13)"><rect x="-105" y="-147" width="210" height="294" rx="18" fill="url(#backcard)" stroke="url(#red)" stroke-width="9"/>
+    <rect x="-84" y="-126" width="168" height="252" rx="10" fill="none" stroke="#e3202a" stroke-opacity=".35" stroke-width="3"/></g>
+  <g transform="translate(44 -14) rotate(9)">
+    <rect x="-105" y="-147" width="210" height="294" rx="18" fill="url(#holo)" stroke="url(#gold)" stroke-width="9"/>
+    <g clip-path="url(#frontclip)"><rect x="-60" y="-260" width="70" height="560" fill="url(#shine)" transform="rotate(28)"/>
+      <rect x="40" y="-260" width="26" height="560" fill="url(#shine)" opacity=".7" transform="rotate(28)"/></g>
+    <rect x="-84" y="-126" width="168" height="160" rx="8" fill="none" stroke="#b0843f" stroke-opacity=".55" stroke-width="3"/>
+    <rect x="-84" y="50" width="168" height="10" rx="5" fill="#b0843f" opacity=".35"/><rect x="-84" y="72" width="120" height="10" rx="5" fill="#b0843f" opacity=".25"/></g>
+  <path transform="translate(150 -150) rotate(0)" fill="url(#gold)" d="M0 -46 C10.12 -10.12 10.12 -10.12 46 0 C10.12 10.12 10.12 10.12 0 46 C-10.12 10.12 -10.12 10.12 -46 0 C-10.12 -10.12 -10.12 -10.12 0 -46 Z"/><path transform="translate(196 -86) rotate(0)" fill="#ffffff" d="M0 -20 C4.4 -4.4 4.4 -4.4 20 0 C4.4 4.4 4.4 4.4 0 20 C-4.4 4.4 -4.4 4.4 -20 0 C-4.4 -4.4 -4.4 -4.4 0 -20 Z"/><path transform="translate(-160 150) rotate(0)" fill="#e8c27e" d="M0 -16 C3.52 -3.52 3.52 -3.52 16 0 C3.52 3.52 3.52 3.52 0 16 C-3.52 3.52 -3.52 3.52 -16 0 C-3.52 -3.52 -3.52 -3.52 0 -16 Z"/>
+</g>
+</svg>

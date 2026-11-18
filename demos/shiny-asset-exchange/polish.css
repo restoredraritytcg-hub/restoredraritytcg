@@ -237,3 +237,80 @@ main{overflow-x:clip}
 .hero2 .bg{opacity:.09;filter:grayscale(.6) blur(2px)}
 .pcard .btn{width:100%}
 @media(max-width:900px){.hdr .logo{margin-right:auto}}
+
+/* ===== whole-site polish (Nov 18) ===== */
+.hdr-cta{flex:none;padding:9px 14px}
+@media(max-width:1100px){.nav a{padding:8px 7px;font-size:13.5px}}
+@media(max-width:900px){.hdr-cta{display:none}}
+.page-head{padding:52px 0 18px}
+.narrow > .page-head{padding-top:48px}
+.narrow{max-width:860px}
+
+/* product page */
+.pdp{gap:56px;padding:44px 0 64px}
+.gallery .main{background:#fff;border-radius:16px;box-shadow:0 0 0 1px rgba(255,255,255,.06),0 30px 60px -36px #000}
+.thumbs button{border-radius:8px;background:#fff} .thumbs button.on{border-color:var(--gold)}
+.buybox{position:sticky;top:96px;align-self:start}
+.crumbs{font-size:13px;color:var(--dim);margin-bottom:10px} .crumbs a{color:var(--muted);text-decoration:none} .crumbs a:hover{color:var(--gold)}
+.pdp h1{font-size:clamp(28px,3.4vw,40px);margin:4px 0 8px}
+.price-lg{color:var(--gold);font-weight:700;font-size:28px}
+.opt{border-radius:99px;border-color:var(--line2)} .opt.on{background:linear-gradient(135deg,#f6dca6,var(--gold));border-color:transparent;color:#1a1206;font-weight:700}
+.qty{border-radius:8px;background:var(--panel)}
+.perks{display:grid;gap:6px;margin:20px 0 6px;padding:14px 16px;border-radius:12px;border:1px solid var(--line);background:var(--panel);font-size:14px;color:var(--muted)}
+.rte.desc{margin-top:22px;padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:860px){.buybox{position:static}}
+
+/* cart / checkout / thanks */
+.drawer{background:linear-gradient(180deg,#121215,#0a0a0c);border-left-color:var(--line2)}
+.drawer .head h3{text-transform:uppercase;letter-spacing:.08em}
+.line img{border-radius:8px;background:#fff}
+.sum.total span:last-child{color:var(--gold)}
+.step-h{display:flex;align-items:center;gap:12px;font-size:18px;text-transform:uppercase;letter-spacing:.06em;margin:28px 0 14px}
+.step-h i{font-style:normal;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-size:15px;color:#fff;
+  background:radial-gradient(circle at 30% 30%,#ff5a5f,var(--red) 55%,var(--red2));box-shadow:0 0 0 4px rgba(227,32,42,.12)}
+.checkout .page-head{padding-top:0}
+.checkout .summary .panel{position:sticky;top:96px;border-color:rgba(232,194,126,.3)}
+.success-mark{width:76px;height:76px;border-radius:50%;display:grid;place-items:center;font-size:36px;color:#fff;margin:56px 0 -24px;
+  background:radial-gradient(circle at 30% 30%,#5ee58a,#22a04f);box-shadow:0 0 0 8px rgba(62,214,96,.12),0 16px 40px -16px rgba(62,214,96,.6)}
+
+/* quiz */
+.quiz-start{display:flex;align-items:center;gap:18px;padding:22px;border-radius:16px;border:1.5px solid rgba(227,32,42,.7);
+  background:linear-gradient(120deg,rgba(227,32,42,.18),rgba(232,194,126,.06));animation:promo-glow 2.8s ease-in-out infinite}
+.quiz-start div{flex:1;display:flex;flex-direction:column} .quiz-start b{color:#fff;font-size:18px;text-transform:uppercase;letter-spacing:.04em}
+.quiz-start span:not(.mini-card){color:var(--muted);font-size:14px}
+.quiz h3{font-size:24px}
+.result{border-radius:14px}
+
+/* submit */
+.checklist{margin:8px 0 16px} .checklist h3{color:var(--gold);text-transform:uppercase;letter-spacing:.1em;font-size:14px}
+.checklist ul{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+.checklist li{display:grid;grid-template-columns:24px 1fr;color:var(--muted)} .checklist li::before{content:"✦";color:var(--gold)}
+.queue{padding:16px 18px;border-radius:12px;border:1px solid var(--line2);background:var(--panel);font-size:15px;color:var(--muted)}
+.queue strong{color:#fff}
+.qbar{height:8px;border-radius:99px;background:#26262d;overflow:hidden;margin-bottom:10px}
+.qbar div{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--gold),var(--red))}
+#sf .step-h:first-child{margin-top:0}
+
+/* home tweaks */
+.ways .panel{padding:24px}
+.bestseller.compact{grid-template-columns:.7fr 1.3fr;padding:28px;border-radius:18px;border:1px solid var(--line);background:linear-gradient(120deg,rgba(232,194,126,.06),var(--panel))}
+.bestseller.compact img{max-height:320px;width:100%;object-fit:cover}
+.bestseller.compact h2{font-size:clamp(24px,2.6vw,32px)}
+@media(max-width:800px){.bestseller.compact{grid-template-columns:1fr}}
+.timeline li.done::before{background:var(--gold);border-color:var(--gold)}
+.timeline li.now::before{background:#fff;border-color:var(--red)}
+.pill.ok{background:rgba(62,214,96,.1)}
+.filters button{border-radius:99px} .filters button.on{background:linear-gradient(135deg,#f6dca6,var(--gold));border-color:transparent;color:#1a1206;font-weight:700}
+
+/* shop admin (admin.html also loads this file) */
+.adm .side{background:linear-gradient(180deg,#0e0e11,#08080a)}
+.adm .side a.nl.on{background:linear-gradient(90deg,rgba(227,32,42,.22),transparent);box-shadow:inset 3px 0 0 var(--red)}
+.adm-top h1{text-transform:uppercase;letter-spacing:.04em}
+.stat{background:linear-gradient(180deg,var(--panel2),var(--panel));border-radius:12px}
+.stat .v{color:var(--gold)}
+.demo-flag{border-radius:10px}
+@media(min-width:901px){.nav a.sec{display:none}.nav{flex-wrap:nowrap}}
+.checklist li,.good li{display:block;position:relative;padding-left:24px}
+.checklist li::before,.good li::before{position:absolute;left:0;top:0}
+.nav a{white-space:nowrap}
+@media(min-width:901px) and (max-width:1180px){.logo span{display:none}}

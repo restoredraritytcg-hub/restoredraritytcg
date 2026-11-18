@@ -531,6 +531,12 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    Note: the portal copy diverges from `portal/` (see the demo README's file table) — it is not kept in sync automatically.
    **Nov 18 (later): restyled the storefront in the Restored Rarity design language** (owner: the customer wants the polished
    look of the owner's sites, not Shopify's plain one) — `polish.css` + new home/pricing layouts in `shop.js`, same copy.
+   Then (owner: "a card restoration company first and product company 2nd"): every page restyled (page headers, product
+   page, cart, numbered checkout, quiz, submit form with queue bar, status, FAQ/Tools/Recs), home reordered (restoration
+   sections + two ways to send + CTA before the products), header = restoration links + Products + "Restore My Card"; shop
+   admin + work portal share the fonts/colours. **Logo refresh concept** for the pitch in `demos/shiny-asset-exchange/brand/`
+   (outlined SVG/PNG + pitch PDF; generator `brand/source/make_logo.py`). Owner asked for its own repo: suggested
+   `restoredraritytcg-hub/shinyassetexchange-demo` (private) — Claude can't create repos, so the owner creates it empty.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.

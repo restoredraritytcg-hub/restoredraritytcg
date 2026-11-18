@@ -44,7 +44,7 @@ function chrome() {
     <div><h4>Questions? Reach us at</h4><p><a href="mailto:${esc(ct.email)}">${esc(ct.email)}</a></p><p>Phone: <a href="tel:${esc(ct.phone.replace(/\D/g, ''))}">${esc(ct.phone)}</a></p></div>
     <div><h4>Send your cards to:</h4><p>${ct.address.map(esc).join('<br>')}</p><p>Email: <a href="mailto:${esc(ct.email)}">${esc(ct.email)}</a></p></div>
     <div><h4>Local drop-off in Austin</h4><p>${esc(d.name)}<br>${d.address.map(esc).join('<br>')}<br>${esc(d.phone)}</p></div>
-    </div><div class="base"><span>© ${new Date().getFullYear()} Shiny Asset Exchange</span><a href="#/privacy">Privacy policy</a><a href="#/agreement">Non Liability Agreement</a><a href="#/privacy">Your Privacy Choices</a><a href="https://www.instagram.com/shinyassetexchange/" target="_blank" rel="noopener">Instagram</a><a href="admin.html">Shop admin (demo)</a><a href="portal/admin.html">Work portal (demo)</a></div></div>`;
+    </div><div class="base"><span>© ${new Date().getFullYear()} Shiny Asset Exchange</span><a href="#/privacy">Privacy policy</a><a href="#/agreement">Non Liability Agreement</a><a href="#/privacy">Your Privacy Choices</a><a href="#/tools">Tools</a><a href="#/recs">Recs</a><a href="https://www.instagram.com/shinyassetexchange/" target="_blank" rel="noopener">Instagram</a><a href="admin.html">Shop admin (demo)</a><a href="portal/admin.html">Work portal (demo)</a></div></div>`;
   updateBadge();
 }
 $('#menuBtn').onclick = () => $('#nav').classList.toggle('open');
@@ -107,8 +107,9 @@ function reveal() {
   els.forEach((e, i) => { e.style.transitionDelay = (i % 4) * 70 + 'ms'; revealer.observe(e); });
 }
 
-function notFound() { app.innerHTML = `<div class="narrow section"><h1>Page not found</h1><p><a class="link" href="#/">Back to the home page</a></p></div>`; }
+function notFound() { app.innerHTML = `<div class="narrow" style="padding-bottom:80px">${pageHead('Lost?', 'Page not found')}<a class="btn red" href="#/">Back to the home page</a></div>`; }
 
+const pageHead = (script, title, sub = '') => `<div class="page-head rv">${script ? `<span class="script">${script}</span>` : ''}<h1 class="grad">${title}</h1>${sub ? `<p>${sub}</p>` : ''}</div>`;
 const LOGO_BIG = IMG + '64F23902-BF59-4ECD-83AF-2698895120CB.png?width=800';
 const secHead = (eyebrow, title, sub = '', cls = '') => `<div class="sec-head rv ${cls}">${eyebrow ? `<span class="eyebrow">${eyebrow}</span>` : ''}<h2>${title}</h2>${sub ? `<p>${sub}</p>` : ''}</div>`;
 const tierRange = t => t.max == null ? money0(t.min) + '+' : `${money0(t.min)} – ${money0(t.max)}`;
@@ -161,19 +162,23 @@ function home() {
     <div class="tiers-mini rv">${pr.tiers.map(t => `<div class="tm ${t.pct ? 'hot' : ''}"><span>${tierRange(t)}</span><b>${t.pct ? t.pct + '% value' : money0(t.price)}</b></div>`).join('')}</div>
     <div class="row rv" style="margin-top:22px"><a class="btn gold" href="#/pricing">Full price list &amp; add-ons</a><a class="btn ghost" href="#/review">Not sure? Free Card Review</a></div></div></section>
 
+  <section class="section" style="padding-top:0"><div class="wrap">${secHead('Shipping or drop-off', 'Two ways to get your cards to us', 'Ship them in, or drop them off locally in Austin.')}
+    <div class="ways"><div class="panel rv"><h3>Shipping to us</h3><p class="muted" style="margin:0 0 14px">Fill out the submission form and we'll send an invoice along with shipping instructions. Work begins once payment is confirmed.</p><a class="btn red sm" href="#/submit">Submit Your Cards</a></div>
+      <div class="panel rv"><h3>Local drop-off in Austin</h3><p class="muted" style="margin:0 0 14px">Bring your cards to ${esc(c.dropoff.name)}, ${esc(c.dropoff.address[0])}. No form needed — just walk in and we'll handle the paperwork in person.</p><a class="btn ghost sm" href="#/pricing">Drop-off details</a></div></div></div></section>
+  <section class="section tight"><div class="wrap"><div class="cta-band rv"><span class="script" style="color:#ffe3b0">Revive · Resale · Repeat</span>
+    <h2>Ready to get started?</h2><p>We accept up to ${c.capacity} cards per week on a first-come, first-served basis.</p>
+    <div class="row" style="justify-content:center"><a class="btn" href="#/submit">Submit Your Cards</a></div></div></div></section>
+
   <div class="divider"></div>
   <section class="section"><div class="wrap">
     <div class="row" style="justify-content:space-between;align-items:flex-end">${secHead('Card care products', 'The same products we use in every restoration is now available for your personal use.',
       'Freshen up your cards with the most effective card care product line on the market exclusively from Shiny Asset Exchange. Try our proprietary formula products for card care!', 'plain')}
       <a class="btn ghost rv" href="#/shop" style="margin-bottom:28px">View all</a></div>
     <div class="grid-products">${feat.map(p => pcard(p).replace('class="pcard"', 'class="pcard rv"')).join('')}</div></div></section>
-  ${best ? `<section class="section"><div class="wrap bestseller"><div class="frame rv"><img src="${esc(best.images[0])}" alt="${esc(best.title)}"></div>
+  ${best ? `<section class="section" style="padding-top:8px"><div class="wrap bestseller compact"><div class="frame rv"><img src="${esc(best.images[0])}" alt="${esc(best.title)}"></div>
     <div class="rv"><span class="eyebrow">Bestseller</span><h2 class="grad">${esc(best.title)}</h2><p class="muted" style="font-size:17px">${esc(c.bestseller)}</p>
     <div class="row"><a class="btn red" href="#/p/${esc(best.handle)}">SHOP NOW</a><span class="pcard-price" style="color:var(--gold);font-weight:700;font-size:20px">${priceLabel(best)}</span></div></div></div></section>` : ''}
-  ${eventsHtml()}${newsHtml()}${instagramHtml()}
-  <section class="section tight"><div class="wrap"><div class="cta-band rv"><span class="script" style="color:#ffe3b0">Revive · Resale · Repeat</span>
-    <h2>Ready to get started?</h2><p>We accept up to ${c.capacity} cards per week on a first-come, first-served basis.</p>
-    <div class="row" style="justify-content:center"><a class="btn" href="#/submit">Submit Your Cards</a></div></div></div></section>`;
+  ${eventsHtml()}${newsHtml()}${instagramHtml()}`;
   bindAdds(app);
   if ($('.instagram-media') && !window.instgrm) { const sc = document.createElement('script'); sc.async = true; sc.src = 'https://www.instagram.com/embed.js'; document.body.appendChild(sc); }
   else if (window.instgrm) window.instgrm.Embeds.process();
@@ -228,7 +233,8 @@ function productPage([handle]) {
     app.innerHTML = `<div class="wrap"><div class="pdp">
       <div class="gallery"><div class="main"><img src="${esc(p.images[img] || '')}" alt="${esc(p.title)}"></div>
         ${p.images.length > 1 ? `<div class="thumbs">${p.images.map((u, i) => `<button class="${i === img ? 'on' : ''}" data-img="${i}"><img src="${esc(u.replace('width=1200', 'width=200'))}" alt=""></button>`).join('')}</div>` : ''}</div>
-      <div><div class="kicker">Shiny Asset Exchange</div><h1>${esc(p.title)}</h1>
+      <div class="buybox"><div class="crumbs"><a href="#/shop">Card care</a> / <span>${esc(p.collection === 'hydration' ? 'Hydration Spray' : 'Products')}</span></div>
+        <span class="script" style="font-size:19px">Straight from our restoration studio</span><h1>${esc(p.title)}</h1>
         <div class="price-lg">${money(v.price)}</div>
         ${p.tagline ? `<p><strong>${esc(p.tagline)}</strong></p>` : ''}
         ${p.variants.length > 1 ? `<label>Size</label><div class="opts">${p.variants.map((x, i) => `<button class="opt ${i === vi ? 'on' : ''} ${stockState(x).key === 'out' ? 'out' : ''}" data-v="${i}">${esc(x.title)}</button>`).join('')}</div>` : ''}
@@ -237,8 +243,11 @@ function productPage([handle]) {
           <div class="qty"><button data-q="-1" aria-label="Less">−</button><input id="qty" inputmode="numeric" value="${qty}" aria-label="Quantity"><button data-q="1" aria-label="More">+</button></div>
           <button class="btn red grow" id="add" ${s.key === 'out' ? 'disabled' : ''}>${s.key === 'out' ? 'Sold out' : 'Add to cart'}</button></div>
         <button class="btn block ghost" id="buy" ${s.key === 'out' ? 'disabled' : ''}>Buy it now</button>
-        <div class="rte" style="margin-top:26px">${body}</div>
-        <p class="small muted"><a class="link" href="${CARE_GUIDE}" target="_blank" rel="noopener">Download the Card Care Guide</a></p></div></div></div>`;
+        <div class="perks"><span>✦ The same formula we use on client cards every week</span><span>✦ Secure checkout by Stripe</span>
+          <span>✦ <a class="link" href="${CARE_GUIDE}" target="_blank" rel="noopener">Card Care Guide</a> included</span></div>
+        <div class="rte desc">${body}</div>
+        <div class="callout" style="margin-top:24px"><b style="color:#fff">Rather have the pros do it?</b><p style="margin:6px 0 10px">Send your card in — restoration starts at ${money0(C().prices.tiers[0].price)}.</p>
+          <a class="btn red sm" href="#/submit">Submit Your Cards</a> <a class="btn ghost sm" href="#/review">Free Card Review</a></div></div></div></div>`;
     $$('[data-img]').forEach(b => b.onclick = () => { img = +b.dataset.img; draw(); });
     $$('[data-v]').forEach(b => b.onclick = () => { vi = +b.dataset.v; qty = 1; draw(); });
     $$('[data-q]').forEach(b => b.onclick = () => { qty = Math.max(1, Math.min(v.track ? Math.max(1, v.stock) : 99, (+$('#qty').value || 1) + +b.dataset.q)); $('#qty').value = qty; });
@@ -292,7 +301,7 @@ function closeCart() { $('#drawer').classList.remove('open'); $('#scrim').classL
 function cartPage() {
   const draw = () => {
     const c = cartHtml();
-    app.innerHTML = `<div class="narrow section tight"><h1>Your cart</h1>${c.html}
+    app.innerHTML = `<div class="narrow" style="padding-bottom:60px">${pageHead('Card care', 'Your cart')}<div class="panel">${c.html}</div>
       ${c.empty ? '' : `<div style="max-width:360px;margin:20px 0 0 auto">${sumHtml(c.t)}<a class="btn red block" style="margin-top:12px" href="#/checkout">Check out</a></div>`}</div>`;
     bindCart(app, draw);
   };
@@ -330,12 +339,12 @@ function checkout() {
   const f = (id, label, ac, type = 'text', req = true) => `<div class="field"><label for="${id}">${label}</label><input id="${id}" type="${type}" autocomplete="${ac}" value="${esc(saved[id] || '')}" ${req ? 'required' : ''}></div>`;
   app.innerHTML = `<div class="wrap"><div class="checkout">
     <form id="co" novalidate>
-      <h2>Contact</h2>${f('email', 'Email', 'email', 'email')}${f('phone', 'Phone (optional)', 'tel', 'tel', false)}
-      <h2 style="margin-top:22px">Delivery</h2>
+      ${pageHead('Secure checkout', 'Checkout')}<h2 class="step-h"><i>1</i>Contact</h2>${f('email', 'Email', 'email', 'email')}${f('phone', 'Phone (optional)', 'tel', 'tel', false)}
+      <h2 class="step-h"><i>2</i>Delivery</h2>
       <div class="grid2">${f('first', 'First name', 'given-name')}${f('last', 'Last name', 'family-name')}</div>
       ${f('line1', 'Address', 'address-line1')}${f('line2', 'Apartment, suite, etc. (optional)', 'address-line2', 'text', false)}
       <div class="grid3">${f('city', 'City', 'address-level2')}${f('state', 'State', 'address-level1')}${f('zip', 'ZIP code', 'postal-code')}</div>
-      <h2 style="margin-top:22px">Payment</h2><p class="small muted">All transactions are secure and encrypted.</p>
+      <h2 class="step-h"><i>3</i>Payment</h2><p class="small muted">All transactions are secure and encrypted.</p>
       ${payFormHtml(t.total, 'Pay')}
       <div class="err hidden" id="coErr"></div>
     </form>
@@ -365,7 +374,7 @@ function checkout() {
 function thanks([id]) {
   const o = store.order(id); if (!o) return notFound();
   const c = store.customer(o.customer_id);
-  app.innerHTML = `<div class="narrow section"><div class="kicker">Order ${esc(o.number)}</div><h1>Thank you${c ? ', ' + esc(c.name.split(' ')[0]) : ''}!</h1>
+  app.innerHTML = `<div class="narrow" style="padding-bottom:60px"><div class="success-mark rv">✓</div>${pageHead('Order ' + esc(o.number), 'Thank you' + (c ? ', ' + esc(c.name.split(' ')[0]) : '') + '!')}
     <p>Your payment of <b>${money(o.total)}</b> went through and your order is confirmed. A receipt is on its way to ${esc(o.email)}.</p>
     <div class="panel">${o.items.map(i => `<div class="sum"><span>${i.qty} × ${esc(i.title)} ${esc(i.variant)}</span><span>${money(i.price * i.qty)}</span></div>`).join('')}
       <div style="margin-top:10px">${sumHtml(o)}</div></div>
@@ -440,15 +449,14 @@ function review() {
   const ok = s => !s.only || s.only(A);
   const next = f => { for (let j = f; j < ASSESS.Q.length; j++) if (ok(ASSESS.Q[j])) return j; return -1; };
   const intro = () => {
-    app.innerHTML = `<div class="narrow section" style="max-width:700px"><h1>Is your card worth restoring?</h1>
-      <p class="muted" style="font-size:17px">A few quick questions and we'll give you a straight answer, including when the answer is no.</p>
-      <p class="kicker">Under 2 minutes</p><button class="btn red" id="go">Start</button></div>`;
+    app.innerHTML = `<div class="narrow" style="max-width:760px;padding-bottom:80px">${pageHead('Free Card Review', 'Is your card worth restoring?', "A few quick questions and we'll give you a straight answer, including when the answer is no.")}
+      <div class="quiz-start rv"><span class="mini-card" aria-hidden="true"></span><div><b>Under 2 minutes</b><span>7 quick questions · honest answer · no sign-up</span></div><button class="btn red" id="go">Start</button></div></div>`;
     $('#go').onclick = render;
   };
   const render = () => {
     const s = ASSESS.Q[i]; let shown = 0, pos = 0;
     ASSESS.Q.forEach((q, j) => { if (ok(q)) { shown++; if (j <= i) pos = shown; } });
-    app.innerHTML = `<div class="narrow section" style="max-width:700px"><p class="kicker">Step ${pos} of ${shown}</p><div class="progress"><div style="width:${pos / shown * 100}%"></div></div>
+    app.innerHTML = `<div class="narrow section quiz" style="max-width:760px"><p class="kicker">Step ${pos} of ${shown}</p><div class="progress"><div style="width:${pos / shown * 100}%"></div></div>
       <h3 style="font-size:22px">${esc(s.q)}</h3>${s.sub ? `<p class="muted small">${esc(s.sub)}</p>` : '<div style="height:12px"></div>'}
       ${s.a.map(([l, v]) => `<button class="choice ${s.multi && (A[s.k] || []).includes(v) ? 'on' : ''}" data-v="${v}">${esc(l)}</button>`).join('')}
       ${s.multi ? '<button class="btn red" id="cont" style="margin-top:10px">Continue</button>' : ''}
@@ -465,7 +473,7 @@ function review() {
   const result = () => {
     const r = assessResult(A, prices), d = C().dropoff;
     try { sessionStorage.setItem('sae-assess', JSON.stringify({ service: r.service, value: r.value, review: r.verdict === 'diag' })); } catch {}
-    app.innerHTML = `<div class="narrow section" style="max-width:700px"><p class="kicker" style="color:var(--dim)">Your result</p>
+    app.innerHTML = `<div class="narrow section quiz" style="max-width:760px"><p class="kicker">Your result</p>
       <div class="result ${r.col}"><h3 style="font-size:26px">${esc(r.head)}</h3><p style="margin:0">${esc(r.sub)}</p></div>
       ${r.notes.length ? `<h4 style="font-size:19px;margin:32px 0 14px">What we’re seeing</h4>${r.notes.map(n => `<p class="note-line">${esc(n)}</p>`).join('')}` : ''}
       ${r.price ? `<p class="muted" style="margin-top:22px">${esc(r.price)}</p>` : ''}
@@ -515,30 +523,30 @@ function submit(args, params) {
   const blank = () => ({ name: '', details: '', value: pre ? pre.value : '', service: pre ? pre.service : 'restoration', addons: pre && pre.review ? ['review'] : [], grading: '', damage: '', photos: {} });
   const cards = [blank()];
   const used = PS.queueThisWeek(), full = used >= c.capacity;
-  app.innerHTML = `<div class="wrap section tight"><div style="max-width:820px"><h1 style="color:var(--red)">Ready to restore your cards?</h1>
+  app.innerHTML = `<div class="wrap" style="padding-bottom:40px"><div style="max-width:860px">${pageHead('Card Restoration Services', 'Ready to restore your cards?')}
     <p>We accept up to ${c.capacity} cards per week on a first-come, first-served basis. Once we receive your cards and payment is confirmed, turnaround is 1 week. Shipping time to us is separate — please plan accordingly based on your location.</p>
     <p>If you see a message below saying our queue is full this week, don't worry — you can still submit. Your cards will be added to the next available slot and your estimated timeline will reflect that automatically. Any questions, email us at <a class="link" href="mailto:${esc(c.contact.email)}">${esc(c.contact.email)}</a>.</p>
     <p>Fill out the form below to submit your TCG cards for restoration or cleaning. We accept all trading card game cards in any condition — sports cards not accepted.</p>
-    <p class="red"><strong>Before you submit:</strong></p>
+    <div class="panel checklist rv"><h3>Before you submit:</h3>
     <ul><li>Look up your card's value at <a class="link" href="https://www.tcgplayer.com/" target="_blank" rel="noopener">TCGplayer.com</a> and have it ready — your service price is based on this value.</li>
       <li>Photograph the front and back of each card clearly before submitting.</li>
       <li>Add every card to this one form — use “+ Add another card”.</li>
       <li>Payment is due in full before work begins. We'll send payment instructions after reviewing your submission.</li>
-      <li>For bulk restoration orders, please email your card details directly to <a class="link" href="mailto:${esc(c.contact.email)}">${esc(c.contact.email)}</a> instead of using this form.</li></ul>
-    <div class="callout" style="border-color:${full ? 'var(--warn)' : 'var(--ok)'}">${full
+      <li>For bulk restoration orders, please email your card details directly to <a class="link" href="mailto:${esc(c.contact.email)}">${esc(c.contact.email)}</a> instead of using this form.</li></ul></div>
+    <div class="queue rv"><div class="qbar"><div style="width:${Math.min(100, used / c.capacity * 100)}%"></div></div><div>${full
       ? `<strong>Our queue is full this week.</strong> You can still submit — your cards go into next week's slot.`
-      : `<strong>${c.capacity - used} of ${c.capacity} spots open this week.</strong> Cards received by Sunday join this week's queue.`}</div></div>
+      : `<strong>${c.capacity - used} of ${c.capacity} spots open this week.</strong> Cards received by Sunday join this week's queue.`}</div></div></div>
     <form id="sf" class="cols-main" style="margin-top:24px" novalidate>
       <div>
-        <h2>Your details</h2>
+        <h2 class="step-h"><i>1</i>Your details</h2>
         <div class="grid2"><div class="field"><label>Full name</label><input id="s_name" autocomplete="name" required></div><div class="field"><label>Email</label><input id="s_email" type="email" autocomplete="email" required></div></div>
         <div class="grid2"><div class="field"><label>Phone</label><input id="s_phone" type="tel" autocomplete="tel"></div>
           <div class="field"><label>How will your cards get to us?</label><select id="s_del"><option value="ship">I'll ship them</option><option value="dropoff">Drop-off at ${esc(c.dropoff.name)} (Austin)</option></select></div></div>
         <div id="retWrap"><div class="field"><label>Return shipping address</label><textarea id="s_addr" autocomplete="street-address" placeholder="Street, city, state, ZIP"></textarea></div>
           <label class="check"><input type="checkbox" id="s_ins" checked> Insure my return shipping</label></div>
-        <h2 style="margin-top:18px">Your cards</h2><div id="cards"></div>
+        <h2 class="step-h"><i>2</i>Your cards</h2><div id="cards"></div>
         <button type="button" class="btn ghost" id="addCard">+ Add another card</button>
-        <div class="field" style="margin-top:20px"><label>Anything else we should know?</label><textarea id="s_notes"></textarea></div>
+        <h2 class="step-h"><i>3</i>Anything else</h2><div class="field"><label>Anything else we should know?</label><textarea id="s_notes"></textarea></div>
         <div class="field"><label>How did you hear about us? (optional)</label><select id="s_how"><option value="">—</option><option>Instagram</option><option>YouTube</option><option>Home Town Cards & Collectibles</option><option>A friend</option><option>Google</option><option>Other</option></select></div>
         <label class="check"><input type="checkbox" id="s_agree"> <span>I've read the <a class="link" href="#/faq" target="_blank">FAQ</a> and agree to the <a class="link" href="#/agreement" target="_blank">Non Liability Agreement</a>. I understand results are not guaranteed and the service fee applies regardless of outcome.</span></label>
         <div class="err hidden" id="sErr"></div>
@@ -612,7 +620,7 @@ function submit(args, params) {
 const portalLink = token => new URL('portal/view.html#t=' + token, location.href).href;
 function submitted(r, email, drop) {
   const ct = C().contact, d = C().dropoff;
-  app.innerHTML = `<div class="narrow section"><div class="kicker">Submission ${esc(r.code)}</div><h1>Thanks — we've got your submission!</h1>
+  app.innerHTML = `<div class="narrow" style="padding-bottom:60px"><div class="success-mark rv">✓</div>${pageHead('Submission ' + esc(r.code), "Thanks — we've got your submission!")}
     <p>Your reference is <b>${esc(r.code)}</b>. We'll review your ${r.cards === 1 ? 'card' : r.cards + ' cards'} and email an invoice to <b>${esc(email)}</b>${drop ? '' : ' along with shipping instructions'}. Work begins once payment is confirmed.</p>
     ${drop ? `<div class="callout">Bring your cards to <b>${esc(d.name)}</b>, ${d.address.map(esc).join(', ')}. Mention ${esc(r.code)}.</div>`
       : `<div class="callout"><b>Ship to:</b><br>${ct.address.map(esc).join('<br>')}<br><span class="small muted">Write ${esc(r.code)} on a note inside the package. Tracked and insured shipping recommended.</span></div>`}
@@ -644,8 +652,7 @@ function subBlock({ submission: s, customer: c, cards }) {
     <a class="btn red" href="${esc(portalLink(c.share_token))}">See every card, scan and photo</a></div>`;
 }
 function status(args, params) {
-  app.innerHTML = `<div class="narrow section tight" style="max-width:720px"><h1>Order Status</h1>
-    <p class="muted">Look up a product order (like #1001) or a restoration submission (like SAE-1041) with the email you used.</p>
+  app.innerHTML = `<div class="narrow" style="max-width:760px;padding-bottom:60px">${pageHead('Track your cards', 'Order Status', 'Look up a restoration submission (like SAE-1041) or a product order (like #1001) with the email you used.')}
     <form id="lk" class="panel"><div class="grid2"><div class="field"><label>Order number or submission code</label><input id="q" value="${esc(params.get('q') || '')}"></div>
       <div class="field"><label>Email</label><input id="e" type="email" value="${esc(params.get('e') || '')}"></div></div>
       <button class="btn red">Find my order</button></form><div id="res" style="margin-top:20px"></div></div>`;
@@ -661,39 +668,39 @@ function status(args, params) {
 }
 function my([tok]) {
   const c = store.customerByToken(tok);
-  if (!c) return app.innerHTML = `<div class="narrow section"><h1>This link isn't valid</h1><p class="muted">It may have been replaced with a new one. Email ${esc(C().contact.email)} and we'll send you your current link.</p></div>`;
+  if (!c) return app.innerHTML = `<div class="narrow" style="padding-bottom:60px">${pageHead('', "This link isn't valid")}<p class="muted">It may have been replaced with a new one. Email ${esc(C().contact.email)} and we'll send you your current link.</p></div>`;
   const orders = store.orders().filter(o => o.customer_id === c.id);
-  app.innerHTML = `<div class="narrow section tight"><div class="kicker">Your orders</div><h1>Hi ${esc(c.name.split(' ')[0])}</h1>
+  app.innerHTML = `<div class="narrow" style="padding-bottom:60px">${pageHead('Your orders', 'Hi ' + esc(c.name.split(' ')[0]))}
     <p class="muted">Your Shiny Asset Exchange product orders, updated live. Keep this link private. Restorations have their own private page (linked in your submission email).</p>
     ${orders.map(orderBlock).join('') || '<p>Nothing here yet.</p>'}</div>`;
 }
 
 // ---------------- info pages ----------------
 function faq() {
-  app.innerHTML = `<div class="narrow section tight"><h1>FAQ</h1><p class="muted">${FAQ_INTRO}</p>
-    ${FAQ.map(g => `<h2 style="margin-top:32px">${esc(g.group)}</h2>${g.intro ? `<p class="muted">${esc(g.intro)}</p>` : ''}
+  app.innerHTML = `<div class="narrow" style="padding-bottom:60px">${pageHead('Questions', 'FAQ', FAQ_INTRO)}
+    ${FAQ.map(g => `<div class="sec-head rv" style="margin:36px 0 16px"><h2>${esc(g.group)}</h2>${g.intro ? `<p>${esc(g.intro)}</p>` : ''}</div>
       ${g.items.map(([q, a]) => `<details class="faq"><summary>${esc(q)}</summary><p>${a}</p></details>`).join('')}`).join('')}
     <div style="margin-top:32px">${FAQ_OUTRO}</div><a class="btn red" href="#/review">Take the Free Card Review</a></div>`;
 }
 function tools() {
-  app.innerHTML = `<div class="narrow section tight"><h1>Tools</h1>${TOOLS.intro.map(p => `<p class="muted">${esc(p)}</p>`).join('')}
-    ${TOOLS.groups.map(g => `<h2 style="margin-top:32px">${esc(g.name)}</h2><p class="muted">${esc(g.sub)}</p>
+  app.innerHTML = `<div class="narrow" style="padding-bottom:60px">${pageHead('From our studio', 'Tools', esc(TOOLS.intro[0]))}<p class="muted rv">${esc(TOOLS.intro[1])}</p>
+    ${TOOLS.groups.map(g => `<div class="sec-head rv" style="margin:36px 0 16px"><h2>${esc(g.name)}</h2><p>${esc(g.sub)}</p></div>
       ${g.items.map(([n, u, d]) => `<div class="tool"><a href="${esc(u)}" target="_blank" rel="noopener sponsored">${esc(n)} →</a><p class="muted" style="margin:6px 0 0">${esc(d)}</p></div>`).join('')}`).join('')}
     <div class="callout" style="margin-top:32px"><h3>Before you dive in</h3>${TOOLS.warning.map(p => `<p>${esc(p)}</p>`).join('')}</div>
     <h3>Looking for our own card care products?</h3><a class="btn red" href="#/shop">Shop Card Care</a></div>`;
 }
 function recs() {
   const p = RECS.pick;
-  app.innerHTML = `<div class="narrow section tight"><h1>Recs</h1><p class="muted">${esc(RECS.intro)}</p><p class="small dim">${esc(RECS.affiliate)}</p>
+  app.innerHTML = `<div class="narrow" style="padding-bottom:60px">${pageHead('Worth your money', 'Recs', esc(RECS.intro))}<p class="small dim">${esc(RECS.affiliate)}</p>
     <div class="panel" style="margin-top:24px"><div class="kicker">Our top pick</div><h2>${esc(p.name)}</h2><p class="muted">${esc(p.sub)}</p>
       ${p.body.map(t => `<p>${esc(t)}</p>`).join('')}<p class="small muted">Use code at checkout for 10% off</p><div class="code">${esc(p.code)}</div>
       <p style="margin-top:18px"><a class="btn red" href="${esc(p.url)}" target="_blank" rel="noopener sponsored">Shop ${esc(p.name)}</a></p></div>
     <h2 style="margin-top:32px">Why inspection matters before you buy</h2>${RECS.why.map(t => `<p class="muted">${esc(t)}</p>`).join('')}
     <h3>Looking for our own card care products?</h3><a class="btn red" href="#/shop">Shop Card Care</a></div>`;
 }
-function privacy() { app.innerHTML = `<div class="narrow section tight"><h1>Your Privacy Choices</h1>${PRIVACY.map(p => `<p class="muted">${esc(p)}</p>`).join('')}</div>`; }
+function privacy() { app.innerHTML = `<div class="narrow" style="padding-bottom:60px">${pageHead('Privacy', 'Your Privacy Choices')}${PRIVACY.map(p => `<p class="muted">${esc(p)}</p>`).join('')}</div>`; }
 function agreement() {
-  app.innerHTML = `<div class="narrow section tight"><h1>Non Liability Agreement</h1>
+  app.innerHTML = `<div class="narrow" style="padding-bottom:60px">${pageHead('Before we work on your cards', 'Non Liability Agreement')}
     <iframe src="${NON_LIABILITY}" title="Non Liability Agreement" style="width:100%;height:80vh;border:0;background:#fff;border-radius:6px"></iframe></div>`;
 }
 
