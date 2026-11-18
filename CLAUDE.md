@@ -25,6 +25,7 @@ grading prep). This adds a card-intake and customer portal to the existing site
 | `supabase/schema.sql` | Whole database: tables, RLS, RPC functions, storage bucket + policies. Idempotent — re-run safely in the Supabase SQL editor. |
 | `supabase/RUN-NEXT-in-Supabase.sql` | **Owner's one place to look for database updates.** Holds every SQL change the owner hasn't run yet (newest last, listed in its header), ready to paste whole into Supabase → SQL Editor. Whenever a change needs SQL: keep the dated file (`supabase/YYYY-MM-DD_name.sql`) + schema.sql as before, **and** append it to this file on `main` and send the owner this file. When the owner says they ran it, empty it back to the header ("Nothing waiting"). |
 | `scanner/` | **Scan Station by Restored Rarity** (public app; not the admin-only `portal/scan.html`): a standalone public app at `/scanner/` (its own accounts, its **own Supabase project** + `scanner/schema.sql`, config `scanner/config.js` → `window.SCANNER_CONFIG`). Bulk "Add cards" queue (continuous camera with bubble level/auto-capture in `camera.js`, multi-pick, drag & drop, watched folder; front/back pairing; auto-save) + "To finish" list, perspective-correcting crop (`photo.js`, reuses `portal/scanproc.js` for close-ups + centering), private `cards` bucket at `<user id>/<card id>/<side>_<kind>_<ver>.jpg`, eBay .zip download (`zip.js`, `listing.txt`). See `scanner/README.md`. |
+| `demos/shiny-asset-exchange/` | **Demo** rebuild of shinyassetexchange.com (prospective client, Shopify today): store with inventory, cart, Stripe-style checkout, their pages/copy, Free Card Review quiz, multi-card submission form, private customer link, and an admin portal (inventory + stock history, orders, restorations, customers, website/prices). Browser-only demo data. See its README. |
 | `desktop-scanner/` | Windows Python/Tk app (backup scanning path) for the Canon CanoScan LiDE 400 via WIA. Same processing in Python; pushes to Supabase with the service_role key stored locally in `config.json`. |
 | `tools/make_demo.py` | Rebuilds `portal/demo/` from a desktop-scanner output folder. |
 | `tests/` | `make_parity_images.py` (synthetic scans + Python results) and `parity.html` (runs `scanproc.js` on them). |
@@ -510,6 +511,16 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    customer link at 390/1280 px.
    Owner steps, in order: run `supabase/2026-11-13_psa_tracking.sql` → paste `apps-script/Code.gs` and deploy a new version →
    then merge — all done Nov 13. **Still to do (owner):** portal Website → Prices: check PSA levels against psacard.com and Save.
+
+26. **Built Nov 18, 2026 (branch `claude/upbeat-volta-l5jlbh`, not merged): Shiny Asset Exchange demo site** in
+   `demos/shiny-asset-exchange/` (see its README). Owner asked for a demo of shinyassetexchange.com with all the features of
+   their own sites plus inventory control, shop + cart + Stripe checkout, and an admin portal. Their site is a Shopify store
+   (`shiny-asset-exchange.myshopify.com`): copy, 11 products, prices and photo URLs taken from its public pages and
+   `products.json`; stock numbers invented. Runs entirely in the browser (localStorage) with Stripe test-card numbers; nothing
+   is charged. Tested with Playwright (desktop + 390 px): checkout with declined + approved card, stock decrements, quiz →
+   submit → private link, admin ship/receive/edit. Not built: Supabase + Stripe Checkout backend (plan in the README).
+   Kept off `main` on purpose (main publishes to restoredraritytcg.com). Open question for the owner: where to host it
+   (its own repo, like ScanStationIQ).
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
