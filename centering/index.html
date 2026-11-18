@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Centering IQ — free card centering &amp; tilt checker</title>
+<meta name="description" content="Measure a trading card's centering and tilt (cant) from a phone photo, scan or listing screenshot, see the grade PSA, CGC and BGS centering rules allow, and work out whether it's worth grading. Free, nothing uploaded.">
+<meta property="og:title" content="Centering IQ — is it centered, and is it straight?">
+<meta property="og:description" content="Free centering + tilt checker with grade caps and a submit-or-skip calculator. By Restored Rarity.">
+<meta name="theme-color" content="#0b111c">
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="#/measure"><img src="logo.svg" alt="" width="32" height="32"><span>Centering<b>IQ</b></span></a>
+  <nav><a href="#/measure">Measure</a><a href="#/batch">Batch</a><a href="#/track">Track record</a><a href="#/help">How it works</a></nav>
+</header>
+
+<main>
+<!-- ============================================================ measure -->
+<section data-view="measure">
+  <div id="sidetabs" class="sidetabs" role="tablist">
+    <button data-side="front" class="on" role="tab">Front<small>not added</small></button>
+    <button data-side="back" role="tab">Back<small>not added</small></button>
+  </div>
+
+  <div id="start" class="start">
+    <h1>Is it centered — and is it straight?</h1>
+    <p class="lead">Measures the borders at 11 points per side, finds any tilt in the print, and shows what PSA, CGC and Beckett's
+      centering rules allow. Works on phone photos, scans, and a seller's listing photo. Nothing is uploaded.</p>
+    <div class="bigbtns">
+      <button class="btn gold big" data-act="camera">📷 Take a photo</button>
+      <button class="btn big" data-act="file">🖼 Choose a photo or scan</button>
+      <button class="btn big" data-act="paste">📋 Paste a screenshot</button>
+    </div>
+    <label class="switchrow"><input type="checkbox" class="holder-sw"><span class="sw"></span>
+      Card is in a toploader or sleeve <span class="muted">(looks for the card inside the holder)</span></label>
+    <ul class="tips">
+      <li>Lay the card on a plain surface that's a <b>different colour from its border</b> (dark for yellow/white/silver borders).</li>
+      <li>Shoot straight down, whole card in view, no flash. A tilted phone is fine — the picture is flattened.</li>
+      <li>Checking before you buy? Screenshot the seller's photo, then paste it (Ctrl/⌘+V) or drop it here.</li>
+    </ul>
+  </div>
+
+  <p id="status" class="status" hidden></p>
+
+  <div id="work" class="work" hidden>
+    <div class="edcol">
+      <div id="editor"></div>
+      <div class="edtools">
+        <button class="btn sm" data-act="minus" aria-label="Nudge left or up">◀ ▲</button>
+        <button class="btn sm" data-act="plus" aria-label="Nudge right or down">▶ ▼</button>
+        <button class="btn sm" data-act="next">Next point</button>
+        <button class="btn sm on" data-act="pts" title="Show the measured points">• Points</button>
+        <button class="btn sm" data-act="reset">Reset to auto</button>
+        <span class="grow"></span>
+        <button class="btn sm" data-act="replace">Replace</button>
+        <button class="btn sm" data-act="remove">Remove</button>
+      </div>
+      <p id="selinfo" class="muted small"></p>
+      <p class="legend small"><span class="lg gold"></span> card's cut edge <span class="lg cyan"></span> inner edge of the border
+        <span class="lg red"></span> point left out (art, glare or a nick). Drag a handle to tilt a line, drag a line to slide it; pinch or scroll to zoom.</p>
+    </div>
+    <div class="rescol">
+      <div id="results"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>What grade does the centering allow?</h2>
+    <div id="grades"></div>
+  </div>
+
+  <div id="calcwrap" class="panel" hidden>
+    <h2>Submit or skip?</h2>
+    <p class="muted small">Weighs the grades it could get against the raw value, fees and recent sold prices. Corners, edges and surface aren't
+      measured here — pick how the card looks and adjust the chances if you know better.</p>
+    <form id="calc" class="calc" onsubmit="return false">
+      <div class="grid2">
+        <label>Card <input id="c-name" placeholder="e.g. Charizard Base Set 4/102" autocomplete="off"></label>
+        <label>Grader <select id="c-company"><option>PSA</option><option>CGC</option><option value="BGS">BGS (Beckett)</option></select></label>
+        <label>Corners, edges &amp; surface <select id="c-cond"></select></label>
+        <label>PSA service level <select id="c-level"></select> <span id="c-level-auto" class="muted small"></span></label>
+        <label>Grading fee ($) <input id="c-fee" inputmode="decimal"><span id="c-feehint" class="muted small"></span></label>
+        <label>Shipping &amp; insurance, both ways ($) <input id="c-ship" inputmode="decimal" value="25"></label>
+        <label>Cleaning / prep ($) <input id="c-prep" inputmode="decimal" value="0"></label>
+        <label>Selling fees (%) <input id="c-sell" inputmode="decimal" value="13.25"><span class="muted small">eBay trading cards — check your category.</span></label>
+      </div>
+      <label class="switchrow"><input type="checkbox" id="c-rr"><span class="sw"></span>Submit through Restored Rarity (+$15 grading submission fee; prep and paperwork handled)</label>
+      <p id="c-cap" class="capline"></p>
+      <label class="rawrow"><span>Raw value — recent sold prices, e.g. 42, 38, 45</span> <input id="c-raw" inputmode="decimal">
+        <a id="c-rawlink" target="_blank" rel="noopener" class="small">eBay sold ↗</a></label>
+      <table class="ctable"><thead><tr><th>Grade</th><th>Chance</th><th>Sold prices</th><th></th></tr></thead><tbody id="c-rows"></tbody></table>
+      <p class="small"><button type="button" class="linkbtn" id="c-resetodds">Reset chances</button>
+        <span class="muted">· Several prices → the middle one is used. The chances start from the condition you picked, capped by the centering.</span></p>
+      <div id="c-out" class="verdict"></div>
+    </form>
+  </div>
+
+  <div id="funnel" class="funnel"></div>
+
+  <div id="report" class="panel" hidden>
+    <h2>Got the slab back?</h2>
+    <p class="muted small">Tell us the grade. It builds your own track record, and (anonymously — no picture, no name) the public hit rate on the Track record page.</p>
+    <form id="reportform" class="grid2">
+      <label>Grader <select name="company"><option>PSA</option><option>CGC</option><option value="BGS">BGS (Beckett)</option></select></label>
+      <label>Grade on the slab <input name="real" inputmode="decimal" placeholder="e.g. 9"></label>
+      <label class="sub" hidden>BGS centering subgrade <input name="subgrade" inputmode="decimal" placeholder="e.g. 9.5"></label>
+      <p id="r-pred" class="muted small"></p>
+      <div><button class="btn gold">Save the grade</button></div>
+    </form>
+  </div>
+</section>
+
+<!-- ============================================================ batch -->
+<section data-view="batch" hidden>
+  <h1>Batch: find the best grading candidates</h1>
+  <p class="lead">Pick a stack of photos or scans (scans can hold up to 3 cards each). Every card is measured and ranked by the best grade its
+    centering allows — so you know which ones to look at first.</p>
+  <div class="bigbtns">
+    <button class="btn gold big" data-act="batchfiles">🗂 Choose photos or scans</button>
+  </div>
+  <label class="switchrow"><input type="checkbox" class="holder-sw"><span class="sw"></span>Cards are in toploaders or sleeves</label>
+  <p id="b-prog" class="status"></p>
+  <div id="b-actions" class="row" hidden><button class="btn sm" data-act="csv">⬇ Download list (.csv)</button>
+    <button class="btn sm" data-act="clearbatch">Clear</button></div>
+  <div id="b-list"></div>
+</section>
+
+<!-- ============================================================ track record -->
+<section data-view="track" hidden>
+  <h1>Track record</h1>
+  <p class="lead">A centering tool should prove itself. When slabs come back, users report the real grade — this page shows how often the
+    grade landed at or under what Centering IQ said the centering allowed.</p>
+  <div class="panel"><h2>Everyone</h2><div id="t-shared"></div></div>
+  <div class="panel"><h2>From this device</h2><div id="t-local"></div></div>
+</section>
+
+<!-- ============================================================ help -->
+<section data-view="help" hidden>
+  <h1>How it works</h1>
+  <div class="panel prose">
+    <h3>Centering</h3>
+    <p>The card is found, flattened and straightened (a tilted phone photo becomes a flat, square-on picture). Along each of the four borders,
+      11 points are measured: where the card's cut edge is (gold) and where the border's inner edge is (cyan). A straight line is fitted through
+      each set; points that don't fit — art running into the border, glare, a nick — are left out (red). Left/right = left border ÷ (left + right),
+      measured at the middle of the card; the same for top/bottom.</p>
+    <h3>Tilt (cant)</h3>
+    <p>If the printed frame is turned against the card's cut edges, the borders get wider at one end and narrower at the other. Centering IQ
+      compares the angle of each inner line with its cut edge, averages the four, and shows how much each border changes end to end. Graders don't
+      publish a tilt limit, but they judge the centering where it's worst — so a tilted card can read 55/45 at the top and 62/38 at the bottom.
+      As a guide: under 0.15° is straight; 0.4°–0.8° is a slight tilt you can see side by side; over 1.5° is obvious.</p>
+    <h3>Margin of error (±)</h3>
+    <p>Comes from how well the points line up and the picture's resolution. A good phone photo or a 600 dpi scan is within about ±0.5;
+      a small listing photo can be ±2 or more. When the margin straddles a grade line, the grade shows "on the line".</p>
+    <h3>Grades</h3>
+    <p>Limits from PSA's and CGC's published grading standards and Beckett's grading scale (front and back). It's the <b>best grade the
+      centering alone allows</b> — corners, edges and surface decide the rest. For Beckett, this is the centering subgrade.</p>
+    <h3>Toploaders and sleeves</h3>
+    <p>Switch on "in a toploader or sleeve": the holder's outline is found first, then the card inside it. Glare streaks over a border are
+      detected and those points left out — if a whole border is glared, tilt the card a little away from the light.</p>
+    <h3>Privacy</h3>
+    <p>Pictures never leave your device. A grade report sends only the grader, grades, measured centering, tilt and the picture type.</p>
+    <p class="muted small">Not affiliated with PSA, CGC, Beckett, TAG or eBay. Measurements are estimates, not grades.</p>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <span>Centering IQ · free from <a href="https://restoredraritytcg.com/" target="_blank" rel="noopener">Restored Rarity</a> (card cleaning, restoration &amp; grading prep)</span>
+  <span>Listing on eBay? <a href="https://scanstationiq.com/" target="_blank" rel="noopener">ScanStationIQ</a> makes the photos and listing text.</span>
+</footer>
+
+<input type="file" id="file-one" accept="image/*" hidden>
+<input type="file" id="file-many" accept="image/*" multiple hidden>
+<div id="toast" class="toast" hidden></div>
+<div class="dropzone" aria-hidden="true">Drop the picture to measure it</div>
+
+<script src="../portal/config.js"></script>
+<script src="../portal/cardsearch.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>

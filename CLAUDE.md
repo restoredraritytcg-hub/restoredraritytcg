@@ -25,6 +25,7 @@ grading prep). This adds a card-intake and customer portal to the existing site
 | `supabase/schema.sql` | Whole database: tables, RLS, RPC functions, storage bucket + policies. Idempotent — re-run safely in the Supabase SQL editor. |
 | `supabase/RUN-NEXT-in-Supabase.sql` | **Owner's one place to look for database updates.** Holds every SQL change the owner hasn't run yet (newest last, listed in its header), ready to paste whole into Supabase → SQL Editor. Whenever a change needs SQL: keep the dated file (`supabase/YYYY-MM-DD_name.sql`) + schema.sql as before, **and** append it to this file on `main` and send the owner this file. When the owner says they ran it, empty it back to the header ("Nothing waiting"). |
 | `scanner/` | **Scan Station by Restored Rarity** (public app; not the admin-only `portal/scan.html`): a standalone public app at `/scanner/` (its own accounts, its **own Supabase project** + `scanner/schema.sql`, config `scanner/config.js` → `window.SCANNER_CONFIG`). Bulk "Add cards" queue (continuous camera with bubble level/auto-capture in `camera.js`, multi-pick, drag & drop, watched folder; front/back pairing; auto-save) + "To finish" list, perspective-correcting crop (`photo.js`, reuses `portal/scanproc.js` for close-ups + centering), private `cards` bucket at `<user id>/<card id>/<side>_<kind>_<ver>.jpg`, eBay .zip download (`zip.js`, `listing.txt`). See `scanner/README.md`. |
+| `centering/` | **Centering IQ** (free public tool, `/centering/`, no login, pictures never uploaded): multipoint centering (11 points per border, robust line fits) + **tilt/cant** of the print vs the card's cut edges, ± margin from fit + resolution, glare points left out, toploader/sleeve switch (second outline pass inside the holder), interactive editor (`editor.js`: 2 handles per line, drag line to slide, loupe, zoom, nudge), grade caps PSA/CGC/BGS front + back with tolerance scale (`grade.js`), **submit-or-skip** calculator (condition × centering cap odds, sold comps typed in + eBay sold links, PSA level fees, selling fees, Restored Rarity +$15 option), **batch** ranking (up to 3 cards per scan, CSV), **track record** (`track.js`: reports on the device + anonymous shared hit rate via `centering_report_add` / `centering_report_stats`, shown at 25+ reports). Uses ScanStationIQ's `photo.js` + `camera.js` + `shared/scanproc.js` (copies), `../portal/config.js` and `../portal/cardsearch.js`. |
 | `desktop-scanner/` | Windows Python/Tk app (backup scanning path) for the Canon CanoScan LiDE 400 via WIA. Same processing in Python; pushes to Supabase with the service_role key stored locally in `config.json`. |
 | `tools/make_demo.py` | Rebuilds `portal/demo/` from a desktop-scanner output folder. |
 | `tests/` | `make_parity_images.py` (synthetic scans + Python results) and `parity.html` (runs `scanproc.js` on them). |
@@ -109,6 +110,9 @@ arrow keys (Alt = outer marker), save, or reset to auto.
   `portal/psa.js` `PSA_STEPS` and `apps-script/Code.gs` `PSA_STEPS_`; built-in PSA levels + `psaPay` ({atShip 50, laterDays 14, dueHours 72}) in `index.html`
   `PRICE_RULES`, `portal/site.js` `DEFAULT_PRICES` and `Code.gs` `QUOTE_PRICING`. Service text for PSA ends `— grading: PSA (Value)`.
 - `portal/centering.js` ⇄ `desktop-scanner/assets/centering.js` (identical copies).
+- `centering/photo.js`, `centering/camera.js`, `centering/shared/scanproc.js` = copies of ScanStationIQ `app/photo.js`, `app/camera.js`,
+  `app/shared/scanproc.js` (Nov 18, 2026). `centering/multipoint.js` `CENTERING_RULES` = copy of `portal/common.js` `CENTERING_RULES`;
+  `centering/app.js` `PSA_LEVELS` = `index.html` `PRICE_RULES.psaLevels`.
 - `portal/scanproc.js` ⇄ `desktop-scanner/cardcrop.py` + `detail.py` (same constants: crop pad 0.06 in, corner 0.40 in,
   edge 0.22 in, outside 0.06 in, centering search 0.75 in, default inner 0.125 in, thresholds).
 - Storage path scheme and `scans.files` shape are shared by `portal/scan.js` and `desktop-scanner/uploader.py`.
@@ -510,6 +514,22 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    customer link at 390/1280 px.
    Owner steps, in order: run `supabase/2026-11-13_psa_tracking.sql` → paste `apps-script/Code.gs` and deploy a new version →
    then merge — all done Nov 13. **Still to do (owner):** portal Website → Prices: check PSA levels against psacard.com and Save.
+
+26. **Built Nov 18, 2026 (branch `claude/peaceful-franklin-chzgbu`), not yet live: Centering IQ (`centering/`).** Owner asked for an app using
+   ScanStationIQ's centering code plus an easy multipoint tool that says whether a card is canted as well as how centered it is, then added:
+   grade prediction per grader (front/back, BGS centering subgrade), submit-or-skip vs raw value/fees/sold comps, glare + toploader handling,
+   batch ranking, provable accuracy (users report real grades, public hit rate), checking listing photos/screenshots before buying, and a
+   funnel to ScanStationIQ (listings) and Restored Rarity (clean/prep/submit when it centers for a 10). Decisions taken by Claude (owner can
+   change): lives on this site at `/centering/` (free, no accounts); working name "Centering IQ"; tilt guide 0.15° / 0.4° / 0.8° / 1.5°
+   (no grader publishes a tilt limit); sold comps are typed in (automatic comps would need an eBay API key + a server); condition odds are
+   a rough editable guess; "cap held" = real grade ≤ centering cap. Not linked from the main site yet.
+   Tested (Playwright, synthetic cards with known borders): 600/300 dpi scans, tilted phone photo, ccw tilt, glare streak, toploader (switch
+   on), 110 dpi screenshot, 3-card scan — centering within 0.3 points, tilt within 0.02° (screenshot 0.6 / 0.02°, ±1.3); UI desktop + iPhone 13
+   (no overflow, calculator, report, batch, track record). SQL on local Postgres (re-run, anon add only, bad input refused, no direct read,
+   25-report threshold). Limits: the toploader switch is manual (a holder and a card's own printed frame look alike to the finder); a holder
+   measured without the switch reads wrong with no warning in the synthetic test. Not tested on real phone photos or real toploaders.
+   Owner steps: run `supabase/RUN-NEXT-in-Supabase.sql` (track record; the tool works without it, reports stay on the device), decide name +
+   whether to link it from the site / ScanStationIQ, then merge.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
