@@ -77,7 +77,8 @@ Work portal (`portal/`) — a copy of Restored Rarity's `portal/`, rebranded, ru
 | `data.js` | Data layer (`store`): catalogue, stock movements, orders, customers, submissions, settings, quote math, demo payments. |
 | `shop.js` / `index.html` | Storefront. |
 | `admin.js` / `admin.html` | Admin portal. |
-| `sae.css` | Styles for both (their theme colours: #121212, red #cc0000). |
+| `sae.css` | Base styles for the store and shop admin. |
+| `polish.css` | Storefront look in the Restored Rarity style (owner's request, Nov 18): glow background, Space Grotesk + Playfair Display italic, gradient headlines, glowing Free Card Review strip, numbered steps, can/can't-fix panels, price tiles, pricing ladder with round badges + calculator, red CTA band, branded footer, fade-in on scroll. Colours: black, logo red #e3202a, gold #e8c27e (from their Instagram price list). |
 | `cardsearch.js` | Copy of `portal/cardsearch.js`, set to load restoredraritytcg.com's `cards.json`. |
 | `portal/` | The work portal (copy of the RR portal). Changed vs RR: `common.js` (demo store), `site.js` (SAE prices/quotes, tabs), `admin.js` (SAE menu + extras), `config.js`, `portal.css` (theme), page titles. `demostore.js` is new. |
 

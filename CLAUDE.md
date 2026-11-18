@@ -529,6 +529,8 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    customer link → order status, announcement round trip. Not built: Supabase + Stripe Checkout backend (plan in the README).
    Kept off `main` on purpose (main publishes to restoredraritytcg.com). Open: where to host it (its own repo?).
    Note: the portal copy diverges from `portal/` (see the demo README's file table) — it is not kept in sync automatically.
+   **Nov 18 (later): restyled the storefront in the Restored Rarity design language** (owner: the customer wants the polished
+   look of the owner's sites, not Shopify's plain one) — `polish.css` + new home/pricing layouts in `shop.js`, same copy.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.

@@ -38,6 +38,9 @@ function chrome() {
   $('#announce').classList.toggle('hidden', !on);
   const ct = c.contact, d = c.dropoff;
   $('#footer').innerHTML = `<div class="wrap"><div class="cols">
+    <div class="brandcol"><img src="${IMG}64F23902-BF59-4ECD-83AF-2698895120CB.png?width=200" alt=""><div class="script">Revive · Resale · Repeat</div>
+      <p class="small">Professional card restoration. Professional Results.</p>
+      <p><a class="btn ghost sm" href="https://www.instagram.com/shinyassetexchange/" target="_blank" rel="noopener">Instagram @shinyassetexchange</a></p></div>
     <div><h4>Questions? Reach us at</h4><p><a href="mailto:${esc(ct.email)}">${esc(ct.email)}</a></p><p>Phone: <a href="tel:${esc(ct.phone.replace(/\D/g, ''))}">${esc(ct.phone)}</a></p></div>
     <div><h4>Send your cards to:</h4><p>${ct.address.map(esc).join('<br>')}</p><p>Email: <a href="mailto:${esc(ct.email)}">${esc(ct.email)}</a></p></div>
     <div><h4>Local drop-off in Austin</h4><p>${esc(d.name)}<br>${d.address.map(esc).join('<br>')}<br>${esc(d.phone)}</p></div>
@@ -66,7 +69,7 @@ function pcard(p) {
       ${s.key === 'out' ? '<span class="pill tag">Sold out</span>' : s.key === 'low' ? '<span class="pill warn tag">Low stock</span>' : ''}</div>
     <div class="body"><div class="t">${esc(p.title)}</div><div class="pr">${priceLabel(p)}</div>
       ${s.key === 'out' ? '<span class="btn ghost sm" aria-disabled="true">Sold out</span>'
-        : one ? `<button class="btn sm" data-add="${esc(p.variants[0].id)}">Add</button>` : '<span class="btn ghost sm">Choose</span>'}</div></a>`;
+        : one ? `<button class="btn red sm" data-add="${esc(p.variants[0].id)}">Add to cart</button>` : '<span class="btn ghost sm">Choose</span>'}</div></a>`;
 }
 function bindAdds(root) {
   $$('[data-add]', root).forEach(b => b.onclick = e => { e.preventDefault(); addToCart(b.dataset.add, 1); });
@@ -89,35 +92,88 @@ function router() {
   $$('#nav a').forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#/' + r));
   (routes[r] || notFound)(args.map(decodeURIComponent), params);
   window.scrollTo(0, 0);
-  chrome();
+  chrome(); reveal();
 }
 window.addEventListener('hashchange', router);
 store.onChange(() => { updateBadge(); });
 
+// Fade sections in as they scroll into view (like the Restored Rarity site). Without IntersectionObserver, or with
+// reduced motion, everything just shows.
+let revealer = null;
+function reveal() {
+  const els = $$('.rv:not(.in)');
+  if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches) { els.forEach(e => e.classList.add('in')); return; }
+  revealer = revealer || new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); revealer.unobserve(e.target); } }), { rootMargin: '0px 0px -40px 0px' });
+  els.forEach((e, i) => { e.style.transitionDelay = (i % 4) * 70 + 'ms'; revealer.observe(e); });
+}
+
 function notFound() { app.innerHTML = `<div class="narrow section"><h1>Page not found</h1><p><a class="link" href="#/">Back to the home page</a></p></div>`; }
 
+const LOGO_BIG = IMG + '64F23902-BF59-4ECD-83AF-2698895120CB.png?width=800';
+const secHead = (eyebrow, title, sub = '', cls = '') => `<div class="sec-head rv ${cls}">${eyebrow ? `<span class="eyebrow">${eyebrow}</span>` : ''}<h2>${title}</h2>${sub ? `<p>${sub}</p>` : ''}</div>`;
+const tierRange = t => t.max == null ? money0(t.min) + '+' : `${money0(t.min)} – ${money0(t.max)}`;
+const tierPrice = t => t.pct ? t.pct + '%' : money0(t.price);
+
 function home() {
-  const c = C(), h = c.hero;
+  const c = C(), h = c.hero, pr = c.prices;
   const feat = store.products().filter(p => p.featured).slice(0, 4);
   const best = store.product('hydration-phase-spray');
+  const title = esc(h.title).replace(/\.\s+/, '.<br>');
   app.innerHTML = `
-  <section class="hero"><img class="bg" src="${IMG}MagicEraser_260221_222552.jpg?height=1920" alt="">
-    <div class="in"><div class="kicker">${esc(h.kicker)}</div><h1>${esc(h.title)}</h1><p>${esc(h.sub)}</p><p>${esc(h.line)}</p>
-    <a class="btn red" href="#/submit">Restore My Card</a> <a class="btn ghost" href="#/review" style="margin-left:6px">Free Card Review</a></div></section>
-  <section class="section how"><div class="wrap">
-    <img class="d" src="${IMG}how_it_works.png?width=1600" alt="Step-by-step process of restoration on a black background with red accents.">
-    <img class="m" src="${IMG}how_it_works_mobile.png?width=800" alt="Step-by-step process of restoration on a black background with red accents."></div></section>
+  <section class="hero2"><img class="bg" src="${IMG}MagicEraser_260221_222552.jpg?height=1920" alt="">
+    <div class="wrap hero-grid">
+      <div class="hero-logo"><img src="${LOGO_BIG}" alt="Shiny Asset Exchange — Revive, Resale, Repeat"></div>
+      <div class="hero-copy"><div class="script">${esc(h.kicker)}</div>
+        <h1 class="grad">${title}</h1>
+        <p class="lead">${esc(h.sub)}</p><p class="muted" style="margin:0">${esc(h.line)}</p>
+        <div class="ctas"><a class="btn red" href="#/submit">Restore My Card</a><a class="btn ghost" href="#/pricing">See Pricing</a></div>
+        <div class="chips"><span class="chip"><b>7</b> business-day turnaround</span><span class="chip">Trades accepted at <b>85%</b></span><span class="chip">Local drop-off in <b>Austin</b></span></div>
+      </div></div></section>
+
+  <section class="section tight"><div class="wrap"><a class="promo rv" href="#/review"><span class="mini-card" aria-hidden="true"></span>
+    <span class="pt"><b>Free Card Review</b><span>Is your card worth restoring? A few quick questions and we'll give you a straight answer, including when the answer is no.</span></span><span class="arrow">→</span></a></div></section>
+
+  <section class="section"><div class="wrap">${secHead('How it works', 'How restoration works')}
+    <div class="steps">
+      <div class="step rv"><div class="n">1</div><h3>Submit</h3><p>Fill out our simple submission form with your card details and photos.</p></div>
+      <div class="step rv"><div class="n">2</div><h3>We restore</h3><p>Our process includes hydration, careful pressing, and polishing, restoring your card's surface with precision and care.</p></div>
+      <div class="step rv"><div class="n">3</div><h3>Ships back</h3><p>Track your order every step of the way. Once restoration is complete, your card ships back ready to grade, display, or sell.</p></div>
+    </div></div></section>
+
+  <div class="divider"></div>
+  <section class="section"><div class="wrap">${secHead('Before you submit', 'What we can and can’t fix', 'Not all damage can be improved. What we guarantee is improvement, not perfection.')}
+    <div class="fix rv">
+      <div class="col yes"><h3>Restoration can help</h3><ul>
+        <li><i>✓</i><span><b>Creases</b>Front creases typically improve about 90%, leaving a scar rather than a crease.</span></li>
+        <li><i>✓</i><span><b>Indents</b>Shallow indents can usually be worked out.</span></li>
+        <li><i>✓</i><span><b>Holo scratches</b>Usually reduced significantly, sometimes eliminated.</span></li>
+        <li><i>✓</i><span><b>Warping</b>Flattened with controlled heat and pressure.</span></li>
+        <li><i>✓</i><span><b>Ink &amp; adhesive</b>Sharpie, stickers, tape residue, glue and pen.</span></li>
+        <li><i>✓</i><span><b>Dirt &amp; grime</b>Fingerprints, dust and everyday buildup.</span></li></ul></div>
+      <div class="col no"><h3>We can’t fix</h3><ul>
+        <li><i>✕</i><span><b>Whitening</b>Pigment loss — the fix risks the card itself.</span></li>
+        <li><i>✕</i><span><b>Print lines</b>A manufacturing trait, improved maybe 5–10% of the time.</span></li>
+        <li><i>✕</i><span><b>Material loss</b>Once it’s physically gone, it can’t be put back.</span></li></ul>
+        <p style="margin:16px 0 0"><a class="link" href="#/faq">Read the full FAQ →</a></p></div></div></div></section>
+
+  <div class="divider"></div>
+  <section class="section"><div class="wrap">${secHead('<span class="script" style="font-size:18px;letter-spacing:0;text-transform:none">Card Restoration Services</span>', 'Priced by your card’s value', `Restoration includes a full clean and polish. Cleaning only is ${money0(pr.cleaning)} per card. Trades accepted as payment at 85%.`)}
+    <div class="tiers-mini rv">${pr.tiers.map(t => `<div class="tm ${t.pct ? 'hot' : ''}"><span>${tierRange(t)}</span><b>${t.pct ? t.pct + '% value' : money0(t.price)}</b></div>`).join('')}</div>
+    <div class="row rv" style="margin-top:22px"><a class="btn gold" href="#/pricing">Full price list &amp; add-ons</a><a class="btn ghost" href="#/review">Not sure? Free Card Review</a></div></div></section>
+
+  <div class="divider"></div>
   <section class="section"><div class="wrap">
-    <div class="row" style="justify-content:space-between;align-items:flex-end;margin-bottom:18px"><div>
-      <h2>The same products we use in every restoration is now available for your personal use.</h2>
-      <p class="muted" style="margin:0">Freshen up your cards with the most effective card care product line on the market exclusively from Shiny Asset Exchange.</p>
-      <p class="muted" style="margin:0">Try our proprietary formula products for card care!</p></div>
-      <a class="btn ghost" href="#/shop">View all</a></div>
-    <div class="grid-products">${feat.map(pcard).join('')}</div></div></section>
-  ${best ? `<section class="section"><div class="wrap bestseller"><img src="${esc(best.images[0])}" alt="${esc(best.title)}">
-    <div><div class="kicker">Bestseller</div><h2>${esc(best.title)}</h2><p class="muted">${esc(c.bestseller)}</p>
-    <a class="btn red" href="#/p/${esc(best.handle)}">SHOP NOW</a></div></div></section>` : ''}
-  ${eventsHtml()}${newsHtml()}${instagramHtml()}`;
+    <div class="row" style="justify-content:space-between;align-items:flex-end">${secHead('Card care products', 'The same products we use in every restoration is now available for your personal use.',
+      'Freshen up your cards with the most effective card care product line on the market exclusively from Shiny Asset Exchange. Try our proprietary formula products for card care!', 'plain')}
+      <a class="btn ghost rv" href="#/shop" style="margin-bottom:28px">View all</a></div>
+    <div class="grid-products">${feat.map(p => pcard(p).replace('class="pcard"', 'class="pcard rv"')).join('')}</div></div></section>
+  ${best ? `<section class="section"><div class="wrap bestseller"><div class="frame rv"><img src="${esc(best.images[0])}" alt="${esc(best.title)}"></div>
+    <div class="rv"><span class="eyebrow">Bestseller</span><h2 class="grad">${esc(best.title)}</h2><p class="muted" style="font-size:17px">${esc(c.bestseller)}</p>
+    <div class="row"><a class="btn red" href="#/p/${esc(best.handle)}">SHOP NOW</a><span class="pcard-price" style="color:var(--gold);font-weight:700;font-size:20px">${priceLabel(best)}</span></div></div></div></section>` : ''}
+  ${eventsHtml()}${newsHtml()}${instagramHtml()}
+  <section class="section tight"><div class="wrap"><div class="cta-band rv"><span class="script" style="color:#ffe3b0">Revive · Resale · Repeat</span>
+    <h2>Ready to get started?</h2><p>We accept up to ${c.capacity} cards per week on a first-come, first-served basis.</p>
+    <div class="row" style="justify-content:center"><a class="btn" href="#/submit">Submit Your Cards</a></div></div></div></section>`;
   bindAdds(app);
   if ($('.instagram-media') && !window.instgrm) { const sc = document.createElement('script'); sc.async = true; sc.src = 'https://www.instagram.com/embed.js'; document.body.appendChild(sc); }
   else if (window.instgrm) window.instgrm.Embeds.process();
@@ -128,7 +184,7 @@ function eventsHtml() {
   const today = new Date().toISOString().slice(0, 10);
   const ev = (PS.siteContent('shows') || []).filter(e => (e.endDate || e.date) >= today).sort((a, b) => a.date.localeCompare(b.date));
   if (!ev.length) return '';
-  return `<section class="section tight"><div class="wrap"><div class="kicker">Come see us</div><h2>Upcoming shows</h2>
+  return `<div class="divider"></div><section class="section"><div class="wrap">${secHead('Come see us', 'Upcoming shows')}
     <div class="grid-products" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr))">${ev.map(e => `<div class="panel"><b style="color:#fff">${esc(e.name)}</b>
       <p class="small muted" style="margin:6px 0 0">${fmtDate(e.date + 'T12:00')}${e.endDate ? ' – ' + fmtDate(e.endDate + 'T12:00') : ''}${e.time ? '<br>' + esc(e.time) : ''}${e.location ? '<br>' + esc(e.location) : ''}</p>
       ${e.link ? `<a class="link small" href="${esc(e.link)}" target="_blank" rel="noopener">Details →</a>` : ''}</div>`).join('')}</div></div></section>`;
@@ -136,7 +192,7 @@ function eventsHtml() {
 function newsHtml() {
   const posts = (PS.siteContent('news') || []).filter(n => n.published !== false).sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || String(b.date).localeCompare(String(a.date))).slice(0, 3);
   if (!posts.length) return '';
-  return `<section class="section tight"><div class="wrap"><div class="kicker">News</div><h2>From the studio</h2>
+  return `<div class="divider"></div><section class="section"><div class="wrap">${secHead('News', 'From the studio')}
     <div class="grid-products" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">${posts.map(n => `<article class="pcard" style="cursor:default">
       ${n.image ? `<div class="img" style="aspect-ratio:16/10"><img src="${esc(n.image)}" alt=""></div>` : ''}<div class="body"><div class="small muted">${n.date ? fmtDate(n.date + 'T12:00') : ''}</div>
       <div class="t">${esc(n.title)}</div><p class="small muted" style="margin:0;white-space:pre-line">${esc(n.body || '')}</p>
@@ -145,8 +201,7 @@ function newsHtml() {
 function instagramHtml() {
   const I = PS.siteContent('instagram') || {}; if (!I.on) return '';
   const h = I.handle || 'shinyassetexchange';
-  return `<section class="section tight"><div class="wrap" style="text-align:center"><div class="kicker">@${esc(h)}</div><h2>${esc(I.heading || 'On Instagram')}</h2>
-    ${I.sub ? `<p class="muted">${esc(I.sub)}</p>` : ''}
+  return `<div class="divider"></div><section class="section"><div class="wrap" style="text-align:center">${secHead('@' + esc(h), esc(I.heading || 'On Instagram'), I.sub ? esc(I.sub) : '', 'center')}
     ${(I.posts || []).length ? `<div class="grid-products" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr));text-align:left">${I.posts.map(u => `<blockquote class="instagram-media" data-instgrm-permalink="${esc(u)}" data-instgrm-version="14" style="background:#fff;border:0;border-radius:6px;margin:0;min-width:0;width:100%"><a href="${esc(u)}" target="_blank" rel="noopener">View this post on Instagram</a></blockquote>`).join('')}</div>` : ''}
     <a class="btn red" style="margin-top:18px;white-space:normal;max-width:100%" href="https://www.instagram.com/${esc(h)}/" target="_blank" rel="noopener">Follow @${esc(h)}</a></div></section>`;
 }
@@ -155,11 +210,11 @@ function shop(args) {
   const col = args[0] || 'all';
   const all = store.products();
   const list = col === 'all' ? all : all.filter(p => p.collection === col);
-  app.innerHTML = `<div class="wrap section tight"><h1>Products</h1>
+  app.innerHTML = `<div class="wrap"><div class="page-head rv"><span class="script">The same products we use in every restoration</span><h1 class="grad">Products</h1><p>Try our proprietary formula products for card care!</p></div><div class="section tight" style="padding-top:8px">
     <div class="filters" style="margin:12px 0 22px">
       ${[['all', 'All products'], ['card-care', 'Card care'], ['hydration', 'Hydration Spray']].map(([k, l]) => `<a href="#/shop/${k}"><button class="${k === col ? 'on' : ''}">${l}</button></a>`).join('')}
     </div>
-    <div class="grid-products">${list.map(pcard).join('') || '<p class="muted">Nothing here yet.</p>'}</div></div>`;
+    <div class="grid-products">${list.map(pcard).join('') || '<p class="muted">Nothing here yet.</p>'}</div></div></div>`;
   bindAdds(app);
 }
 
@@ -319,35 +374,65 @@ function thanks([id]) {
 }
 
 // ---------------- service pages ----------------
-function priceRows(prices) {
-  return prices.tiers.map(t => `<tr><td>${esc(t.name)}</td><td>${t.max == null ? money0(t.min) + '+' : money0(t.min) + ' – ' + money0(t.max)}</td><td>${t.pct ? t.pct + '% of card value' : money0(t.price)}</td></tr>`).join('');
-}
 function pricing() {
   const c = C(), pr = c.prices, d = c.dropoff;
-  app.innerHTML = `<div class="narrow section tight"><h1>Pricing</h1>
-    <p>We offer two services: full restoration, priced by your card's current market value, and cleaning only, priced flat per card. Look up your card at <a class="link" href="https://www.tcgplayer.com/" target="_blank" rel="noopener">TCGplayer.com</a> before submitting so you know where you land.</p>
-    <div class="callout"><h3>Before you submit</h3><p>Not all damage can be improved. Check our <a class="link" href="#/faq">FAQ</a> to see what we can and can't fix before sending your cards in.</p>
-      <p style="margin:0">Still not sure? We recommend a Card Review for ${money0(pr.addons.find(a => a.key === 'review')?.price ?? 5)} per card. We'll assess your card and tell you honestly what's possible before you commit to a full restoration.</p></div>
-    <h2 style="margin-top:32px">Restoration</h2><p class="muted">Creases, indents, scratches, warping, ink and adhesive. Includes a full clean and polish. Priced by your card's current value.</p>
-    <div class="table-wrap"><table class="price-table"><tr><th>Tier</th><th>Card Value</th><th>Price</th></tr>${priceRows(pr)}</table></div>
-    <h2 style="margin-top:32px">Cleaning Only</h2><p class="muted">No restoration work. Priced flat, regardless of card value.</p>
-    <div class="table-wrap"><table class="price-table"><tr><th>Service</th><th>Price</th><th>What It Covers</th></tr><tr><td>Cleaning</td><td>${money0(pr.cleaning)} per card</td><td>Front and back wipe down with card spray and polish</td></tr></table></div>
-    <p style="margin-top:12px" class="muted">Cleaning is a good fit if your card is structurally sound and you just want it looking its best, whether for display or before a grading submission. If your card has creases, indents, or scratches, you want full restoration instead. Cleaning is already included in every restoration.</p>
-    <h2 style="margin-top:32px">Add-Ons</h2><p class="muted">Available with either service above.</p>
-    <div class="table-wrap"><table class="price-table"><tr><th>Service</th><th>Price</th><th>What It Covers</th></tr>
-      ${pr.addons.map(a => `<tr><td>${esc(a.name)}</td><td>${money0(a.price)} per ${esc(a.unit)}</td><td>${esc(a.desc)}</td></tr>`).join('')}</table></div>
-    <h2 style="margin-top:40px">Two Ways to Get Your Cards to Us</h2><p class="muted">Ship them in, or drop them off locally in Austin.</p>
-    <div class="cols2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px">
-      <div class="panel"><h3>Shipping to us</h3><p style="margin:0">Fill out the submission form and we'll send an invoice along with shipping instructions. Work begins once payment is confirmed.</p></div>
-      <div class="panel"><h3>Local drop-off in Austin</h3><p>Bring your cards to ${esc(d.name)}. No form needed — just walk in and we'll handle the paperwork in person.</p>
-        <p class="small muted" style="margin:0">${esc(d.name)}<br>${d.address.map(esc).join('<br>')}<br><a href="tel:${d.phone.replace(/\D/g, '')}">${esc(d.phone)}</a></p></div></div>
-    <p style="margin-top:16px" class="muted">One exception: cards valued over $1,000 must be submitted through the online form, even if you plan to drop off in person. This gives us a documented record before the card changes hands, which protects both of us. Fill out the form first, then bring your card in.</p>
-    <h2 style="margin-top:32px">Good to know</h2>
-    <ul class="muted"><li>Pricing is the same whether you send one card or twenty. Every card gets the same individual attention, so we don't offer bulk discounts.</li>
-      <li>Payment is due in full before work begins. We'll send you an invoice after reviewing your submission.</li>
-      <li>Shipping is paid by the customer both directions. We recommend tracked and insured shipping when sending your cards to us.</li>
-      <li>Trades accepted as payment at 85% of card value.</li></ul>
-    <div class="cta-red"><h2 style="color:#fff">Ready to get started?</h2><a class="btn" href="#/submit">Submit Your Cards</a></div></div>`;
+  const review = pr.addons.find(a => a.key === 'review');
+  const per = a => a.unit === 'submission' ? 'per submission' : 'per ' + a.unit;
+  app.innerHTML = `<div class="wrap"><div class="page-head rv"><span class="script">Card Restoration Services</span><h1 class="grad">Price List</h1>
+    <p>We offer two services: full restoration, priced by your card's current market value, and cleaning only, priced flat per card. Look up your card at <a class="link" href="https://www.tcgplayer.com/" target="_blank" rel="noopener">TCGplayer.com</a> before submitting so you know where you land.</p></div>
+    <div class="price-layout" style="padding-bottom:40px"><div>
+      <div class="notice rv"><span class="tag">UPDATE</span><span><b>Pricing updated October 1, 2026</b> to make pricing on larger grails more clear.</span></div>
+      <div class="callout rv"><h3 style="margin-bottom:6px">Before you submit</h3><p>Not all damage can be improved. Check our <a class="link" href="#/faq">FAQ</a> to see what we can and can't fix before sending your cards in.</p>
+        <p style="margin:0">Still not sure? We recommend a Card Review for ${money0(review ? review.price : 5)} per card. We'll assess your card and tell you honestly what's possible before you commit to a full restoration.</p></div>
+
+      <span class="group-label rv">Restoration · current card value</span>
+      <p class="muted rv" style="margin-top:-6px">Creases, indents, scratches, warping, ink and adhesive. Includes a full clean and polish. Priced by your card's current value.</p>
+      <div class="ladder">${pr.tiers.map(t => `<div class="tier rv"><span class="badge-price ${t.pct ? 'red' : ''}">${tierPrice(t)}</span><div class="body">
+        <h3>${tierRange(t)}</h3><p>${esc(t.name)} · ${t.pct ? `${t.pct}% of your card's current value` : `${money0(t.price)} per card`}</p></div></div>`).join('')}</div>
+
+      <span class="group-label gold rv">Cleaning only</span>
+      <div class="ladder"><div class="tier rv"><span class="badge-price">${money0(pr.cleaning)}</span><div class="body"><h3>Cleaning</h3><p>Front and back wipe down with card spray and polish. No restoration work. Priced flat, regardless of card value.</p>
+        <span class="sub">Cleaning is a good fit if your card is structurally sound and you just want it looking its best, whether for display or before a grading submission. If your card has creases, indents, or scratches, you want full restoration instead. Cleaning is already included in every restoration.</span></div></div></div>
+
+      <span class="group-label rv">Extras / add-ons</span>
+      <p class="muted rv" style="margin-top:-6px">Available with either service above.</p>
+      <div class="ladder">${pr.addons.map(a => `<div class="tier rv"><span class="badge-price">${money0(a.price)}</span><div class="body"><h3>${esc(a.name)}</h3><p>${esc(a.desc)}</p><span class="sub">${per(a)}</span></div></div>`).join('')}</div>
+    </div>
+    <aside class="calc"><div class="panel"><h3>Price calculator</h3>
+      <div class="field"><label>Service</label><select id="cSvc"><option value="restoration">Restoration</option><option value="cleaning">Cleaning only — ${money0(pr.cleaning)}</option></select></div>
+      <div class="field" id="cValW"><label>Card value (TCGplayer, $)</label><input id="cVal" inputmode="decimal" placeholder="e.g. 300" value="250"></div>
+      <div class="field"><label>Number of cards</label><input id="cQty" inputmode="numeric" value="1"></div>
+      ${pr.addons.map(a => `<label class="check" style="font-size:14px"><input type="checkbox" data-ca="${a.key}"> ${esc(a.name)} (+${money0(a.price)} ${per(a)})</label>`).join('')}
+      <div id="cOut" style="margin-top:12px"></div>
+      <p class="small muted" style="margin:12px 0 0;text-align:center">An estimate. We review every card first and send a final invoice. Shipping both ways is extra.</p>
+      <a class="btn red block" style="margin-top:14px" href="#/submit">Submit Your Cards</a></div></aside></div>
+
+    <div class="divider"></div>
+    <section class="section">${secHead('Shipping or drop-off', 'Two Ways to Get Your Cards to Us', 'Ship them in, or drop them off locally in Austin.')}
+      <div class="ways rv"><div class="panel"><h3>Shipping to us</h3><p class="muted" style="margin:0">Fill out the submission form and we'll send an invoice along with shipping instructions. Work begins once payment is confirmed.</p></div>
+        <div class="panel"><h3>Local drop-off in Austin</h3><p class="muted">Bring your cards to ${esc(d.name)}. No form needed — just walk in and we'll handle the paperwork in person.</p>
+          <p class="small" style="margin:0">${esc(d.name)}<br>${d.address.map(esc).join('<br>')}<br><a class="link" href="tel:${d.phone.replace(/\D/g, '')}">${esc(d.phone)}</a></p></div></div>
+      <div class="notice rv" style="margin:18px 0 0"><span class="tag">NOTE</span><span>One exception: cards valued over <b>$1,000</b> must be submitted through the online form, even if you plan to drop off in person. This gives us a documented record before the card changes hands, which protects both of us. Fill out the form first, then bring your card in.</span></div></section>
+    <section class="section" style="padding-top:0">${secHead('', 'Good to know')}
+      <ul class="good rv"><li>Pricing is the same whether you send one card or twenty. Every card gets the same individual attention, so we don't offer bulk discounts.</li>
+        <li>Payment is due in full before work begins. We'll send you an invoice after reviewing your submission.</li>
+        <li>Shipping is paid by the customer both directions. We recommend tracked and insured shipping when sending your cards to us.</li>
+        <li>Trades accepted as payment at 85% of card value.</li></ul>
+      <div class="cta-band rv"><h2>Ready to get started?</h2><div class="row" style="justify-content:center"><a class="btn" href="#/submit">Submit Your Cards</a></div></div></section></div>`;
+  const calc = () => {
+    const svc = $('#cSvc').value, n = Math.max(1, Math.min(100, parseInt($('#cQty').value, 10) || 1));
+    $('#cValW').classList.toggle('hidden', svc === 'cleaning');
+    const card = { service: svc, value: +$('#cVal').value.replace(/[^\d.]/g, '') || 0, addons: $$('[data-ca]').filter(x => x.checked).map(x => x.dataset.ca) };
+    const q = quote(pr, Array.from({ length: n }, () => card)), one = q.lines[0];
+    const t = svc === 'restoration' ? tierFor(pr, card.value) : null;
+    $('#cOut').innerHTML = `<div class="row-sum"><span>${svc === 'cleaning' ? 'Cleaning' : (card.value ? t.name + ' restoration' : 'Restoration — enter a value')}</span><span>${money0(one.base)}</span></div>
+      ${one.addons ? `<div class="row-sum"><span>Add-ons per card</span><span>${money0(one.addons)}</span></div>` : ''}
+      ${n > 1 ? `<div class="row-sum"><span>× ${n} cards</span><span>${money0(one.total * n)}</span></div>` : ''}
+      ${q.perSubmission.map(a => `<div class="row-sum"><span>${esc(a.name)} (per submission)</span><span>${money0(a.price)}</span></div>`).join('')}
+      <div class="row-sum total"><span>Estimated total</span><span>${money0(q.total)}</span></div>`;
+  };
+  $$('#cSvc,#cVal,#cQty,[data-ca]').forEach(el => el.addEventListener(el.tagName === 'SELECT' || el.type === 'checkbox' ? 'change' : 'input', calc));
+  calc();
 }
 
 function review() {
