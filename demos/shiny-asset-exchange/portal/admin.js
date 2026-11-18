@@ -4,6 +4,7 @@ import { api, DEMO, esc, $, $$, pill, STATUSES, renderReport, wireReport, thumbO
 import * as U from "./scanupload.js";
 import { sitePage, quotePanel, wireQuote, currentPrices, saveServicesToSheet, savePsaToSheet } from "./site.js";
 import { psaPanel, wirePsa, levelFromService } from "./psa.js";
+import { returnPanel, wireReturn } from "./returnship.js";
 
 const app = $("#app");
 let S = null; // { customers, submissions, cards, scans, photos }
@@ -484,7 +485,7 @@ function submission(id) {
     <div class="row"><h1 class="grow">${esc(s.code)}</h1>${pill(s.status)}</div>
     <div class="meta"><span>Customer <b><a href="#/customer/${c.id}">${esc(c.name)}</a></b></span>
       <span>Received <b>${esc(fmtDate(s.created_at))}</b></span><span><b>${cards.length}</b> cards</span></div>
-    ${progressSteps(s.status)}${emailBar(s)}${quotePanel()}${psaPanel(cards)}
+    ${progressSteps(s.status)}${emailBar(s)}${quotePanel()}${returnPanel()}${psaPanel(cards)}
     <div class="panel" style="margin-top:14px"><div class="grid2">
       <div><label class="f">Status</label>${statusSelect("ss", s.status)}
         <label class="small" style="display:block;margin-top:6px"><input type="checkbox" id="sall" checked> Also set every card to this status</label></div>
@@ -546,6 +547,7 @@ function submission(id) {
   wireEmailBar(s);
   wireQuote(s, cards);
   wirePsa(s, cards, { prices: currentPrices, saveToSheet: savePsaToSheet });
+  wireReturn(s);
   wirePhotosAdmin({ customer: c, cards, submissionId: id });
   $("#ssave").onclick = async () => {
     try {

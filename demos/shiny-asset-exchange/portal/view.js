@@ -2,6 +2,7 @@
 import { api, DEMO, esc, $, $$, pill, progressSteps, renderReport, wireReport, thumbOf, mediaUrl,
   fmtDate, installLightbox, installHint, toast } from "./common.js";
 import { psaCustomerHtml } from "./psa.js";
+import { customerReturnHtml } from "./returnship.js";
 
 const CFG = window.RR_CONFIG || {};
 const app = $("#app");
@@ -122,7 +123,7 @@ function home() {
         <span><b>${s.cards.length}</b> card${s.cards.length === 1 ? "" : "s"}</span></div></div>
         <div>${pill(s.status)}</div></div>
       ${progressSteps(s.status)}
-      ${s.public_notes ? `<p style="margin:12px 0 0">${esc(s.public_notes)}</p>` : ""}
+      ${s.public_notes ? `<p style="margin:12px 0 0">${esc(s.public_notes)}</p>` : ""}${customerReturnHtml(s)}
       ${psaCustomerHtml(s)}
       <div class="tiles" style="margin-top:14px">${s.cards.map(tile).join("") || '<p class="muted">No cards listed.</p>'}</div>
     </section>`;

@@ -1,6 +1,7 @@
 // Shiny Asset Exchange demo — admin portal (hash router).
-import { store, money, money0, esc, fmtDate, stockState, slug, STATUS_LABEL, MOVE_REASONS, DEFAULT_CONTENT } from './data.js';
+import { store, money, money0, esc, fmtDate, stockState, slug, methodsOf, STATUS_LABEL, MOVE_REASONS, DEFAULT_CONTENT } from './data.js';
 import * as PS from './portal/demostore.js';
+import * as SHIP from './shipping.js';
 const PORTAL = 'portal/admin.html';
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -27,7 +28,7 @@ function login() {
 function counts() {
   const vs = store.products({ all: true }).flatMap(p => p.status === 'active' ? p.variants : []);
   return {
-    toShip: store.orders().filter(o => o.status === 'paid').length,
+    toShip: store.orders().filter(o => o.status === 'paid').length, labels: SHIP.queue().length,
     low: vs.filter(v => stockState(v).key === 'low').length, out: vs.filter(v => stockState(v).key === 'out').length,
     newSubs: PS.db().submissions.filter(s => s.status === 'submitted').length,
   };
@@ -37,7 +38,7 @@ function shell(active, title, actions, body) {
   const nl = (h, l, badge, key) => `<a class="nl ${active === key ? 'on' : ''}" href="#/${h}">${l}${badge ? `<span class="badge" style="position:static">${badge}</span>` : ''}</a>`;
   root.innerHTML = `<div class="adm"><nav class="side"><a class="logo" href="#/"><img src="${LOGO}" alt="">SAE Admin</a>
       ${nl('', 'Dashboard', 0, 'dash')}
-      <div class="grp">Shop</div>${nl('orders', 'Orders', n.toShip, 'orders')}${nl('inventory', 'Inventory', n.low + n.out, 'inventory')}${nl('stock', 'Stock history', 0, 'stock')}
+      <div class="grp">Shop</div>${nl('orders', 'Orders', n.toShip, 'orders')}${nl('ship', 'Shipping · Shippo', n.labels, 'ship')}${nl('inventory', 'Inventory', n.low + n.out, 'inventory')}${nl('stock', 'Stock history', 0, 'stock')}
       <div class="grp">Restoration</div><a class="nl" href="${PORTAL}">Work portal ↗${n.newSubs ? `<span class="badge" style="position:static">${n.newSubs}</span>` : ''}</a>
       <a class="nl" href="${PORTAL}#/new">+ New submission ↗</a><a class="nl" href="portal/scan.html">Scan station ↗</a>
       <div class="grp">People</div>${nl('customers', 'Customers', 0, 'customers')}
@@ -50,7 +51,7 @@ function shell(active, title, actions, body) {
 }
 
 // ---------------- router ----------------
-const routes = { '': dash, orders, order, inventory, product, stock, customers, customer, site };
+const routes = { '': dash, orders, order, ship: shipping, inventory, product, stock, customers, customer, site };
 function router() {
   if (!loggedIn()) return login();
   const [path, q] = location.hash.replace(/^#\/?/, '').split('?');
@@ -75,7 +76,7 @@ function dash() {
     <div class="stats">
       <div class="stat"><div class="v">${money0(today.reduce((s, o) => s + o.total, 0))}</div><div class="l">Sales today · ${today.length} order${today.length === 1 ? '' : 's'}</div></div>
       <div class="stat"><div class="v">${money0(month.reduce((s, o) => s + o.total, 0))}</div><div class="l">Last 30 days · ${month.length} orders</div></div>
-      <div class="stat"><div class="v">${n.toShip}</div><div class="l">Orders to ship</div></div>
+      <div class="stat click" onclick="location.hash='#/ship'" style="cursor:pointer"><div class="v">${n.labels}</div><div class="l">Labels to buy (orders + card returns)</div></div>
       <div class="stat"><div class="v">${q}/${c.capacity}</div><div class="l">Cards in this week's queue</div></div></div>
     <div class="cols2">
       <div class="panel"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Stock alerts</h3><a class="small link" href="#/inventory?f=alert">See all</a></div>
@@ -92,6 +93,73 @@ function dash() {
   bindRows();
 }
 function bindRows() { $$('tr[data-href]').forEach(tr => tr.onclick = () => { const h = tr.dataset.href; if (h.startsWith('#')) location.hash = h; else location.href = h; }); }
+
+// ---------------- shipping (Shippo) ----------------
+function shipping(a, params) {
+  const cfg = SHIP.shipCfg();
+  let rows = SHIP.queue(), picked = new Set(rows.map(r => r.kind + r.id)), open = null, tab = params.get('t') || 'queue', bulk = null;
+  const kindPill = k => `<span class="pill ${k === 'return' ? 'warn' : 'info'}">${k === 'return' ? 'Card return' : 'Order'}</span>`;
+  const link = r => r.kind === 'order' ? '#/order/' + r.id : PORTAL + '#/submission/' + r.id;
+  const stPill = sh => `<span class="pill ${sh.status === 'DELIVERED' ? 'ok' : sh.status === 'PRE_TRANSIT' ? '' : 'info'}">${esc(SHIP.statusLabel(sh))}</span>`;
+  const draw = () => {
+    const sel = rows.filter(r => picked.has(r.kind + r.id)), all = SHIP.shipped(), moving = all.filter(x => x.sh.status !== 'DELIVERED');
+    $('#shipq').innerHTML = `
+      <div class="filters">${[['queue', `Needs a label (${rows.length})`], ['moving', `On the way (${moving.length})`], ['all', 'All labels']].map(([k, l]) => `<button data-tab="${k}" class="${tab === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+      ${tab === 'queue' ? `
+      <div class="row" style="justify-content:space-between;margin:6px 0 12px">
+        <p class="small muted" style="margin:0">Paid product orders and restored cards going home. Check the box and weight, then buy the label — Shippo emails the customer their tracking. “Buy labels” uses each customer's chosen service (card returns: your preferred service), else the cheapest.</p>
+        <div class="row"><button class="btn red sm" id="bulk" ${sel.length ? '' : 'disabled'}>Buy ${sel.length} label${sel.length === 1 ? '' : 's'}</button>
+          <button class="btn ghost sm" id="csv" ${sel.length ? '' : 'disabled'} title="For Pirate Ship or another label tool">Spreadsheet</button></div></div>
+      ${bulk ? `<div class="panel" style="margin-bottom:12px;border-color:var(--gold)">${bulk}</div>` : ''}
+      <div class="table-wrap"><table><tr><th><input type="checkbox" id="all" ${sel.length === rows.length && rows.length ? 'checked' : ''} aria-label="Tick all"></th><th>Shipment</th><th>Ship to</th><th>Box</th><th class="num">Weight</th><th class="num">Insure $</th><th></th></tr>
+      ${rows.map((r, i) => `<tr><td><input type="checkbox" data-pick="${i}" ${picked.has(r.kind + r.id) ? 'checked' : ''} aria-label="Tick ${esc(r.ref)}"></td>
+        <td>${kindPill(r.kind)}<br><a href="${link(r)}"><b>${esc(r.ref)}</b></a><div class="small muted">${esc(r.contents)}</div></td>
+        <td><b>${esc(r.name || '')}</b>${SHIP.addressOk(r.address) ? `<div class="small muted">${esc(r.address.line1)}${r.address.line2 ? ', ' + esc(r.address.line2) : ''}<br>${esc(r.address.city)}, ${esc(r.address.state)} ${esc(r.address.zip)}</div>` : `<div class="err small">Address missing — ${r.kind === 'return' ? 'add it on the submission' : 'check the order'}</div>`}
+          <div class="small dim">Wants: ${esc(r.prefer)}</div></td>
+        <td><select data-box="${i}" style="min-width:150px">${cfg.boxes.map(b => `<option value="${b.key}" ${b.key === r.box ? 'selected' : ''}>${esc(b.name)}</option>`).join('')}</select></td>
+        <td class="num"><input class="stock-input" data-oz="${i}" value="${r.oz}" inputmode="decimal" aria-label="Weight (oz)"><div class="small dim">oz</div></td>
+        <td class="num"><input class="stock-input" data-ins="${i}" value="${r.insured || ''}" placeholder="—" inputmode="decimal" aria-label="Insured value"></td>
+        <td><button class="btn red sm" data-rates="${i}" ${SHIP.addressOk(r.address) ? '' : 'disabled'}>Get rates</button></td></tr>
+        ${open === i ? `<tr><td></td><td colspan="6"><div id="rw"></div></td></tr>` : ''}`).join('') || '<tr><td colspan="7" class="muted">Nothing needs a label. Paid orders and restorations set to “Ready for pickup / shipping” (shipped back) show up here.</td></tr>'}
+      </table></div>` : `
+      <div class="table-wrap"><table><tr><th>Shipment</th><th>To</th><th>Label</th><th>Status</th><th></th></tr>
+      ${(tab === 'moving' ? moving : all).map((x, i) => `<tr><td>${kindPill(x.kind)}<br><a href="${link(x)}"><b>${esc(x.ref)}</b></a></td><td>${esc(x.name || '')}<div class="small muted">${esc(x.sh.to?.city || '')}, ${esc(x.sh.to?.state || '')}</div></td>
+        <td>${SHIP.trackingLink(x.sh)}<div class="small muted">${esc(x.sh.service)} · ${money(x.sh.cost)}${x.sh.test ? ' · test' : ''}</div></td>
+        <td>${stPill(x.sh)}<div class="small muted">${esc(x.sh.status_details || '')}${x.sh.eta && x.sh.status !== 'DELIVERED' ? ` · ETA ${fmtDate(x.sh.eta)}` : ''}</div></td>
+        <td><div class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn ghost sm" data-label="${i}">Print label</button>
+          ${x.sh.status === 'PRE_TRANSIT' ? `<button class="btn ghost sm" data-void="${i}">Void</button>` : ''}
+          ${x.sh.status !== 'DELIVERED' && SHIP.shipCfg().shippo.mode === 'demo' ? `<button class="btn sm" data-scan="${i}" title="Demo: stands in for Shippo's tracking webhook">Simulate scan</button>` : ''}</div></td></tr>`).join('') || '<tr><td colspan="5" class="muted">No labels here yet.</td></tr>'}
+      </table></div>`}`;
+    $$('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; open = null; draw(); });
+    if (tab !== 'queue') {
+      const list = tab === 'moving' ? moving : all;
+      $$('[data-label]').forEach(b => b.onclick = () => SHIP.openLabel(list[+b.dataset.label].sh));
+      $$('[data-void]').forEach(b => b.onclick = async () => { const x = list[+b.dataset.void]; if (!confirm(`Void label ${x.sh.tracking}? Shippo refunds unused labels.`)) return; busy = false; await SHIP.voidLabel(x.kind, x.id, x.sh); rows = SHIP.queue(); toast('Label voided'); draw(); });
+      $$('[data-scan]').forEach(b => b.onclick = () => { const x = list[+b.dataset.scan]; busy = false; SHIP.applyTracking(x.kind, x.id, x.sh, SHIP.nextScan(x.sh)); draw(); });
+      return;
+    }
+    $$('[data-pick]').forEach(cb => cb.onchange = () => { const r = rows[+cb.dataset.pick]; cb.checked ? picked.add(r.kind + r.id) : picked.delete(r.kind + r.id); draw(); });
+    $('#all') && ($('#all').onchange = e => { picked = new Set(e.target.checked ? rows.map(r => r.kind + r.id) : []); draw(); });
+    $$('[data-box]').forEach(s => s.onchange = () => { const r = rows[+s.dataset.box], ob = cfg.boxes.find(b => b.key === r.box), nb = cfg.boxes.find(b => b.key === s.value); r.oz = Math.max(1, r.oz - (ob ? ob.oz : 0) + nb.oz); r.box = s.value; draw(); });
+    $$('[data-oz]').forEach(i => { i.onfocus = () => busy = true; i.onchange = () => { busy = false; rows[+i.dataset.oz].oz = Math.max(1, Math.ceil(+i.value || 1)); }; });
+    $$('[data-ins]').forEach(i => { i.onfocus = () => busy = true; i.onchange = () => { busy = false; rows[+i.dataset.ins].insured = Math.round(+i.value || 0); }; });
+    $$('[data-rates]').forEach(b => b.onclick = () => { open = +b.dataset.rates; draw(); busy = true;
+      SHIP.rateWidget($('#rw'), rows[open], { btn: 'red', onDone: r => { busy = false; toast(`Label bought for ${r.ref}`); open = null; rows = SHIP.queue(); draw(); } }); });
+    $('#csv') && ($('#csv').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([SHIP.pirateShipCsv(sel)], { type: 'text/csv' })); a.download = `shipments-${new Date().toISOString().slice(0, 10)}.csv`; a.click(); });
+    $('#bulk') && ($('#bulk').onclick = async () => {
+      const go = sel.filter(r => SHIP.addressOk(r.address)); busy = true; let total = 0; const done = [];
+      for (const r of go) { bulk = `Buying ${done.length + 1} of ${go.length}… (${esc(r.ref)})`; draw();
+        try { const rates = await SHIP.shippo.rates(r), rate = rates.find(x => `${x.provider} ${x.service}` === r.prefer) || rates[0]; // the service the customer paid for, else the cheapest
+          SHIP.recordLabel(r, rate, await SHIP.shippo.buy(r, rate)); total += rate.amount; done.push(`${esc(r.ref)}: ${esc(rate.provider)} ${esc(rate.service)} ${money(rate.amount)}`); }
+        catch (e) { done.push(`${esc(r.ref)}: ⚠ ${esc(e.message)}`); } }
+      busy = false; rows = SHIP.queue(); picked = new Set(rows.map(r => r.kind + r.id));
+      bulk = `<b>${go.length} label${go.length === 1 ? '' : 's'} bought · ${money(total)}</b><div class="small muted" style="margin-top:6px">${done.join('<br>')}</div><p class="small" style="margin:8px 0 0">Print them from <a class="link" href="#/ship?t=all">All labels</a>.</p>`;
+      draw();
+    });
+  };
+  shell('ship', 'Shipping', `<span class="pill ${cfg.shippo.mode === 'live' ? 'ok' : 'warn'}">Shippo · ${cfg.shippo.mode === 'demo' ? 'demo (simulated)' : cfg.shippo.mode}</span>`, '<div id="shipq"></div>');
+  draw();
+}
 
 // ---------------- inventory ----------------
 function inventory(a, params) {
@@ -147,7 +215,7 @@ function exportCsv() {
 
 function product([id]) {
   const isNew = id === 'new';
-  const p = isNew ? { title: '', handle: '', tagline: '', body: '', images: [], collection: 'card-care', status: 'draft', featured: false, variants: [{ title: '', sku: '', price: 0, cost: null, stock: 0, low_at: 10, track: true }] }
+  const p = isNew ? { title: '', handle: '', tagline: '', body: '', images: [], collection: 'card-care', status: 'draft', featured: false, variants: [{ title: '', sku: '', price: 0, cost: null, stock: 0, low_at: 10, track: true, weight_oz: 4 }] }
     : JSON.parse(JSON.stringify(store.product(id) || {}));
   if (!isNew && !p.id) return shell('inventory', 'Not found', '', '<p>That product no longer exists.</p>');
   const varRow = (v, i) => `<div class="var-row" data-vi="${i}">
@@ -156,6 +224,7 @@ function product([id]) {
     <div><label>Price $</label><input data-k="price" inputmode="decimal" value="${v.price}"></div>
     <div><label>Cost $</label><input data-k="cost" inputmode="decimal" value="${v.cost ?? ''}" placeholder="—"></div>
     <div><label>Low at</label><input data-k="low_at" inputmode="numeric" value="${v.low_at}"></div>
+    <div><label>Ship weight (oz)</label><input data-k="weight_oz" inputmode="decimal" value="${v.weight_oz ?? ''}" placeholder="packed"></div>
     <div><label>${v.id ? 'On hand' : 'Opening stock'}</label>${v.id ? `<div class="row" style="gap:6px;min-height:46px"><b>${v.stock}</b><button type="button" class="btn ghost sm" data-adjv="${v.id}">Adjust</button></div>` : `<input data-k="stock" inputmode="numeric" value="${v.stock || 0}">`}</div>
     <label class="check" style="grid-column:1/-1;margin:0"><input type="checkbox" data-k="track" ${v.track ? 'checked' : ''}> Track inventory (stop selling at 0)
       ${p.variants.length > 1 ? `<button type="button" class="linkbtn" data-delv="${i}" style="margin-left:auto">Remove option</button>` : ''}</label></div>`;
@@ -182,13 +251,13 @@ function product([id]) {
     $$('#vars .var-row').forEach(row => {
       const v = p.variants[+row.dataset.vi];
       $$('[data-k]', row).forEach(inp => inp.oninput = inp.onchange = () => {
-        const k = inp.dataset.k; v[k] = k === 'track' ? inp.checked : ['price', 'low_at', 'stock'].includes(k) ? +inp.value || 0 : k === 'cost' ? (inp.value === '' ? null : +inp.value) : inp.value;
+        const k = inp.dataset.k; v[k] = k === 'track' ? inp.checked : ['price', 'low_at', 'stock', 'weight_oz'].includes(k) ? +inp.value || 0 : k === 'cost' ? (inp.value === '' ? null : +inp.value) : inp.value;
       });
     });
     $$('[data-adjv]').forEach(b => b.onclick = () => adjustDialog(b.dataset.adjv));
     $$('[data-delv]').forEach(b => b.onclick = () => { if (p.variants[+b.dataset.delv].id && !confirm('Remove this option? Its stock history stays in the log.')) return; p.variants.splice(+b.dataset.delv, 1); draw(); });
     $$('[data-delimg]').forEach(b => b.onclick = () => { p.images.splice(+b.dataset.delimg, 1); keep(); draw(); });
-    $('#addv').onclick = () => { keep(); p.variants.push({ title: '', sku: '', price: p.variants[0]?.price || 0, cost: null, stock: 0, low_at: 10, track: true }); draw(); };
+    $('#addv').onclick = () => { keep(); p.variants.push({ title: '', sku: '', price: p.variants[0]?.price || 0, cost: null, stock: 0, low_at: 10, track: true, weight_oz: p.variants[0]?.weight_oz || 4 }); draw(); };
     $('#addurl').onclick = () => { const u = $('#imgurl').value.trim(); if (u) { keep(); p.images.push(u); draw(); } };
     $('#upimg').onchange = async e => { keep(); for (const f of e.target.files) p.images.push(await shrinkImg(f)); draw(); };
     if ($('#del')) $('#del').onclick = () => { if (confirm('Delete this product? Past orders keep their line items.')) { store.deleteProduct(p.id); location.hash = '#/inventory'; } };
@@ -250,7 +319,7 @@ function order([id]) {
         <table style="margin-top:10px">${o.items.map(i => `<tr><td><img class="thumb" src="${esc(i.image || '')}" alt=""></td><td><b>${esc(i.title)}</b>${i.variant ? `<br><span class="small muted">${esc(i.variant)}</span>` : ''}<br><span class="small dim">${esc(i.sku || '')}</span></td><td class="num">${money(i.price)} × ${i.qty}</td><td class="num">${money(i.price * i.qty)}</td></tr>`).join('')}</table>
         <div style="max-width:300px;margin:12px 0 0 auto"><div class="sum"><span>Subtotal</span><span>${money(o.subtotal)}</span></div><div class="sum"><span>Shipping</span><span>${money(o.shipping)}</span></div><div class="sum"><span>Tax</span><span>${money(o.tax)}</span></div><div class="sum total"><span>Total</span><span>${money(o.total)}</span></div></div>
         ${o.payment ? `<p class="small muted">Payment: Stripe ${esc(o.payment.mode === 'demo' ? '(demo)' : '')} · card ending ${esc(o.payment.last4)} · <code>${esc(o.payment.id)}</code></p>` : ''}</div>
-      ${o.status === 'paid' ? `<div class="panel" style="margin-top:16px"><h3>Ship this order</h3><div class="grid2"><div class="field"><label>Carrier</label><select id="carrier"><option>USPS</option><option>UPS</option><option>FedEx</option></select></div><div class="field"><label>Tracking number</label><input id="trk"></div></div>
+      ${o.status === 'paid' ? `<div class="panel" style="margin-top:16px"><h3>Ship this order</h3><p class="small muted">Customer chose <b>${esc((o.ship || {}).method_name || 'standard shipping')}</b>. Buy the label with Shippo on the <a class="link" href="#/ship">Shipping page</a> — or, if you shipped it another way, type the tracking number here.</p><div class="grid2"><div class="field"><label>Carrier</label><select id="carrier"><option>USPS</option><option>UPS</option><option>FedEx</option></select></div><div class="field"><label>Tracking number</label><input id="trk"></div></div>
         <label class="check"><input type="checkbox" id="notify" checked> Email the customer the tracking number</label><button class="btn red" id="ship" style="margin-top:8px">Mark as shipped</button></div>` : ''}
       ${!['refunded', 'cancelled'].includes(o.status) ? `<div class="panel" style="margin-top:16px"><h3>Refund or cancel</h3><label class="check"><input type="checkbox" id="restock" checked> Put the items back in stock</label>
         <div class="row" style="margin-top:8px"><button class="btn ghost" id="refund">Refund ${money(o.total)}</button>${o.status === 'paid' ? '<button class="btn ghost" id="cancel">Cancel order</button>' : ''}</div>
@@ -260,10 +329,13 @@ function order([id]) {
     </div><aside>
       <div class="panel"><h3>Customer</h3><p><a href="#/customer/${c.id}"><b>${esc(c.name || '')}</b></a><br><a href="mailto:${esc(o.email)}">${esc(o.email)}</a>${c.phone ? '<br>' + esc(c.phone) : ''}</p>
         <h4>Ship to</h4><p class="muted">${esc(s.name || '')}<br>${esc(s.line1 || '')}${s.line2 ? '<br>' + esc(s.line2) : ''}<br>${esc(s.city || '')}, ${esc(s.state || '')} ${esc(s.zip || '')}</p>
-        ${o.tracking ? `<h4>Tracking</h4><p>${esc(o.tracking)}</p>` : ''}
+        ${o.shipment ? `<h4>Shipping</h4><p>${SHIP.trackingLink(o.shipment)}<br><span class="small muted">${esc(o.shipment.service || '')}${o.shipment.cost ? ' · label ' + money(o.shipment.cost) : ''} · ${esc(SHIP.statusLabel(o.shipment))}</span></p>${o.shipment.source === 'shippo' ? `<button class="btn ghost sm" id="plabel">Print label</button>` : ''}` : o.tracking ? `<h4>Tracking</h4><p>${esc(o.tracking)}</p>` : ''}
         <button class="btn ghost sm" id="link">Copy customer's private link</button></div></aside></div>`);
   const ask = () => $('#restock') && $('#restock').checked;
-  if ($('#ship')) $('#ship').onclick = () => { const t = $('#trk').value.trim(); store.updateOrder(o.id, { status: 'fulfilled', tracking: t ? $('#carrier').value + ' ' + t : '' }, t ? `Shipped ${$('#carrier').value} ${t}${$('#notify').checked ? ' · customer emailed' : ''}` : 'Shipped'); toast('Marked as shipped'); };
+  if ($('#ship')) $('#ship').onclick = () => { const t = $('#trk').value.trim(), car = $('#carrier').value;
+    if (t) { store.updateOrder(o.id, { status: 'fulfilled', tracking: `${car} ${t}`, shipment: { carrier: car, service: car, tracking: t, status: 'TRANSIT', source: 'manual', shipped_at: new Date().toISOString(), events: [] } }, `Shipped ${car} ${t} (entered by hand)`); toast('Marked as shipped'); return; }
+    store.updateOrder(o.id, { status: 'fulfilled' }, 'Shipped (no tracking number)'); toast('Marked as shipped'); };
+  if ($('#plabel')) $('#plabel').onclick = () => SHIP.openLabel(o.shipment);
   if ($('#refund')) $('#refund').onclick = () => { if (confirm(`Refund ${money(o.total)}?`)) store.updateOrder(o.id, { status: 'refunded', restock: ask() }, 'Refunded ' + money(o.total) + (ask() ? ' · restocked' : '')); };
   if ($('#cancel')) $('#cancel').onclick = () => { if (confirm('Cancel this order and refund the payment?')) store.updateOrder(o.id, { status: 'cancelled', restock: ask() }, 'Cancelled' + (ask() ? ' · restocked' : '')); };
   $('#addnote').onclick = () => { const n = $('#onote').value.trim(); if (n) store.updateOrder(o.id, {}, n); };
@@ -316,7 +388,25 @@ function site() {
         <h3>Add-ons</h3>${c.prices.addons.map((a, i) => `<div class="grid3" data-a="${i}"><div class="field"><label>Name</label><input data-ak="name" value="${esc(a.name)}"></div><div class="field"><label>Price $</label><input data-ak="price" value="${a.price}"></div><div class="field"><label>Per</label><select data-ak="unit">${['card', 'slab', 'submission'].map(u => `<option ${a.unit === u ? 'selected' : ''}>${u}</option>`).join('')}</select></div></div>`).join('')}
         <p class="small muted">This is the one price list: the Pricing page, the Free Card Review quiz, the Submit Cards quote and the work portal's service menus and quotes all read it.</p></div>
       <div class="panel"><h3>Queue & shop</h3><div class="field"><label>Cards accepted per week</label><input id="cap" value="${c.capacity}"></div>
-        <div class="grid3"><div class="field"><label>Shipping $</label><input id="ship" value="${c.shop.shipping}"></div><div class="field"><label>Free over $</label><input id="free" value="${c.shop.free_over || ''}" placeholder="never"></div><div class="field"><label>Sales tax %</label><input id="tax" value="${c.shop.tax_rate}"></div></div></div>
+        <div class="field"><label>Sales tax %</label><input id="tax" value="${c.shop.tax_rate}" style="max-width:140px"></div>
+        <h3>Shipping options at checkout</h3>${methodsOf(c.shop).map((m, i) => `<div class="grid3" data-m="${i}"><div class="field"><label>Name</label><input data-mk="name" value="${esc(m.name)}"></div>
+          <div class="field"><label>Price $</label><input data-mk="price" value="${m.price}"></div><div class="field"><label>Free over $</label><input data-mk="free_over" value="${m.free_over || ''}" placeholder="never"></div>
+          <div class="field" style="grid-column:1/-1;margin-top:-8px"><label>Delivery time shown</label><input data-mk="days" value="${esc(m.days || '')}"></div></div>`).join('')}</div>
+      <div class="panel"><h3>Shippo (shipping labels)</h3><p class="small muted" style="margin-top:0">Rates, labels and tracking for product orders and card returns. The Shippo API token is secret: it lives in the server function, never here.</p>
+        <div class="grid2"><div class="field"><label>Mode</label><select id="spMode">${[['demo', 'Demo (simulated, no charges)'], ['test', 'Shippo test key (sample labels)'], ['live', 'Shippo live (real postage)']].map(([k, l]) => `<option value="${k}" ${SHIP.shipCfg().shippo.mode === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+          <div class="field"><label>Checkout shipping prices</label><select id="spCk"><option value="flat" ${SHIP.shipCfg().shippo.checkout_rates === 'flat' ? 'selected' : ''}>Flat (options below)</option><option value="live" ${SHIP.shipCfg().shippo.checkout_rates === 'live' ? 'selected' : ''}>Live Shippo rates</option></select></div></div>
+        <div class="field"><label>Shipping function address (Supabase Edge Function URL)</label><input id="spUrl" value="${esc(SHIP.shipCfg().shippo.function_url)}" placeholder="https://&lt;project&gt;.supabase.co/functions/v1/shippo"></div>
+        <div class="field"><label>Label format</label><select id="spFmt">${['PDF_4x6', 'PDF', 'PNG', 'ZPLII'].map(f => `<option ${SHIP.shipCfg().shippo.label_format === f ? 'selected' : ''}>${f}</option>`).join('')}</select></div>
+        <h3 style="margin-top:14px">Ship from</h3><div class="grid2"><div class="field"><label>Name</label><input id="fName" value="${esc(SHIP.shipCfg().from.name)}"></div><div class="field"><label>Phone</label><input id="fPhone" value="${esc(SHIP.shipCfg().from.phone)}"></div></div>
+        <div class="field"><label>Street</label><input id="fL1" value="${esc(SHIP.shipCfg().from.line1)}"></div>
+        <div class="grid3"><div class="field"><label>City</label><input id="fCity" value="${esc(SHIP.shipCfg().from.city)}"></div><div class="field"><label>State</label><input id="fSt" value="${esc(SHIP.shipCfg().from.state)}"></div><div class="field"><label>ZIP</label><input id="fZip" value="${esc(SHIP.shipCfg().from.zip)}"></div></div>
+        <h3 style="margin-top:14px">Card returns</h3>
+        <div class="field"><label>Box</label><select id="crBox">${SHIP.shipCfg().boxes.map(b => `<option value="${b.key}" ${b.key === SHIP.shipCfg().cardReturn.box ? 'selected' : ''}>${esc(b.name)}</option>`).join('')}</select></div>
+        <div class="grid2"><div class="field"><label>Ounces per card</label><input id="crOz" value="${SHIP.shipCfg().cardReturn.per_card_oz}"></div>
+          <div class="field"><label>Preferred service</label><input id="crSvc" value="${esc(SHIP.shipCfg().cardReturn.prefer)}"></div></div>
+        <label class="check"><input type="checkbox" id="crIns" ${SHIP.shipCfg().cardReturn.insure ? 'checked' : ''}> Insure card returns for the card values (unless the customer said no)</label>
+        <h3 style="margin-top:14px">Boxes</h3>${SHIP.shipCfg().boxes.map((b, i) => `<div class="var-row" data-b="${i}" style="grid-template-columns:2fr .6fr .6fr .6fr .7fr"><div><label>Name</label><input data-bk="name" value="${esc(b.name)}"></div>
+          <div><label>L in</label><input data-bk="l" value="${b.l}"></div><div><label>W in</label><input data-bk="w" value="${b.w}"></div><div><label>H in</label><input data-bk="h" value="${b.h}"></div><div><label>Box oz</label><input data-bk="oz" value="${b.oz}"></div></div>`).join('')}</div>
       <div class="panel"><h3>Payments</h3><div class="field"><label>Provider</label><select id="prov"><option value="stripe">Stripe</option></select></div>
         <div class="field"><label>Mode</label><select id="mode"><option value="demo" ${c.payments.mode === 'demo' ? 'selected' : ''}>Demo (no real charges)</option><option value="test" ${c.payments.mode === 'test' ? 'selected' : ''}>Stripe test mode</option><option value="live" ${c.payments.mode === 'live' ? 'selected' : ''}>Stripe live</option></select></div>
         <div class="field"><label>Stripe publishable key (pk_…)</label><input id="pk" value="${esc(c.payments.publishable_key)}" placeholder="pk_test_…"></div>
@@ -338,7 +428,15 @@ function site() {
         if (amt.endsWith('%')) { t.pct = +amt.replace('%', '') || 0; delete t.price; } else { t.price = +amt.replace(/[^\d.]/g, '') || 0; delete t.pct; } });
       c.prices.cleaning = +v('clean') || 0;
       $$('[data-a]').forEach(row => { const a = c.prices.addons[+row.dataset.a]; a.name = $('[data-ak=name]', row).value.trim(); a.price = +$('[data-ak=price]', row).value || 0; a.unit = $('[data-ak=unit]', row).value; });
-      c.capacity = parseInt(v('cap'), 10) || 40; c.shop = { shipping: +v('ship') || 0, free_over: +v('free') || 0, tax_rate: +v('tax') || 0 };
+      c.capacity = parseInt(v('cap'), 10) || 40;
+      c.shop = { tax_rate: +v('tax') || 0, methods: $$('[data-m]').map((row, i) => { const g = k => $(`[data-mk=${k}]`, row).value.trim();
+        return { key: methodsOf(c.shop)[i].key, name: g('name'), price: +g('price') || 0, free_over: +g('free_over') || 0, days: g('days') }; }) };
+      const sc = SHIP.shipCfg();
+      c.shipping = { ...sc, boxes: $$('[data-b]').map((row, i) => { const g = k => $(`[data-bk=${k}]`, row).value.trim(); return { key: sc.boxes[i].key, name: g('name'), l: +g('l') || 1, w: +g('w') || 1, h: +g('h') || 1, oz: +g('oz') || 0 }; }),
+        cardReturn: { box: v('crBox'), per_card_oz: +v('crOz') || 0.5, prefer: v('crSvc'), insure: $('#crIns').checked },
+        from: { ...sc.from, name: v('fName'), phone: v('fPhone'), line1: v('fL1'), city: v('fCity'), state: v('fSt').toUpperCase(), zip: v('fZip') },
+        shippo: { mode: v('spMode'), checkout_rates: v('spCk'), function_url: v('spUrl'), label_format: v('spFmt') } };
+      if (c.shipping.shippo.mode !== 'demo' && !c.shipping.shippo.function_url) { const er = $('#serr'); er.textContent = 'Test or live Shippo needs the shipping function address.'; er.classList.remove('hidden'); return; }
       c.payments = { provider: 'stripe', mode: v('mode'), publishable_key: v('pk') };
       if (c.payments.publishable_key && !/^pk_(test|live)_/.test(c.payments.publishable_key)) { const er = $('#serr'); er.textContent = 'That doesn’t look like a publishable key (pk_test_… or pk_live_…). Never paste the secret sk_ key here.'; er.classList.remove('hidden'); return; }
       c.contact = { email: v('ce'), phone: v('cph'), address: lines('caddr') }; c.dropoff = { name: v('dn'), address: lines('da'), phone: v('dp') };

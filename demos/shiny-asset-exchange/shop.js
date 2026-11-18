@@ -1,6 +1,6 @@
 // Shiny Asset Exchange demo — storefront (hash router).
 import { store, money, money0, esc, fmtDate, stockState, totals, methodsOf, quote, tierFor, demoCharge, STATUS_LABEL } from './data.js';
-import { trackingLink } from './pirateship.js';
+import { trackingLink, statusLabel, shipCfg, shippo } from './shipping.js';
 import * as PS from './portal/demostore.js';
 import { FAQ, FAQ_INTRO, FAQ_OUTRO, TOOLS, RECS, PRIVACY, ASSESS, assessResult, CARE_GUIDE, NON_LIABILITY } from './content.js';
 
@@ -357,7 +357,27 @@ function checkout() {
       <div><div class="t">${esc(l.p.title)}</div><div class="small muted">${esc(l.v.title)}</div></div><div class="num">${money(l.price * l.qty)}</div></div>`).join('')}
       <div style="margin-top:12px" id="coSum">${sumHtml(t)}</div></div></aside></div></div>`;
   bindPayForm();
-  $$('input[name=sm]').forEach(r => r.onchange = () => { method = r.value; t = totals(C().shop, lines, method); $('#coSum').innerHTML = sumHtml(t); $('#payBtn').textContent = 'Pay ' + money(t.total); });
+  let liveRates = null; // live Shippo rates at checkout (Prices & shop settings → Shippo → Checkout shipping prices)
+  const shopNow = () => liveRates ? { ...C().shop, methods: liveRates } : C().shop;
+  const bindMethods = () => $$('input[name=sm]').forEach(r => r.onchange = () => { method = r.value; t = totals(shopNow(), lines, method); $('#coSum').innerHTML = sumHtml(t); $('#payBtn').textContent = 'Pay ' + money(t.total); });
+  bindMethods();
+  if (shipCfg().shippo.checkout_rates === 'live') {
+    const fetchRates = async () => {
+      const a = { line1: $('#line1').value.trim(), city: $('#city').value.trim(), state: $('#state').value.trim(), zip: $('#zip').value.trim() };
+      if (!a.line1 || !/^\d{5}/.test(a.zip)) return;
+      $('.ship-methods').innerHTML = '<p class="small muted">Getting live rates…</p>';
+      try {
+        const oz = lines.reduce((n, l) => n + (l.v.weight_oz || 4) * l.qty, 0) + 4;
+        const rates = await shippo.rates({ kind: 'quote', ref: 'checkout', name: 'Customer', address: a, box: oz > 24 ? 'medium' : oz > 8 ? 'small' : 'mailer', oz: Math.ceil(oz), insured: 0 }, true);
+        const pick = ['Ground Advantage', 'Priority Mail', 'Ground Saver'].map(n => rates.find(r => r.service === n)).filter(Boolean);
+        liveRates = pick.map((r, i) => ({ key: r.token, name: `${r.provider} ${r.service}`, price: r.amount, days: `${r.days} business day${r.days === 1 ? '' : 's'}`, free_over: 0 }));
+        method = liveRates[0].key;
+        $('.ship-methods').innerHTML = liveRates.map((m, i) => `<label class="ship-m"><input type="radio" name="sm" value="${esc(m.key)}" ${i === 0 ? 'checked' : ''}><span><b>${esc(m.name)}</b><small>${esc(m.days)} · live rate</small></span><em>${money(m.price)}</em></label>`).join('');
+        bindMethods(); t = totals(shopNow(), lines, method); $('#coSum').innerHTML = sumHtml(t); $('#payBtn').textContent = 'Pay ' + money(t.total);
+      } catch (e) { $('.ship-methods').innerHTML = `<p class="err small">${esc(e.message)}</p>`; }
+    };
+    ['line1', 'city', 'state', 'zip'].forEach(id => $('#' + id).addEventListener('change', fetchRates)); fetchRates();
+  }
   $('#co').onsubmit = e => e.preventDefault();
   $('#payBtn').onclick = e => {
     e.preventDefault();
@@ -366,10 +386,11 @@ function checkout() {
     if (missing.length || !/^\S+@\S+\.\S+$/.test(v('email'))) { err.textContent = 'Please fill in your email and delivery address.'; err.classList.remove('hidden'); $('#' + (missing[0] || 'email')).focus(); return; }
     err.classList.add('hidden');
     try { localStorage.setItem('sae-checkout', JSON.stringify(Object.fromEntries(['email', 'phone', 'first', 'last', 'line1', 'line2', 'city', 'state', 'zip'].map(k => [k, v(k)])))); } catch {}
+    if (shipCfg().shippo.checkout_rates === 'live' && !liveRates) { err.textContent = 'Enter your address to see shipping rates.'; err.classList.remove('hidden'); return; }
     const r = charge(t.total); if (!r.ok) return;
     const res = store.placeOrder({
       customer: { name: v('first') + ' ' + v('last'), email: v('email'), phone: v('phone') },
-      ship: { name: v('first') + ' ' + v('last'), line1: v('line1'), line2: v('line2'), city: v('city'), state: v('state'), zip: v('zip'), country: 'US', method },
+      ship: { name: v('first') + ' ' + v('last'), line1: v('line1'), line2: v('line2'), city: v('city'), state: v('state'), zip: v('zip'), country: 'US', method, rate: liveRates ? liveRates.find(m => m.key === method) : null },
       cart: lines.map(l => ({ variant_id: l.variant_id, qty: l.qty })), payment: r.payment,
     });
     if (!res.ok) { err.innerHTML = 'Some items sold out while you were checking out: ' + res.short.map(s => `${esc(s.title || '')} ${esc(s.variant || '')} (${s.have} left)`).join(', ') + '. You have not been charged — please update your cart.'; err.classList.remove('hidden'); return; }
@@ -647,18 +668,24 @@ function timeline(steps, cur, history) {
   const idx = steps.indexOf(cur);
   return `<ul class="timeline">${steps.map((s, i) => `<li class="${i < idx ? 'done' : i === idx ? 'done now' : ''}">${esc(s === 'paid' && steps === ORDER_STEPS ? 'Order placed & paid' : STATUS_LABEL[s])}${at(s) ? ` <span class="small dim">· ${fmtDate(at(s), true)}</span>` : ''}</li>`).join('')}</ul>`;
 }
+function shipBox(sh, title = 'Shipped') {
+  const done = sh.status === 'DELIVERED';
+  return `<div class="shipbox ${done ? 'done' : ''}"><div class="row" style="justify-content:space-between"><b>${done ? 'Delivered' : esc(title)}</b><span class="pill ${done ? 'ok' : 'info'}">${esc(statusLabel(sh))}</span></div>
+    <div class="small muted">${esc(sh.service || sh.carrier)} · ${trackingLink(sh)}${sh.eta && !done ? ` · estimated ${fmtDate(sh.eta)}` : ''}</div>
+    ${(sh.events || []).length > 1 ? `<ul class="scans">${sh.events.slice().reverse().map(e => `<li><span>${fmtDate(e.at, true)}</span>${esc(e.details)}${e.location ? ` <em>${esc(e.location)}</em>` : ''}</li>`).join('')}</ul>` : ''}</div>`;
+}
 function orderBlock(o) {
   const stopped = ['refunded', 'cancelled'].includes(o.status);
   return `<div class="panel" style="margin-bottom:16px"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Order ${esc(o.number)}</h3><span class="small muted">${fmtDate(o.created)}</span></div>
     <p class="small muted">${o.items.map(i => `${i.qty} × ${esc(i.title)} ${esc(i.variant)}`).join(' · ')} — ${money(o.total)}</p>
     ${stopped ? `<span class="pill bad">${esc(STATUS_LABEL[o.status])}</span>` : timeline(ORDER_STEPS, o.status, o.history)}
-    ${o.shipment ? `<p class="small" style="margin:8px 0 0">Tracking: ${trackingLink(o.shipment)}</p>` : o.tracking ? `<p class="small" style="margin:8px 0 0">Tracking: <b>${esc(o.tracking)}</b></p>` : ''}</div>`;
+    ${o.shipment ? shipBox(o.shipment) : o.tracking ? `<p class="small" style="margin:8px 0 0">Tracking: <b>${esc(o.tracking)}</b></p>` : ''}</div>`;
 }
 function subBlock({ submission: s, customer: c, cards }) {
   return `<div class="panel" style="margin-bottom:16px"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Restoration ${esc(s.code)}</h3><span class="small muted">${fmtDate(s.created_at)}</span></div>
     ${timeline(SUB_STEPS, s.status, [{ status: s.status, at: s.status_changed_at || s.updated_at }])}
     ${s.public_notes ? `<div class="callout" style="margin:10px 0">${esc(s.public_notes)}</div>` : ''}
-    ${s.return_shipment ? `<div class="notice" style="margin:10px 0"><span class="tag">SHIPPED</span><span>Your cards are on the way back: ${trackingLink(s.return_shipment)}</span></div>` : ''}
+    ${s.return_shipment ? shipBox(s.return_shipment, 'Your cards are on the way back') : ''}
     <p class="small muted">${cards.map(k => esc(k.name)).join(' · ')}</p>
     <a class="btn red" href="${esc(portalLink(c.share_token))}">See every card, scan and photo</a></div>`;
 }

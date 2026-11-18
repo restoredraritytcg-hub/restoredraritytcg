@@ -70,6 +70,38 @@ Work portal (`portal/`) — a copy of Restored Rarity's `portal/`, rebranded, ru
   (Card Review, Estimated Grade, Express Lane) as checkboxes; quotes use the shop's rules; no Reviews tab (no
   Apps Script); demo images saved as data URLs.
 
+
+## Shipping — built around Shippo
+
+Product orders **and** restored cards going home share one workflow (shop admin → **Shipping**):
+
+1. **Queue** — paid product orders + restorations set to “Ready for pickup / shipping” that ship back (not Austin drop-offs).
+   Box, weight (from each product option's packed weight, or ½ oz per card + the card box) and insured value (card values
+   from the intake, unless the customer said no) are filled in and editable.
+2. **Get rates → Buy label** (Shippo `POST /shipments` → `POST /transactions`). The customer's chosen service is
+   pre-selected; “Buy labels” does every ticked shipment at once. **Print label** opens the 4×6 label PDF.
+3. **Tracking** — Shippo's `track_updated` webhook moves each label Label created → In transit → Out for delivery →
+   Delivered (demo: **Simulate scan**). Delivered card returns complete their submission automatically.
+4. **Void** an unused label (Shippo `POST /refunds`).
+
+Also: the work portal's submission page has a **Return shipping** panel (edit the return address, rates, buy, track);
+customers see carrier, tracking link, status, scans and ETA on Order Status and their private link; checkout offers
+USPS Ground Advantage / Priority Mail at flat prices **or live Shippo rates** (setting); the intake collects the return
+address as fields; a spreadsheet export remains for anyone who prefers Pirate Ship.
+
+| File | |
+|---|---|
+| `shipping.js` | Queue, Shippo client (demo simulation / live via the server function), labels, tracking, rates widget. |
+| `portal/returnship.js` | Work portal Return shipping panel + customer-link tracking. |
+| `server/supabase/functions/shippo/index.ts` | **Going live:** Supabase Edge Function holding the Shippo token: `rates`, `buy`, `void` (admins only), `quote` (checkout), and the tracking webhook. Type-checks with Deno; **not yet deployed or run against Shippo.** |
+| `server/shipping.sql` | `submissions.return_address` / `return_shipment` columns for the portal. |
+
+Going live with Shippo: create a Shippo account → API token (test first: `shippo_test_…`) → `supabase functions deploy shippo`
+with secrets `SHIPPO_API_TOKEN` and `SHIPPO_WEBHOOK_SECRET` → in Shippo add a `track_updated` webhook to
+`https://<project>.supabase.co/functions/v1/shippo?webhook=<secret>` → in Shop admin → Prices & shop settings → Shippo set
+the mode and the function address. Cost (third-party figures, check Shippo's pricing page): ~30 free API labels a month,
+then roughly 5–7¢ a label; postage is separate. The demo's rates are simulated estimates, not Shippo's prices.
+
 ## Files
 
 | File | |

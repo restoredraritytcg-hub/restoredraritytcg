@@ -95,7 +95,8 @@ function addCustomer(db, { name, email, phone }) {
 }
 
 function buildOrder(db, cust, items, ship) {
-  const t = totals(db.content.shop, items, ship && ship.method);
+  const shop = ship && ship.rate ? { ...db.content.shop, methods: [{ ...ship.rate, free_over: 0 }] } : db.content.shop;
+  const t = totals(shop, items, ship && ship.method);
   if (ship) ship.method_name = t.method_name;
   return { id: uid('o'), number: '#' + (++db.seq.order), customer_id: cust.id, email: cust.email, created: now(), items, ship, ...t,
     status: 'paid', tracking: '', notes: '', history: [] };

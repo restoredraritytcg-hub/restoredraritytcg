@@ -537,13 +537,13 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    admin + work portal share the fonts/colours. **Logo refresh concept** for the pitch in `demos/shiny-asset-exchange/brand/`
    (outlined SVG/PNG + pitch PDF; generator `brand/source/make_logo.py`). Owner asked for its own repo: suggested
    `restoredraritytcg-hub/shinyassetexchange-demo` (private) — Claude can't create repos, so the owner creates it empty.
-   **In progress (Nov 18): shipping for product orders + card returns.** Owner asked for Pirate Ship. Pirate Ship has no
-   public API (labels via spreadsheet upload; tracking back via its shipment export). Done: checkout shipping choices (USPS
-   Ground Advantage / Priority, free-over per method), packed weight per product option, structured return address on the
-   intake (`submissions.return_address`), `pirateship.js` (queue, spreadsheet, tracking import, markShipped), tracking links
-   on Order Status. Not wired yet: the shop admin Shipping page. Owner then asked whether Shippo has an API (yes: rates,
-   labels, tracking webhooks, test keys; ~30 free labels/mo then ~5–7¢/label per third-party sources) — waiting for the
-   owner to choose Shippo, Pirate Ship, or both before finishing.
+   **Shipping built around Shippo (Nov 18; owner's choice after asking about Pirate Ship, which has no API).** One queue in
+   shop admin → Shipping for paid orders + restorations Ready that ship back: rates → buy label → print 4×6 → tracking
+   (Shippo `track_updated` webhook; demo “Simulate scan”) → Delivered completes card returns; void unused labels; bulk buy
+   uses the customer's chosen service. Portal submission page has a Return shipping panel (`portal/returnship.js`); customers
+   see tracking on Order Status + their private link. Checkout: flat USPS Ground Advantage/Priority or live Shippo rates
+   (setting). `shipping.js` is shared; live calls go through `server/supabase/functions/shippo/index.ts` (Deno type-check
+   passes; never deployed/run against Shippo) + `server/shipping.sql`. Pirate Ship spreadsheet kept as an export.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.

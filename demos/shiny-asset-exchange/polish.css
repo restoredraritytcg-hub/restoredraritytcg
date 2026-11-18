@@ -321,3 +321,18 @@ main{overflow-x:clip}
 .ship-m:has(input:checked){border-color:var(--gold);background:linear-gradient(90deg,var(--goldbg),var(--panel))}
 .ship-m span{flex:1;display:flex;flex-direction:column} .ship-m b{color:#fff;font-size:15px} .ship-m small{color:var(--muted);font-size:13px}
 .ship-m em{font-style:normal;font-weight:700;color:var(--gold)}
+
+/* Shippo rates widget + tracking (shared look) */
+.rates{display:grid;gap:8px;max-width:640px}
+.rate{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid #383842;border-radius:10px;background:rgba(255,255,255,.02);cursor:pointer;margin:0;color:inherit;text-transform:none;letter-spacing:0;font-size:14px}
+.rate.on{border-color:#e8c27e;background:linear-gradient(90deg,rgba(232,194,126,.1),transparent)}
+.rate span{flex:1;display:flex;flex-direction:column} .rate b{color:#fff} .rate small{color:#a9a3a6;font-size:12.5px}
+.rate strong{color:#e8c27e;font-size:16px}
+.rate em{font-style:normal;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:4px;margin-left:6px}
+.rate .tag-cheapest{background:rgba(62,214,96,.14);color:#5ee58a} .rate .tag-fastest{background:rgba(227,32,42,.16);color:#ff7a80}
+.shipbox{margin:12px 0 0;padding:14px 16px;border-radius:12px;border:1px solid rgba(232,194,126,.4);background:linear-gradient(90deg,var(--goldbg),transparent)}
+.shipbox.done{border-color:rgba(62,214,96,.45);background:linear-gradient(90deg,rgba(62,214,96,.07),transparent)}
+.shipbox b{color:#fff}
+.scans{list-style:none;margin:10px 0 0;padding:0 0 0 14px;border-left:2px solid var(--line2);display:grid;gap:6px;font-size:13px;color:var(--muted)}
+.scans li span{color:var(--dim);margin-right:8px} .scans li em{font-style:normal;color:var(--dim)}
+.rate em{align-self:flex-start;margin:3px 0 2px}
