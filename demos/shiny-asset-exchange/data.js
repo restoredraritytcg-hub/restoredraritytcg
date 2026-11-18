@@ -1,20 +1,19 @@
-// Shiny Asset Exchange demo — data layer.
-// Demo mode keeps everything in this browser's localStorage so the shop, the cart, checkout,
-// the customer's private link and the admin portal all share one "database".
+// Shiny Asset Exchange demo — shop data layer (products, stock, orders, shop customers, settings).
+// Restoration submissions live in the work portal's store (portal/demostore.js), like Restored Rarity.
+// Demo mode keeps everything in this browser's localStorage so the shop, cart, checkout and admin share it.
 // Swap `store` for a Supabase-backed version to go live (see README.md); the shape stays the same.
 import { SEED_PRODUCTS } from './seed.js';
 
-const KEY = 'sae-demo-v1';
+const KEY = 'sae-demo-v2';
 const listeners = new Set();
 
 export const STATUSES = {
   order: ['paid', 'fulfilled', 'refunded', 'cancelled'],
-  submission: ['submitted', 'invoiced', 'paid', 'received', 'in_progress', 'restored', 'shipped', 'completed', 'cancelled'],
 };
 export const STATUS_LABEL = {
   paid: 'Paid', fulfilled: 'Shipped', refunded: 'Refunded', cancelled: 'Cancelled', unfulfilled: 'Unfulfilled',
-  submitted: 'Submitted', invoiced: 'Invoice sent', received: 'Cards received', in_progress: 'In progress',
-  restored: 'Restored', shipped: 'Shipped back', completed: 'Completed',
+  submitted: 'Submitted online', received: 'Received', in_progress: 'Restoration in progress',
+  restored: 'Restored', ready: 'Ready for pickup / shipping', completed: 'Completed',
 };
 export const MOVE_REASONS = {
   sale: 'Sale', refund: 'Refund (restocked)', received: 'Stock received', damaged: 'Damaged / lost',
@@ -22,7 +21,6 @@ export const MOVE_REASONS = {
 };
 
 export const DEFAULT_CONTENT = {
-  announcement: 'Welcome to Shiny Asset Exchange!',
   hero: { kicker: 'Revive Your Collection', title: 'Restore Your Cards. Restore Their Value.',
     sub: 'Professional card restoration. Professional Results.', line: 'Turn old cards into shiny new assets!' },
   bestseller: 'The hydration phase spray is the only one of its kind on the market. If you’re looking for a true hydration without the side effects, your search ends here.',
@@ -57,8 +55,8 @@ const daysAgo = d => new Date(Date.now() - d * 864e5).toISOString();
 
 function seed() {
   const products = JSON.parse(JSON.stringify(SEED_PRODUCTS));
-  const db = { v: 1, products, movements: [], orders: [], customers: [], submissions: [], content: JSON.parse(JSON.stringify(DEFAULT_CONTENT)),
-    seq: { order: 1000, sub: 1040 }, created: now() };
+  const db = { v: 2, products, movements: [], orders: [], customers: [], submissions: [], content: JSON.parse(JSON.stringify(DEFAULT_CONTENT)),
+    seq: { order: 1000 }, created: now() };
   // opening stock
   for (const p of products) for (const v of p.variants)
     db.movements.push({ id: uid('m'), at: daysAgo(30), variant_id: v.id, delta: v.stock, after: v.stock, reason: 'received', note: 'Opening count', by: 'admin' });
@@ -78,18 +76,6 @@ function seed() {
   mk(c1, [['card-restoration-starter-kit', 0, 1], ['holo-serum', 1, 1]], 6, 'fulfilled', { tracking: '9400 1000 0000 0000 0001' });
   mk(c2, [['card-spray', 1, 2], ['micro-abrasive-polish', 1, 1], ['recharge-refresh-pack', 0, 4]], 2, 'paid');
   mk(c1, [['hydration-phase-spray', 0, 1]], 0, 'paid');
-  const s = {
-    id: uid('s'), code: 'SAE-' + (++db.seq.sub), customer_id: c1.id, created: daysAgo(4), status: 'received', delivery: 'ship',
-    cards: [
-      { id: uid('c'), name: 'Charizard', details: 'Base Set · 4/102 · 1999', value: 420, service: 'restoration', addons: ['grade'], damage: 'Light crease on the front, top right', status: 'in_progress' },
-      { id: uid('c'), name: 'Blastoise', details: 'Base Set · 2/102 · 1999', value: 180, service: 'cleaning', addons: [], damage: 'Fingerprints and dust', status: 'received' },
-    ],
-    public_notes: 'Cards arrived safely. Charizard is on the press this week.', internal_notes: 'Seed data for the demo.',
-    invoice: { status: 'paid', paid_at: daysAgo(4), total: 0 }, history: [], emailed_status: 'received',
-  };
-  s.invoice.total = quote(db.content.prices, s.cards).total;
-  s.history = [{ at: daysAgo(6), status: 'submitted' }, { at: daysAgo(5), status: 'invoiced' }, { at: daysAgo(4), status: 'paid' }, { at: daysAgo(3), status: 'received' }];
-  db.submissions.push(s);
   return db;
 }
 
@@ -148,7 +134,7 @@ let cache = null;
 function load() {
   if (cache) return cache;
   try { cache = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { cache = null; }
-  if (!cache || cache.v !== 1) { cache = seed(); save(); }
+  if (!cache || cache.v !== 2) { cache = seed(); save(); }
   return cache;
 }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(cache)); } catch {} listeners.forEach(f => f()); }
@@ -223,34 +209,6 @@ export const store = {
   saveCustomer(id, patch) { const c = load().customers.find(x => x.id === id); Object.assign(c, patch); save(); return c; },
   newLink(id) { const c = load().customers.find(x => x.id === id); c.token = token(); save(); return c.token; },
 
-  // restoration submissions
-  submissions: () => load().submissions.slice().sort((a, b) => b.created.localeCompare(a.created)),
-  submission: id => load().submissions.find(s => s.id === id || s.code.toLowerCase() === String(id).toLowerCase()),
-  submit({ customer, delivery, cards, notes }) {
-    const db = load(); const cust = addCustomer(db, customer);
-    const s = { id: uid('s'), code: 'SAE-' + (++db.seq.sub), customer_id: cust.id, created: now(), status: 'submitted', delivery,
-      cards: cards.map(c => ({ ...c, id: uid('c'), status: 'submitted' })), customer_notes: notes || '', public_notes: '', internal_notes: '',
-      invoice: { status: 'unpaid', total: quote(db.content.prices, cards).total }, history: [{ at: now(), status: 'submitted' }], emailed_status: 'submitted' };
-    db.submissions.push(s); save(); return { submission: s, customer: cust };
-  },
-  updateSubmission(id, patch) {
-    const db = load(); const s = db.submissions.find(x => x.id === id);
-    if (patch.status && patch.status !== s.status) s.history.push({ at: now(), status: patch.status });
-    Object.assign(s, patch);
-    if (patch.cards) s.invoice.total = quote(db.content.prices, s.cards).total;
-    save(); return s;
-  },
-  payInvoice(id, payment) {
-    const db = load(); const s = db.submissions.find(x => x.id === id);
-    s.invoice = { ...s.invoice, status: 'paid', paid_at: now(), payment };
-    if (['submitted', 'invoiced'].includes(s.status)) { s.status = 'paid'; s.history.push({ at: now(), status: 'paid', note: 'Invoice paid by card ending ' + payment.last4 }); }
-    save(); return s;
-  },
-  // cards entering this week's queue (Monday start), for the 40-per-week message
-  queueThisWeek() {
-    const d = new Date(); const monday = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7));
-    return load().submissions.filter(s => s.status !== 'cancelled' && new Date(s.created) >= monday).reduce((n, s) => n + s.cards.length, 0);
-  },
 };
 const moveStockLater = [];
 export const slug = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || uid('item-');

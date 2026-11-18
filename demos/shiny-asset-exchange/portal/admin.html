@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Portal — Shiny Asset Exchange</title>
+<meta name="apple-mobile-web-app-title" content="SAE Portal">
+<meta name="theme-color" content="#121212">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="apple-touch-icon" href="https://shiny-asset-exchange.myshopify.com/cdn/shop/files/64F23902-BF59-4ECD-83AF-2698895120CB.png?height=180">
+<link rel="icon" type="image/png" sizes="192x192" href="https://shiny-asset-exchange.myshopify.com/cdn/shop/files/64F23902-BF59-4ECD-83AF-2698895120CB.png?height=180">
+<link rel="stylesheet" href="portal.css">
+<script src="config.js"></script>
+<script src="centering.js"></script>
+<script src="cardsearch.js"></script>
+</head>
+<body>
+<div id="demo"></div>
+<header class="top" id="topbar" hidden>
+  <a class="brand" href="../index.html" style="text-decoration:none"><img src="https://shiny-asset-exchange.myshopify.com/cdn/shop/files/64F23902-BF59-4ECD-83AF-2698895120CB.png?height=180" alt="" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Shiny Asset Exchange · Portal</a>
+  <nav>
+    <a href="#/" data-nav="">Submissions</a>
+    <a href="#/cards" data-nav="cards">All cards</a>
+    <a href="#/customers" data-nav="customers">Customers</a>
+    <a href="#/new" data-nav="new">+ New</a>
+    <a href="#/site" data-nav="site">Website</a>
+    <a href="scan.html">Scan station</a>
+    <a href="../admin.html" title="Shop admin: orders, inventory, stock">Shop ↗</a>
+  </nav>
+  <button class="btn sm" id="refresh" title="Load the latest submissions">↻ Refresh</button>
+  <button class="btn sm" id="signout">Sign out</button>
+</header>
+<main class="wrap" id="app"><div class="loading">Loading…</div></main>
+<script type="module" src="admin.js"></script>
+</body>
+</html>

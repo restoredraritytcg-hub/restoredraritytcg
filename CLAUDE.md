@@ -517,10 +517,16 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    their own sites plus inventory control, shop + cart + Stripe checkout, and an admin portal. Their site is a Shopify store
    (`shiny-asset-exchange.myshopify.com`): copy, 11 products, prices and photo URLs taken from its public pages and
    `products.json`; stock numbers invented. Runs entirely in the browser (localStorage) with Stripe test-card numbers; nothing
-   is charged. Tested with Playwright (desktop + 390 px): checkout with declined + approved card, stock decrements, quiz →
-   submit → private link, admin ship/receive/edit. Not built: Supabase + Stripe Checkout backend (plan in the README).
-   Kept off `main` on purpose (main publishes to restoredraritytcg.com). Open question for the owner: where to host it
-   (its own repo, like ScanStationIQ).
+   is charged. Same day, owner asked for a restoration & repair intake, Instagram, and **the Restored Rarity work portal as
+   the backend**: `demos/shiny-asset-exchange/portal/` is a rebranded copy of `portal/` on a browser-saved store
+   (`portal/demostore.js`, same tables as schema.sql); the site's Submit Cards form creates SAE-… submissions there (like
+   `intake_submit`), the customer gets the portal's `view.html` link, the portal's Website tab drives the site's announcement /
+   news / events / Instagram, and the portal's service menu + quotes read the shop's one price list. Their Instagram
+   (@shinyassetexchange) shows posts only when signed in, so **prices could not be pulled from it** — asked the owner for
+   screenshots/links. Tested with Playwright (desktop + 390 px): checkout, stock, quiz, intake → portal → quote → card editor →
+   customer link → order status, announcement round trip. Not built: Supabase + Stripe Checkout backend (plan in the README).
+   Kept off `main` on purpose (main publishes to restoredraritytcg.com). Open: where to host it (its own repo?).
+   Note: the portal copy diverges from `portal/` (see the demo README's file table) — it is not kept in sync automatically.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.

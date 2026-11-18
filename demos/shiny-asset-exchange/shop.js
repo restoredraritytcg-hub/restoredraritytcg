@@ -1,5 +1,6 @@
 // Shiny Asset Exchange demo — storefront (hash router).
-import { store, money, money0, esc, fmtDate, stockState, totals, quote, cardPrice, tierFor, demoCharge, STATUS_LABEL } from './data.js';
+import { store, money, money0, esc, fmtDate, stockState, totals, quote, tierFor, demoCharge, STATUS_LABEL } from './data.js';
+import * as PS from './portal/demostore.js';
 import { FAQ, FAQ_INTRO, FAQ_OUTRO, TOOLS, RECS, PRIVACY, ASSESS, assessResult, CARE_GUIDE, NON_LIABILITY } from './content.js';
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -31,13 +32,16 @@ function toast(msg) { const t = document.createElement('div'); t.className = 'to
 // ---------------- chrome ----------------
 function chrome() {
   const c = C();
-  $('#announce').textContent = c.announcement || ''; $('#announce').classList.toggle('hidden', !c.announcement);
+  const A = PS.siteContent('announcement') || {}; const on = A.on && A.text && !(A.until && A.until < new Date().toISOString().slice(0, 10));
+  const href = A.link && A.link.startsWith('#') && !A.link.startsWith('#/') ? '#/' + A.link.slice(1) : A.link;
+  $('#announce').innerHTML = on ? esc(A.text) + (href ? ` <a href="${esc(href)}" style="color:#fff;text-decoration:underline">${esc(A.linkText || 'Learn more')}</a>` : '') : '';
+  $('#announce').classList.toggle('hidden', !on);
   const ct = c.contact, d = c.dropoff;
   $('#footer').innerHTML = `<div class="wrap"><div class="cols">
     <div><h4>Questions? Reach us at</h4><p><a href="mailto:${esc(ct.email)}">${esc(ct.email)}</a></p><p>Phone: <a href="tel:${esc(ct.phone.replace(/\D/g, ''))}">${esc(ct.phone)}</a></p></div>
     <div><h4>Send your cards to:</h4><p>${ct.address.map(esc).join('<br>')}</p><p>Email: <a href="mailto:${esc(ct.email)}">${esc(ct.email)}</a></p></div>
     <div><h4>Local drop-off in Austin</h4><p>${esc(d.name)}<br>${d.address.map(esc).join('<br>')}<br>${esc(d.phone)}</p></div>
-    </div><div class="base"><span>© ${new Date().getFullYear()} Shiny Asset Exchange</span><a href="#/privacy">Privacy policy</a><a href="#/agreement">Non Liability Agreement</a><a href="#/privacy">Your Privacy Choices</a><a href="admin.html">Admin (demo)</a></div></div>`;
+    </div><div class="base"><span>© ${new Date().getFullYear()} Shiny Asset Exchange</span><a href="#/privacy">Privacy policy</a><a href="#/agreement">Non Liability Agreement</a><a href="#/privacy">Your Privacy Choices</a><a href="https://www.instagram.com/shinyassetexchange/" target="_blank" rel="noopener">Instagram</a><a href="admin.html">Shop admin (demo)</a><a href="portal/admin.html">Work portal (demo)</a></div></div>`;
   updateBadge();
 }
 $('#menuBtn').onclick = () => $('#nav').classList.toggle('open');
@@ -75,7 +79,7 @@ function addToCart(id, qty) {
 
 // ---------------- pages ----------------
 const routes = {
-  '': home, shop, p: productPage, cart: cartPage, checkout, thanks, pricing, review, submit, status, faq, recs, tools, privacy, agreement, my, pay,
+  '': home, shop, p: productPage, cart: cartPage, checkout, thanks, pricing, review, submit, status, faq, recs, tools, privacy, agreement, my,
 };
 function router() {
   const [path, query] = location.hash.replace(/^#\/?/, '').split('?');
@@ -112,8 +116,39 @@ function home() {
     <div class="grid-products">${feat.map(pcard).join('')}</div></div></section>
   ${best ? `<section class="section"><div class="wrap bestseller"><img src="${esc(best.images[0])}" alt="${esc(best.title)}">
     <div><div class="kicker">Bestseller</div><h2>${esc(best.title)}</h2><p class="muted">${esc(c.bestseller)}</p>
-    <a class="btn red" href="#/p/${esc(best.handle)}">SHOP NOW</a></div></div></section>` : ''}`;
+    <a class="btn red" href="#/p/${esc(best.handle)}">SHOP NOW</a></div></div></section>` : ''}
+  ${eventsHtml()}${newsHtml()}${instagramHtml()}`;
   bindAdds(app);
+  if ($('.instagram-media') && !window.instgrm) { const sc = document.createElement('script'); sc.async = true; sc.src = 'https://www.instagram.com/embed.js'; document.body.appendChild(sc); }
+  else if (window.instgrm) window.instgrm.Embeds.process();
+}
+
+// Website content managed in the work portal (portal/admin.html#/site): events, news, Instagram.
+function eventsHtml() {
+  const today = new Date().toISOString().slice(0, 10);
+  const ev = (PS.siteContent('shows') || []).filter(e => (e.endDate || e.date) >= today).sort((a, b) => a.date.localeCompare(b.date));
+  if (!ev.length) return '';
+  return `<section class="section tight"><div class="wrap"><div class="kicker">Come see us</div><h2>Upcoming shows</h2>
+    <div class="grid-products" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr))">${ev.map(e => `<div class="panel"><b style="color:#fff">${esc(e.name)}</b>
+      <p class="small muted" style="margin:6px 0 0">${fmtDate(e.date + 'T12:00')}${e.endDate ? ' – ' + fmtDate(e.endDate + 'T12:00') : ''}${e.time ? '<br>' + esc(e.time) : ''}${e.location ? '<br>' + esc(e.location) : ''}</p>
+      ${e.link ? `<a class="link small" href="${esc(e.link)}" target="_blank" rel="noopener">Details →</a>` : ''}</div>`).join('')}</div></div></section>`;
+}
+function newsHtml() {
+  const posts = (PS.siteContent('news') || []).filter(n => n.published !== false).sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || String(b.date).localeCompare(String(a.date))).slice(0, 3);
+  if (!posts.length) return '';
+  return `<section class="section tight"><div class="wrap"><div class="kicker">News</div><h2>From the studio</h2>
+    <div class="grid-products" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">${posts.map(n => `<article class="pcard" style="cursor:default">
+      ${n.image ? `<div class="img" style="aspect-ratio:16/10"><img src="${esc(n.image)}" alt=""></div>` : ''}<div class="body"><div class="small muted">${n.date ? fmtDate(n.date + 'T12:00') : ''}</div>
+      <div class="t">${esc(n.title)}</div><p class="small muted" style="margin:0;white-space:pre-line">${esc(n.body || '')}</p>
+      ${n.link ? `<a class="link small" href="${esc(n.link)}" target="_blank" rel="noopener">${esc(n.linkText || 'Read more')} →</a>` : ''}</div></article>`).join('')}</div></div></section>`;
+}
+function instagramHtml() {
+  const I = PS.siteContent('instagram') || {}; if (!I.on) return '';
+  const h = I.handle || 'shinyassetexchange';
+  return `<section class="section tight"><div class="wrap" style="text-align:center"><div class="kicker">@${esc(h)}</div><h2>${esc(I.heading || 'On Instagram')}</h2>
+    ${I.sub ? `<p class="muted">${esc(I.sub)}</p>` : ''}
+    ${(I.posts || []).length ? `<div class="grid-products" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr));text-align:left">${I.posts.map(u => `<blockquote class="instagram-media" data-instgrm-permalink="${esc(u)}" data-instgrm-version="14" style="background:#fff;border:0;border-radius:6px;margin:0;min-width:0;width:100%"><a href="${esc(u)}" target="_blank" rel="noopener">View this post on Instagram</a></blockquote>`).join('')}</div>` : ''}
+    <a class="btn red" style="margin-top:18px;white-space:normal;max-width:100%" href="https://www.instagram.com/${esc(h)}/" target="_blank" rel="noopener">Follow @${esc(h)}</a></div></section>`;
 }
 
 function shop(args) {
@@ -373,11 +408,28 @@ function shrink(file, max = 700) {
   });
 }
 
+// ---------------- Submit Cards: restoration & repair intake → the work portal ----------------
+// Same flow as the Restored Rarity website: the form calls intake (intake_submit when live), the submission
+// lands in the portal (portal/admin.html) with code SAE-…, and the customer gets their private portal link.
+const GRADERS = ['PSA', 'CGC', 'BGS', 'TAG', 'Not sure yet'];
+const m0 = n => '$' + (+n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
+/** Card's service text in the portal's wording, e.g. "Restoration — Tier 1 ($80) + Card Review ($5) + Grading Submission ($20) — grading: PSA". */
+function serviceText(pr, cd) {
+  let t;
+  if (cd.service === 'cleaning') t = `Cleaning (${m0(pr.cleaning)})`;
+  else { const tr = tierFor(pr, cd.value); t = `Restoration — ${tr.name} (${tr.pct ? tr.pct + '% of card value' : m0(tr.price)})`; }
+  for (const a of pr.addons) if (cd.addons.includes(a.key) && ['card'].includes(a.unit)) t += ` + ${a.name} (${m0(a.price)})`;
+  const slab = pr.addons.find(a => a.key === 'slab'), ship = pr.addons.find(a => a.key === 'ship');
+  if (slab && cd.addons.includes('slab')) t += ` + Slab Cracking (${m0(slab.price)})`;
+  if (ship && cd.addons.includes('ship')) t += ` + Grading Submission (${m0(ship.price)}) — ${cd.grading === 'Not sure yet' ? 'grading company not chosen yet' : 'grading: ' + cd.grading}`;
+  return t;
+}
+
 function submit(args, params) {
   const c = C(), pr = c.prices; const pre = (() => { try { return params.get('from') === 'review' ? JSON.parse(sessionStorage.getItem('sae-assess') || 'null') : null; } catch { return null; } })();
-  const blank = () => ({ name: '', details: '', value: pre ? pre.value : '', service: pre ? pre.service : 'restoration', addons: pre && pre.review ? ['review'] : [], damage: '', photos: {} });
+  const blank = () => ({ name: '', details: '', value: pre ? pre.value : '', service: pre ? pre.service : 'restoration', addons: pre && pre.review ? ['review'] : [], grading: '', damage: '', photos: {} });
   const cards = [blank()];
-  const used = store.queueThisWeek(), full = used >= c.capacity;
+  const used = PS.queueThisWeek(), full = used >= c.capacity;
   app.innerHTML = `<div class="wrap section tight"><div style="max-width:820px"><h1 style="color:var(--red)">Ready to restore your cards?</h1>
     <p>We accept up to ${c.capacity} cards per week on a first-come, first-served basis. Once we receive your cards and payment is confirmed, turnaround is 1 week. Shipping time to us is separate — please plan accordingly based on your location.</p>
     <p>If you see a message below saying our queue is full this week, don't worry — you can still submit. Your cards will be added to the next available slot and your estimated timeline will reflect that automatically. Any questions, email us at <a class="link" href="mailto:${esc(c.contact.email)}">${esc(c.contact.email)}</a>.</p>
@@ -397,10 +449,12 @@ function submit(args, params) {
         <div class="grid2"><div class="field"><label>Full name</label><input id="s_name" autocomplete="name" required></div><div class="field"><label>Email</label><input id="s_email" type="email" autocomplete="email" required></div></div>
         <div class="grid2"><div class="field"><label>Phone</label><input id="s_phone" type="tel" autocomplete="tel"></div>
           <div class="field"><label>How will your cards get to us?</label><select id="s_del"><option value="ship">I'll ship them</option><option value="dropoff">Drop-off at ${esc(c.dropoff.name)} (Austin)</option></select></div></div>
-        <div class="field" id="retWrap"><label>Return shipping address</label><textarea id="s_addr" autocomplete="street-address" placeholder="Street, city, state, ZIP"></textarea></div>
+        <div id="retWrap"><div class="field"><label>Return shipping address</label><textarea id="s_addr" autocomplete="street-address" placeholder="Street, city, state, ZIP"></textarea></div>
+          <label class="check"><input type="checkbox" id="s_ins" checked> Insure my return shipping</label></div>
         <h2 style="margin-top:18px">Your cards</h2><div id="cards"></div>
         <button type="button" class="btn ghost" id="addCard">+ Add another card</button>
         <div class="field" style="margin-top:20px"><label>Anything else we should know?</label><textarea id="s_notes"></textarea></div>
+        <div class="field"><label>How did you hear about us? (optional)</label><select id="s_how"><option value="">—</option><option>Instagram</option><option>YouTube</option><option>Home Town Cards & Collectibles</option><option>A friend</option><option>Google</option><option>Other</option></select></div>
         <label class="check"><input type="checkbox" id="s_agree"> <span>I've read the <a class="link" href="#/faq" target="_blank">FAQ</a> and agree to the <a class="link" href="#/agreement" target="_blank">Non Liability Agreement</a>. I understand results are not guaranteed and the service fee applies regardless of outcome.</span></label>
         <div class="err hidden" id="sErr"></div>
         <button class="btn red" id="sGo" style="margin-top:10px">Submit my cards</button>
@@ -412,15 +466,17 @@ function submit(args, params) {
       <div class="grid2"><div class="field"><label>Card name</label><input data-f="name" value="${esc(cd.name)}" placeholder="Start typing, e.g. Charizard"></div>
         <div class="field"><label>Set · number · year</label><input data-f="details" value="${esc(cd.details)}" placeholder="Base Set · 4/102 · 1999"></div></div>
       <div class="grid2"><div class="field"><label>Current value (TCGplayer, $)</label><input data-f="value" inputmode="decimal" value="${esc(cd.value)}" placeholder="e.g. 250"></div>
-        <div class="field"><label>Service</label><select data-f="service"><option value="restoration" ${cd.service === 'restoration' ? 'selected' : ''}>Restoration</option><option value="cleaning" ${cd.service === 'cleaning' ? 'selected' : ''}>Cleaning only (${money0(pr.cleaning)})</option></select></div></div>
+        <div class="field"><label>Service</label><select data-f="service"><option value="restoration" ${cd.service === 'restoration' ? 'selected' : ''}>Restoration &amp; repair (creases, indents, scratches, warping, ink)</option><option value="cleaning" ${cd.service === 'cleaning' ? 'selected' : ''}>Cleaning only (${money0(pr.cleaning)})</option></select></div></div>
       <label>Add-ons</label><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0 12px">${pr.addons.map(a => `<label class="check"><input type="checkbox" data-addon="${a.key}" ${cd.addons.includes(a.key) ? 'checked' : ''}> ${esc(a.name)} (+${money0(a.price)}/${esc(a.unit)})</label>`).join('')}</div>
+      ${cd.addons.includes('ship') ? `<div class="field" style="max-width:320px"><label>Which grading company?</label><select data-f="grading"><option value="">Choose…</option>${GRADERS.map(g => `<option ${cd.grading === g ? 'selected' : ''}>${g}</option>`).join('')}</select>
+        <p class="small muted" style="margin:6px 0 0">Complete the grading company's paperwork and include it with your cards.</p></div>` : ''}
       <div class="field" style="margin-top:8px"><label>What's wrong with it?</label><textarea data-f="damage" placeholder="Crease top right, light scratches on the holo…">${esc(cd.damage)}</textarea></div>
       <label>Photos</label><div class="photos">${['front', 'back'].map(s => `<label class="photo-slot">${cd.photos[s] ? `<img src="${cd.photos[s]}" alt="">` : `📷<br>${s === 'front' ? 'Front' : 'Back'}`}<input type="file" accept="image/*" data-photo="${s}"></label>`).join('')}</div>
       ${+cd.value > 1000 && $('#s_del').value === 'dropoff' ? '<p class="small muted" style="margin-top:8px">Cards over $1,000 must go through this form before drop-off — thanks for doing that.</p>' : ''}</div>`).join('');
     $$('.card-entry').forEach(el => {
       const cd = cards[+el.dataset.i];
       $$('[data-f]', el).forEach(inp => inp.addEventListener(inp.tagName === 'SELECT' ? 'change' : 'input', () => { cd[inp.dataset.f] = inp.value; drawQuote(); if (inp.dataset.f === 'service') draw(); }));
-      $$('[data-addon]', el).forEach(cb => cb.onchange = () => { cd.addons = cb.checked ? [...cd.addons, cb.dataset.addon] : cd.addons.filter(k => k !== cb.dataset.addon); drawQuote(); });
+      $$('[data-addon]', el).forEach(cb => cb.onchange = () => { cd.addons = cb.checked ? [...cd.addons, cb.dataset.addon] : cd.addons.filter(k => k !== cb.dataset.addon); if (cb.dataset.addon === 'ship') draw(); else drawQuote(); });
       $$('[data-photo]', el).forEach(inp => inp.onchange = async () => { if (inp.files[0]) { cd.photos[inp.dataset.photo] = await shrink(inp.files[0]); draw(); } });
       const del = $('[data-del]', el); if (del) del.onclick = () => { cards.splice(+del.dataset.del, 1); draw(); };
       if (window.RRCardSearch) RRCardSearch.attach($('[data-f=name]', el), { details: $('[data-f=details]', el), onPick: () => { cd.name = $('[data-f=name]', el).value; cd.details = $('[data-f=details]', el).value; } });
@@ -442,30 +498,46 @@ function submit(args, params) {
     const problems = [];
     if (!v('s_name')) problems.push('your name'); if (!/^\S+@\S+\.\S+$/.test(v('s_email'))) problems.push('a valid email');
     if (v('s_del') === 'ship' && !v('s_addr')) problems.push('a return address');
-    cards.forEach((cd, i) => { if (!cd.name.trim()) problems.push(`card ${i + 1}'s name`); if (cd.service === 'restoration' && !(+cd.value > 0)) problems.push(`card ${i + 1}'s value`); });
+    cards.forEach((cd, i) => {
+      if (!cd.name.trim()) problems.push(`card ${i + 1}'s name`);
+      if (cd.service === 'restoration' && !(+cd.value > 0)) problems.push(`card ${i + 1}'s value`);
+      if (cd.addons.includes('ship') && !cd.grading) problems.push(`card ${i + 1}'s grading company`);
+    });
     if (!$('#s_agree').checked) problems.push('agreement to the Non Liability Agreement');
     if (problems.length) { err.textContent = 'Please add ' + problems.join(', ') + '.'; err.classList.remove('hidden'); return; }
-    try {
-      const r = store.submit({ customer: { name: v('s_name'), email: v('s_email'), phone: v('s_phone') }, delivery: v('s_del'),
-        cards: cards.map(cd => ({ ...cd, value: +cd.value || 0 })), notes: [v('s_notes'), v('s_del') === 'ship' ? 'Return address: ' + v('s_addr') : ''].filter(Boolean).join('\n') });
-      submitted(r);
-    } catch (x) { err.textContent = 'Your photos are too large for this demo browser — try fewer or smaller photos.'; err.classList.remove('hidden'); }
+    const ship = v('s_del') === 'ship';
+    const svc = cards.map(cd => serviceText(pr, cd));
+    const payload = {
+      name: v('s_name'), email: v('s_email'), phone: v('s_phone'),
+      service: [...new Set(cards.map(cd => cd.service === 'cleaning' ? 'Cleaning' : 'Restoration'))].join(', '),
+      notes: v('s_notes'),
+      // delivery / address / source → internal notes (never on the customer's link), like Restored Rarity's intake_info
+      intake_info: [`Delivery: ${ship ? 'Ship' : 'Drop-off at ' + C().dropoff.name}`, ship ? `Return address: ${v('s_addr')}` : '',
+        ship ? `Insured return shipping: ${$('#s_ins').checked ? 'Yes' : 'No'}` : '', v('s_how') ? `Heard about us: ${v('s_how')}` : '',
+        `Estimate on the form: ${money0(quote(pr, cards).total)}`].filter(Boolean).join('\n'),
+      cards: cards.map((cd, i) => ({ name: cd.name.trim(), details: cd.details.trim(), service: svc[i], grading: cd.addons.includes('ship') ? cd.grading : '',
+        notes: [`Service: ${svc[i]}`, `Card value: $${(+cd.value || 0).toLocaleString('en-US')}`, cd.damage ? `Damage: ${cd.damage}` : ''].filter(Boolean).join('\n') })),
+      photos: cards.map(cd => ['front', 'back'].filter(s => cd.photos[s]).map(s => ({ dataUrl: cd.photos[s], caption: s === 'front' ? 'Front (intake)' : 'Back (intake)' }))),
+    };
+    try { submitted(PS.intake(payload), v('s_email'), !ship); }
+    catch (x) { err.textContent = /quota|storage|full/i.test(x.message || x.name) ? 'Your photos are too large for this demo browser — try fewer or smaller photos.' : 'Something went wrong: ' + x.message; err.classList.remove('hidden'); }
   };
   draw();
 }
-function submitted({ submission: s, customer: c }) {
-  const ct = C().contact, drop = s.delivery === 'dropoff', d = C().dropoff;
-  app.innerHTML = `<div class="narrow section"><div class="kicker">Submission ${esc(s.code)}</div><h1>Thanks — we've got your submission!</h1>
-    <p>Your reference is <b>${esc(s.code)}</b>. We'll review your ${s.cards.length === 1 ? 'card' : s.cards.length + ' cards'} and email an invoice to <b>${esc(c.email)}</b>${drop ? '' : ' along with shipping instructions'}. Work begins once payment is confirmed.</p>
-    ${drop ? `<div class="callout">Bring your cards to <b>${esc(d.name)}</b>, ${d.address.map(esc).join(', ')}. Mention ${esc(s.code)}.</div>`
-      : `<div class="callout"><b>Ship to:</b><br>${ct.address.map(esc).join('<br>')}<br><span class="small muted">Write ${esc(s.code)} on a note inside the package. Tracked and insured shipping recommended.</span></div>`}
-    <p>Your private page shows every update, photo and invoice — bookmark it:</p>
-    <p><a class="btn red" href="#/my/${esc(c.token)}">Open my private page</a></p></div>`;
+const portalLink = token => new URL('portal/view.html#t=' + token, location.href).href;
+function submitted(r, email, drop) {
+  const ct = C().contact, d = C().dropoff;
+  app.innerHTML = `<div class="narrow section"><div class="kicker">Submission ${esc(r.code)}</div><h1>Thanks — we've got your submission!</h1>
+    <p>Your reference is <b>${esc(r.code)}</b>. We'll review your ${r.cards === 1 ? 'card' : r.cards + ' cards'} and email an invoice to <b>${esc(email)}</b>${drop ? '' : ' along with shipping instructions'}. Work begins once payment is confirmed.</p>
+    ${drop ? `<div class="callout">Bring your cards to <b>${esc(d.name)}</b>, ${d.address.map(esc).join(', ')}. Mention ${esc(r.code)}.</div>`
+      : `<div class="callout"><b>Ship to:</b><br>${ct.address.map(esc).join('<br>')}<br><span class="small muted">Write ${esc(r.code)} on a note inside the package. Tracked and insured shipping recommended.</span></div>`}
+    <p>Your private page shows every status update, scan, before/after photo and centering measurement as we work — bookmark it:</p>
+    <p><a class="btn red" href="${esc(portalLink(r.token))}">Open my private page</a></p></div>`;
   window.scrollTo(0, 0);
 }
 
 // ---------------- order status + customer page ----------------
-const SUB_STEPS = ['submitted', 'invoiced', 'paid', 'received', 'in_progress', 'restored', 'shipped', 'completed'];
+const SUB_STEPS = ['submitted', 'received', 'in_progress', 'restored', 'ready', 'completed'];
 const ORDER_STEPS = ['paid', 'fulfilled'];
 function timeline(steps, cur, history) {
   const at = s => (history.slice().reverse().find(h => h.status === s) || {}).at;
@@ -479,17 +551,12 @@ function orderBlock(o) {
     ${stopped ? `<span class="pill bad">${esc(STATUS_LABEL[o.status])}</span>` : timeline(ORDER_STEPS, o.status, o.history)}
     ${o.tracking ? `<p class="small" style="margin:8px 0 0">Tracking: <b>${esc(o.tracking)}</b></p>` : ''}</div>`;
 }
-function subBlock(s, token) {
-  const pr = C().prices, q = quote(pr, s.cards); const due = s.status === 'invoiced' && s.invoice.status !== 'paid';
-  return `<div class="panel" style="margin-bottom:16px"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Restoration ${esc(s.code)}</h3><span class="small muted">${fmtDate(s.created)}</span></div>
-    ${s.status === 'cancelled' ? '<span class="pill bad">Cancelled</span>' : timeline(SUB_STEPS, s.status, s.history)}
+function subBlock({ submission: s, customer: c, cards }) {
+  return `<div class="panel" style="margin-bottom:16px"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Restoration ${esc(s.code)}</h3><span class="small muted">${fmtDate(s.created_at)}</span></div>
+    ${timeline(SUB_STEPS, s.status, [{ status: s.status, at: s.status_changed_at || s.updated_at }])}
     ${s.public_notes ? `<div class="callout" style="margin:10px 0">${esc(s.public_notes)}</div>` : ''}
-    <div class="table-wrap" style="margin-top:10px"><table><tr><th>Card</th><th>Service</th><th>Status</th><th class="num">Price</th></tr>
-      ${s.cards.map((c, i) => `<tr><td>${c.photos && c.photos.front ? `<img class="thumb" src="${c.photos.front}" alt="" style="float:left;margin-right:10px">` : ''}<b>${esc(c.name)}</b><br><span class="small muted">${esc(c.details || '')}</span></td>
-        <td>${c.service === 'cleaning' ? 'Cleaning' : 'Restoration'}${(c.addons || []).length ? `<br><span class="small muted">+ ${c.addons.map(k => esc(pr.addons.find(a => a.key === k)?.name || k)).join(', ')}</span>` : ''}</td>
-        <td>${esc(STATUS_LABEL[c.status] || c.status)}</td><td class="num">${money0(q.lines[i].total)}</td></tr>`).join('')}
-      <tr><td colspan="3"><b>Invoice</b> ${s.invoice.status === 'paid' ? '<span class="pill ok">Paid</span>' : due ? '<span class="pill warn">Due</span>' : '<span class="pill">Being prepared</span>'}</td><td class="num"><b>${money0(s.invoice.total)}</b></td></tr></table></div>
-    ${due && token ? `<a class="btn red" style="margin-top:12px" href="#/pay/${esc(s.code)}?t=${esc(token)}">Pay invoice ${money0(s.invoice.total)}</a>` : ''}</div>`;
+    <p class="small muted">${cards.map(k => esc(k.name)).join(' · ')}</p>
+    <a class="btn red" href="${esc(portalLink(c.share_token))}">See every card, scan and photo</a></div>`;
 }
 function status(args, params) {
   app.innerHTML = `<div class="narrow section tight" style="max-width:720px"><h1>Order Status</h1>
@@ -500,9 +567,8 @@ function status(args, params) {
   const find = () => {
     const q = $('#q').value.trim(), e = $('#e').value.trim().toLowerCase(); const res = $('#res');
     if (!q || !e) return;
-    const o = store.order(q.replace(/^#?/, '#')); const s = store.submission(q);
-    const own = x => x && (store.customer(x.customer_id) || {}).email === e;
-    if (own(o)) res.innerHTML = orderBlock(o); else if (own(s)) res.innerHTML = subBlock(s);
+    const o = store.order(q.replace(/^#?/, '#')); const s = PS.findSubmission(q, e);
+    if (o && (store.customer(o.customer_id) || {}).email === e) res.innerHTML = orderBlock(o); else if (s) res.innerHTML = subBlock(s);
     else res.innerHTML = `<div class="callout">We couldn't find that order with that email. Check the number in your confirmation email, or email <a class="link" href="mailto:${esc(C().contact.email)}">${esc(C().contact.email)}</a>.</div>`;
   };
   $('#lk').onsubmit = e => { e.preventDefault(); find(); };
@@ -511,23 +577,10 @@ function status(args, params) {
 function my([tok]) {
   const c = store.customerByToken(tok);
   if (!c) return app.innerHTML = `<div class="narrow section"><h1>This link isn't valid</h1><p class="muted">It may have been replaced with a new one. Email ${esc(C().contact.email)} and we'll send you your current link.</p></div>`;
-  const subs = store.submissions().filter(s => s.customer_id === c.id), orders = store.orders().filter(o => o.customer_id === c.id);
-  app.innerHTML = `<div class="narrow section tight"><div class="kicker">Private page</div><h1>Hi ${esc(c.name.split(' ')[0])}</h1>
-    <p class="muted">Everything you have with Shiny Asset Exchange, updated live. Keep this link private.</p>
-    ${subs.length ? `<h2 style="margin-top:20px">Restorations</h2>${subs.map(s => subBlock(s, c.token)).join('')}` : ''}
-    ${orders.length ? `<h2 style="margin-top:20px">Product orders</h2>${orders.map(orderBlock).join('')}` : ''}
-    ${!subs.length && !orders.length ? '<p>Nothing here yet.</p>' : ''}</div>`;
-}
-function pay([code], params) {
-  const s = store.submission(code), c = s && store.customer(s.customer_id);
-  if (!s || !c || c.token !== params.get('t')) return notFound();
-  if (s.invoice.status === 'paid') { location.hash = '#/my/' + c.token; return; }
-  app.innerHTML = `<div class="narrow section tight" style="max-width:520px"><div class="kicker">Invoice · ${esc(s.code)}</div><h1>Pay your invoice</h1>
-    <div class="panel" style="margin-bottom:16px">${quote(C().prices, s.cards).lines.map(l => `<div class="sum"><span>${esc(l.card.name)} — ${l.card.service === 'cleaning' ? 'Cleaning' : 'Restoration'}</span><span>${money0(l.total)}</span></div>`).join('')}
-      <div class="sum total"><span>Total due</span><span>${money0(s.invoice.total)}</span></div></div>
-    ${payFormHtml(s.invoice.total, 'Pay')}</div>`;
-  bindPayForm();
-  $('#payBtn').onclick = () => { const r = charge(s.invoice.total); if (!r.ok) return; store.payInvoice(s.id, r.payment); toast('Payment received — thank you!'); location.hash = '#/my/' + c.token; };
+  const orders = store.orders().filter(o => o.customer_id === c.id);
+  app.innerHTML = `<div class="narrow section tight"><div class="kicker">Your orders</div><h1>Hi ${esc(c.name.split(' ')[0])}</h1>
+    <p class="muted">Your Shiny Asset Exchange product orders, updated live. Keep this link private. Restorations have their own private page (linked in your submission email).</p>
+    ${orders.map(orderBlock).join('') || '<p>Nothing here yet.</p>'}</div>`;
 }
 
 // ---------------- info pages ----------------

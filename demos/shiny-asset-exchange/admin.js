@@ -1,5 +1,7 @@
 // Shiny Asset Exchange demo — admin portal (hash router).
-import { store, money, money0, esc, fmtDate, stockState, quote, tierFor, slug, STATUSES, STATUS_LABEL, MOVE_REASONS, DEFAULT_CONTENT } from './data.js';
+import { store, money, money0, esc, fmtDate, stockState, slug, STATUS_LABEL, MOVE_REASONS, DEFAULT_CONTENT } from './data.js';
+import * as PS from './portal/demostore.js';
+const PORTAL = 'portal/admin.html';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -27,8 +29,7 @@ function counts() {
   return {
     toShip: store.orders().filter(o => o.status === 'paid').length,
     low: vs.filter(v => stockState(v).key === 'low').length, out: vs.filter(v => stockState(v).key === 'out').length,
-    newSubs: store.submissions().filter(s => s.status === 'submitted').length,
-    needsEmail: store.submissions().filter(s => s.emailed_status !== s.status && s.status !== 'cancelled').length,
+    newSubs: PS.db().submissions.filter(s => s.status === 'submitted').length,
   };
 }
 function shell(active, title, actions, body) {
@@ -37,18 +38,19 @@ function shell(active, title, actions, body) {
   root.innerHTML = `<div class="adm"><nav class="side"><a class="logo" href="#/"><img src="${LOGO}" alt="">SAE Admin</a>
       ${nl('', 'Dashboard', 0, 'dash')}
       <div class="grp">Shop</div>${nl('orders', 'Orders', n.toShip, 'orders')}${nl('inventory', 'Inventory', n.low + n.out, 'inventory')}${nl('stock', 'Stock history', 0, 'stock')}
-      <div class="grp">Restoration</div>${nl('submissions', 'Submissions', n.newSubs, 'subs')}${nl('new', '+ New submission', 0, 'new')}
+      <div class="grp">Restoration</div><a class="nl" href="${PORTAL}">Work portal ↗${n.newSubs ? `<span class="badge" style="position:static">${n.newSubs}</span>` : ''}</a>
+      <a class="nl" href="${PORTAL}#/new">+ New submission ↗</a><a class="nl" href="portal/scan.html">Scan station ↗</a>
       <div class="grp">People</div>${nl('customers', 'Customers', 0, 'customers')}
-      <div class="grp">Website</div>${nl('site', 'Website & prices', 0, 'site')}<a class="nl" href="index.html" target="_blank">View store ↗</a>
+      <div class="grp">Website</div>${nl('site', 'Prices & shop settings', 0, 'site')}<a class="nl" href="${PORTAL}#/site/announcement">Announcement, news, events, Instagram ↗</a><a class="nl" href="index.html" target="_blank">View store ↗</a>
       <div class="grp">Demo</div><a class="nl" href="#" id="signout">Sign out</a></nav>
-    <main class="adm-main"><div class="demo-flag" style="margin-bottom:16px">Demo build — data is saved in this browser only. Orders placed on the <a href="index.html" target="_blank">store</a> show up here and reduce stock straight away.</div>
+    <main class="adm-main"><div class="demo-flag" style="margin-bottom:16px">Demo build — data is saved in this browser only. Orders placed on the <a href="index.html" target="_blank">store</a> show up here and reduce stock straight away. Restorations run in the <a href="${PORTAL}">work portal</a>.</div>
       <div class="adm-top"><h1>${title}</h1><div class="row">${actions || ''}<button class="btn ghost sm" id="refresh">↻ Refresh</button></div></div>${body}</main></div>`;
   $('#signout').onclick = e => { e.preventDefault(); try { sessionStorage.removeItem('sae-admin'); } catch {} login(); };
   $('#refresh').onclick = () => router();
 }
 
 // ---------------- router ----------------
-const routes = { '': dash, orders, order, inventory, product, stock, submissions, submission, new: newSubmission, customers, customer, site };
+const routes = { '': dash, orders, order, inventory, product, stock, customers, customer, site };
 function router() {
   if (!loggedIn()) return login();
   const [path, q] = location.hash.replace(/^#\/?/, '').split('?');
@@ -64,7 +66,7 @@ function dash() {
   const os = store.orders(), d0 = new Date(); d0.setHours(0, 0, 0, 0); const d30 = Date.now() - 30 * 864e5;
   const live = os.filter(o => !['refunded', 'cancelled'].includes(o.status));
   const today = live.filter(o => new Date(o.created) >= d0), month = live.filter(o => new Date(o.created) >= d30);
-  const n = counts(), c = store.content(), q = store.queueThisWeek();
+  const n = counts(), c = store.content(), q = PS.queueThisWeek();
   const vs = store.products({ all: true }).flatMap(p => p.variants.map(v => ({ p, v })));
   const alerts = vs.filter(({ p, v }) => p.status === 'active' && stockState(v).key !== 'in').sort((a, b) => a.v.stock - b.v.stock);
   const retail = vs.reduce((s, { v }) => s + v.stock * v.price, 0);
@@ -82,13 +84,14 @@ function dash() {
         <p class="small muted" style="margin:10px 0 0">Stock on hand at retail: <b>${money0(retail)}</b></p></div>
       <div class="panel"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Recent orders</h3><a class="small link" href="#/orders">All orders</a></div>
         <table style="margin-top:8px">${os.slice(0, 6).map(o => `<tr class="click" data-href="#/order/${o.id}"><td>${esc(o.number)}<br><span class="small muted">${fmtDate(o.created, true)}</span></td><td>${esc((store.customer(o.customer_id) || {}).name || '')}</td><td class="num">${money(o.total)}</td><td>${pill(o.status, o.status === 'paid' ? 'To ship' : null)}</td></tr>`).join('') || '<tr><td class="muted">No orders yet.</td></tr>'}</table></div>
-      <div class="panel"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Restoration queue</h3><a class="small link" href="#/submissions">All submissions</a></div>
-        <table style="margin-top:8px">${store.submissions().filter(s => !['completed', 'cancelled'].includes(s.status)).slice(0, 6).map(s => `<tr class="click" data-href="#/submission/${s.id}"><td>${esc(s.code)}${s.emailed_status !== s.status ? ' <span title="Customer not emailed about this status">✉</span>' : ''}</td><td>${esc((store.customer(s.customer_id) || {}).name || '')}</td><td>${s.cards.length} card${s.cards.length === 1 ? '' : 's'}</td><td>${pill(s.status)}</td></tr>`).join('') || '<tr><td class="muted">Nothing in the queue.</td></tr>'}</table></div>
+      <div class="panel"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Restoration queue</h3><a class="small link" href="${PORTAL}">Open the work portal ↗</a></div>
+        <table style="margin-top:8px">${PS.db().submissions.filter(s => s.status !== 'completed').sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 6).map(s => { const c = PS.db().customers.find(x => x.id === s.customer_id) || {}; const n = PS.db().cards.filter(k => k.submission_id === s.id).length;
+          return `<tr class="click" data-href="${PORTAL}#/submission/${s.id}"><td>${esc(s.code)}${(s.emailed_status || 'submitted') !== s.status ? ' <span title="Customer not emailed about this status">✉</span>' : ''}</td><td>${esc(c.name || '')}</td><td>${n} card${n === 1 ? '' : 's'}</td><td>${pill(s.status)}</td></tr>`; }).join('') || '<tr><td class="muted">Nothing in the queue.</td></tr>'}</table></div>
       <div class="panel"><h3>Best sellers · 30 days</h3>${Object.entries(sold).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([t, n]) => `<div class="sum"><span>${esc(t)}</span><span>${n} sold</span></div>`).join('') || '<p class="muted">No sales yet.</p>'}</div>
     </div>`);
   bindRows();
 }
-function bindRows() { $$('tr[data-href]').forEach(tr => tr.onclick = () => location.hash = tr.dataset.href); }
+function bindRows() { $$('tr[data-href]').forEach(tr => tr.onclick = () => { const h = tr.dataset.href; if (h.startsWith('#')) location.hash = h; else location.href = h; }); }
 
 // ---------------- inventory ----------------
 function inventory(a, params) {
@@ -267,124 +270,27 @@ function order([id]) {
   $('#link').onclick = () => copy(linkFor(c));
 }
 
-// ---------------- submissions ----------------
-const SUB_FLOW = STATUSES.submission;
-function submissions(a, params) {
-  let f = params.get('f') || 'open';
-  const draw = () => {
-    const ss = store.submissions().filter(s => f === 'all' || (f === 'open' ? !['completed', 'cancelled'].includes(s.status) : f === 'email' ? s.emailed_status !== s.status && s.status !== 'cancelled' : s.status === f));
-    $('#sl').innerHTML = `<div class="filters">${[['open', 'Open'], ['email', '✉ Needs email'], ['submitted', 'New'], ['invoiced', 'Awaiting payment'], ['in_progress', 'In progress'], ['completed', 'Completed'], ['all', 'All']].map(([k, l]) => `<button data-f="${k}" class="${f === k ? 'on' : ''}">${l}</button>`).join('')}</div>
-      <div class="table-wrap"><table><tr><th>Code</th><th>Submitted</th><th>Customer</th><th>Cards</th><th class="num">Invoice</th><th>Status</th></tr>
-      ${ss.map(s => `<tr class="click" data-href="#/submission/${s.id}"><td><b>${esc(s.code)}</b>${s.emailed_status !== s.status && s.status !== 'cancelled' ? ' <span title="Not emailed about this status">✉</span>' : ''}</td><td class="small">${fmtDate(s.created)}</td>
-        <td>${esc((store.customer(s.customer_id) || {}).name || '')}</td><td>${s.cards.length}</td><td class="num">${money0(s.invoice.total)} ${s.invoice.status === 'paid' ? '<span class="pill ok">Paid</span>' : ''}</td><td>${pill(s.status)}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">Nothing here.</td></tr>'}</table></div>`;
-    $$('[data-f]').forEach(b => b.onclick = () => { f = b.dataset.f; draw(); }); bindRows();
-  };
-  shell('subs', 'Restoration submissions', '<a class="btn red sm" href="#/new">+ New submission</a>', `<p class="muted">This week's queue: <b>${store.queueThisWeek()}</b> of ${store.content().capacity} cards.</p><div id="sl"></div>`);
-  draw();
-}
-function emailText(s, c) {
-  const st = STATUS_LABEL[s.status];
-  const pay = s.status === 'invoiced' ? `\n\nYour invoice total is ${money0(s.invoice.total)}. Pay securely here: ${SITE}#/pay/${s.code}?t=${c.token}` : '';
-  return { subject: `${s.code}: ${st}`, body: `Hi ${c.name.split(' ')[0]},\n\nUpdate on your submission ${s.code}: ${st}.${s.public_notes ? '\n\n' + s.public_notes : ''}${pay}\n\nSee every card, photo and update on your private page:\n${linkFor(c)}\n\nShiny Asset Exchange` };
-}
-function submission([id]) {
-  const s = JSON.parse(JSON.stringify(store.submission(id) || null)); if (!s) return shell('subs', 'Not found', '', '');
-  const c = store.customer(s.customer_id) || {}; const pr = store.content().prices;
-  const draw = () => {
-    const q = quote(pr, s.cards);
-    shell('subs', 'Submission ' + esc(s.code), `<a class="btn ghost sm" href="#/submissions">← Submissions</a>`, `
-      ${s.emailed_status !== s.status && s.status !== 'cancelled' ? `<div class="callout" style="border-color:var(--warn)"><b>✉ ${esc(c.name)} hasn't been emailed about “${esc(STATUS_LABEL[s.status])}”.</b>
-        <div class="row" style="margin-top:8px"><a class="btn sm red" id="mail" href="#">Email the customer</a><button class="btn ghost sm" id="marked">Mark as emailed</button></div></div>` : ''}
-      <div class="cols-main"><div>
-        <div class="panel"><div class="grid2"><div class="field"><label>Status</label><select id="st">${SUB_FLOW.map(k => `<option value="${k}" ${s.status === k ? 'selected' : ''}>${STATUS_LABEL[k]}</option>`).join('')}</select></div>
-          <div class="field"><label>Delivery</label><select id="del"><option value="ship" ${s.delivery === 'ship' ? 'selected' : ''}>Shipped in</option><option value="dropoff" ${s.delivery === 'dropoff' ? 'selected' : ''}>Austin drop-off</option></select></div></div>
-          <div class="field"><label>Note the customer sees</label><textarea id="pub">${esc(s.public_notes || '')}</textarea></div>
-          <div class="field"><label>Internal note (never shown to the customer)</label><textarea id="int">${esc(s.internal_notes || '')}</textarea></div>
-          ${s.customer_notes ? `<p class="small muted"><b>From the customer:</b><br>${esc(s.customer_notes).replace(/\n/g, '<br>')}</p>` : ''}</div>
-        <div class="panel" style="margin-top:16px"><h3>Cards</h3>${s.cards.map((cd, i) => `<div class="card-entry" data-i="${i}">
-          <div class="top"><b>Card ${i + 1}</b><span>${money0(q.lines[i].total)}</span></div>
-          <div class="row" style="align-items:flex-start">${['front', 'back'].map(side => cd.photos && cd.photos[side] ? `<a href="${cd.photos[side]}" target="_blank"><img src="${cd.photos[side]}" alt="${side}" style="width:70px;height:98px;object-fit:cover;border-radius:4px"></a>` : '').join('')}
-          <div class="grow"><div class="grid2"><div class="field"><label>Name</label><input data-k="name" value="${esc(cd.name)}"></div><div class="field"><label>Set · number · year</label><input data-k="details" value="${esc(cd.details || '')}"></div></div>
-          <div class="grid3"><div class="field"><label>Value $</label><input data-k="value" inputmode="decimal" value="${cd.value || ''}"></div>
-            <div class="field"><label>Service</label><select data-k="service"><option value="restoration" ${cd.service === 'restoration' ? 'selected' : ''}>Restoration${+cd.value ? ' · ' + tierFor(pr, cd.value).name : ''}</option><option value="cleaning" ${cd.service === 'cleaning' ? 'selected' : ''}>Cleaning</option></select></div>
-            <div class="field"><label>Card status</label><select data-k="status">${SUB_FLOW.map(k => `<option value="${k}" ${cd.status === k ? 'selected' : ''}>${STATUS_LABEL[k]}</option>`).join('')}</select></div></div>
-          <div class="row">${pr.addons.map(a => `<label class="check" style="margin:0 10px 0 0"><input type="checkbox" data-addon="${a.key}" ${(cd.addons || []).includes(a.key) ? 'checked' : ''}> ${esc(a.name)}</label>`).join('')}</div>
-          ${cd.damage ? `<p class="small muted" style="margin:8px 0 0"><b>Customer says:</b> ${esc(cd.damage)}</p>` : ''}</div></div></div>`).join('')}</div>
-        <button class="btn red" id="save" style="margin-top:16px">Save changes</button>
-        <div class="panel" style="margin-top:16px"><h3>History</h3><ul class="timeline">${s.history.slice().reverse().map(h => `<li class="done">${esc(STATUS_LABEL[h.status] || h.status)} <span class="small dim">· ${fmtDate(h.at, true)}</span>${h.note ? `<br><span class="small muted">${esc(h.note)}</span>` : ''}</li>`).join('')}</ul></div>
-      </div><aside>
-        <div class="panel"><h3>Invoice</h3>${q.lines.map((l, i) => `<div class="sum small"><span>${esc(l.card.name || 'Card ' + (i + 1))}</span><span>${money0(l.total)}</span></div>`).join('')}
-          ${q.perSubmission.map(a => `<div class="sum small"><span>${esc(a.name)}</span><span>${money0(a.price)}</span></div>`).join('')}
-          <div class="sum total"><span>Total</span><span>${money0(q.total)}</span></div>
-          <p style="margin-top:10px">${s.invoice.status === 'paid' ? `<span class="pill ok">Paid</span> <span class="small muted">${fmtDate(s.invoice.paid_at, true)}${s.invoice.payment ? ' · card ' + esc(s.invoice.payment.last4) : s.invoice.method ? ' · ' + esc(s.invoice.method) : ''}</span>` : s.status === 'invoiced' ? '<span class="pill warn">Sent · awaiting payment</span>' : '<span class="pill">Not sent yet</span>'}</p>
-          ${s.invoice.status !== 'paid' ? `<button class="btn red block" id="sendInv">${s.status === 'invoiced' ? 'Re-send invoice' : 'Send invoice'}</button>
-            <div class="row" style="margin-top:8px"><select id="method" class="grow"><option>Cash</option><option>Trade (85% of card value)</option><option>Other</option></select><button class="btn ghost sm" id="paidMan">Mark paid</button></div>
-            <p class="small muted" style="margin-top:8px">The customer pays by card on their private page (Stripe). Live: a Stripe payment link is created for the invoice.</p>` : ''}</div>
-        <div class="panel" style="margin-top:16px"><h3>Customer</h3><p><a href="#/customer/${c.id}"><b>${esc(c.name)}</b></a><br><a href="mailto:${esc(c.email)}">${esc(c.email)}</a>${c.phone ? '<br>' + esc(c.phone) : ''}</p>
-          <button class="btn ghost sm" id="link">Copy private link</button> <a class="btn ghost sm" href="${linkFor(c)}" target="_blank">Open ↗</a></div></aside></div>`);
-    const st = () => store.updateSubmission(s.id, collect());
-    $$('.card-entry').forEach(el => {
-      const cd = s.cards[+el.dataset.i];
-      $$('[data-k]', el).forEach(inp => inp.onchange = () => { cd[inp.dataset.k] = inp.dataset.k === 'value' ? +inp.value || 0 : inp.value; if (['value', 'service'].includes(inp.dataset.k)) { keep(); draw(); } });
-      $$('[data-addon]', el).forEach(cb => cb.onchange = () => { cd.addons = cb.checked ? [...(cd.addons || []), cb.dataset.addon] : cd.addons.filter(k => k !== cb.dataset.addon); keep(); draw(); });
-      if (window.RRCardSearch) RRCardSearch.attach($('[data-k=name]', el), { details: $('[data-k=details]', el), onPick: () => { cd.name = $('[data-k=name]', el).value; cd.details = $('[data-k=details]', el).value; } });
-    });
-    $$('input,textarea,select').forEach(i => { i.addEventListener('focus', () => busy = true); i.addEventListener('blur', () => busy = false); });
-    $('#save').onclick = () => { busy = false; Object.assign(s, store.updateSubmission(s.id, collect())); toast('Saved'); };
-    $('#link').onclick = () => copy(linkFor(c));
-    if ($('#mail')) $('#mail').onclick = e => { e.preventDefault(); busy = false; const m = emailText(store.submission(s.id), c); location.href = `mailto:${encodeURIComponent(c.email)}?subject=${encodeURIComponent(m.subject)}&body=${encodeURIComponent(m.body)}`; store.updateSubmission(s.id, { emailed_status: store.submission(s.id).status }); };
-    if ($('#marked')) $('#marked').onclick = () => { busy = false; store.updateSubmission(s.id, { emailed_status: s.status }); };
-    if ($('#sendInv')) $('#sendInv').onclick = () => {
-      busy = false; const saved = store.updateSubmission(s.id, { ...collect(), status: 'invoiced' });
-      const m = emailText(saved, c); store.updateSubmission(s.id, { emailed_status: 'invoiced' });
-      location.href = `mailto:${encodeURIComponent(c.email)}?subject=${encodeURIComponent(`Invoice for ${s.code} — ${money0(saved.invoice.total)}`)}&body=${encodeURIComponent(m.body)}`;
-    };
-    if ($('#paidMan')) $('#paidMan').onclick = () => { busy = false; const cur = store.submission(s.id); store.updateSubmission(s.id, { invoice: { ...cur.invoice, status: 'paid', paid_at: new Date().toISOString(), method: $('#method').value }, status: ['submitted', 'invoiced'].includes(cur.status) ? 'paid' : cur.status }); };
-  };
-  const keep = () => { if (!$('#st')) return; s.status = $('#st').value; s.delivery = $('#del').value; s.public_notes = $('#pub').value; s.internal_notes = $('#int').value; $$('.card-entry').forEach(el => { const cd = s.cards[+el.dataset.i]; $$('[data-k]', el).forEach(inp => cd[inp.dataset.k] = inp.dataset.k === 'value' ? +inp.value || 0 : inp.value); }); };
-  const collect = () => { keep(); return { status: s.status, delivery: s.delivery, public_notes: s.public_notes, internal_notes: s.internal_notes, cards: s.cards }; };
-  draw();
-}
-function newSubmission() {
-  const custs = store.customers();
-  shell('new', 'New submission', '', `<form id="nf" class="panel" style="max-width:720px">
-    <div class="field"><label>Existing customer</label><select id="cu"><option value="">— New customer —</option>${custs.map(c => `<option value="${c.id}">${esc(c.name)} · ${esc(c.email)}</option>`).join('')}</select></div>
-    <div class="grid3" id="nc"><div class="field"><label>Name</label><input id="n"></div><div class="field"><label>Email</label><input id="e" type="email"></div><div class="field"><label>Phone</label><input id="ph"></div></div>
-    <div class="field"><label>Delivery</label><select id="d"><option value="dropoff">Austin drop-off (walk-in)</option><option value="ship">Shipped in</option></select></div>
-    <div class="field"><label>Cards — one per line: name, value $, service (r = restoration, c = cleaning)</label><textarea id="cards" placeholder="Charizard Base Set, 420, r&#10;Blastoise, 180, c" style="min-height:120px"></textarea></div>
-    <div class="err hidden" id="ne"></div><button class="btn red">Create submission</button></form>`);
-  $('#cu').onchange = () => $('#nc').classList.toggle('hidden', !!$('#cu').value);
-  $('#nf').onsubmit = e => {
-    e.preventDefault(); const err = $('#ne');
-    const ex = $('#cu').value && store.customer($('#cu').value);
-    const cust = ex ? { name: ex.name, email: ex.email, phone: ex.phone } : { name: $('#n').value.trim(), email: $('#e').value.trim(), phone: $('#ph').value.trim() };
-    const cards = $('#cards').value.split('\n').map(l => l.trim()).filter(Boolean).map(l => { const [name, value, sv] = l.split(',').map(x => (x || '').trim()); return { name, details: '', value: +String(value).replace(/[^\d.]/g, '') || 0, service: /^c/i.test(sv || '') ? 'cleaning' : 'restoration', addons: [], damage: '', photos: {} }; });
-    if (!cust.name || !cust.email) { err.textContent = 'Add the customer name and email.'; err.classList.remove('hidden'); return; }
-    if (!cards.length) { err.textContent = 'Add at least one card.'; err.classList.remove('hidden'); return; }
-    const r = store.submit({ customer: cust, delivery: $('#d').value, cards, notes: 'Entered by admin' });
-    location.hash = '#/submission/' + r.submission.id;
-  };
-}
-
 // ---------------- customers ----------------
 function customers() {
   let q = '';
   const draw = () => {
     const cs = store.customers().filter(c => !q || (c.name + c.email + c.phone).toLowerCase().includes(q));
-    $('#cl').innerHTML = `<div class="table-wrap"><table><tr><th>Name</th><th>Email</th><th class="num">Orders</th><th class="num">Spent</th><th class="num">Submissions</th></tr>
-      ${cs.map(c => { const os = store.orders().filter(o => o.customer_id === c.id && o.status !== 'refunded' && o.status !== 'cancelled'); const ss = store.submissions().filter(s => s.customer_id === c.id);
-        return `<tr class="click" data-href="#/customer/${c.id}"><td><b>${esc(c.name)}</b></td><td>${esc(c.email)}</td><td class="num">${os.length}</td><td class="num">${money0(os.reduce((s, o) => s + o.total, 0) + ss.filter(s => s.invoice.status === 'paid').reduce((t, s) => t + s.invoice.total, 0))}</td><td class="num">${ss.length}</td></tr>`; }).join('')}</table></div>`;
+    $('#cl').innerHTML = `<div class="table-wrap"><table><tr><th>Name</th><th>Email</th><th class="num">Orders</th><th class="num">Spent</th></tr>
+      ${cs.map(c => { const os = store.orders().filter(o => o.customer_id === c.id && o.status !== 'refunded' && o.status !== 'cancelled');
+        return `<tr class="click" data-href="#/customer/${c.id}"><td><b>${esc(c.name)}</b></td><td>${esc(c.email)}</td><td class="num">${os.length}</td><td class="num">${money0(os.reduce((s, o) => s + o.total, 0))}</td></tr>`; }).join('')}</table></div>
+      <p class="small muted">Shop customers. Restoration customers, their cards and private links are in the <a class="link" href="${PORTAL}#/customers">work portal ↗</a>.</p>`;
     bindRows();
   };
-  shell('customers', 'Customers', '<input class="search" id="q" placeholder="Search">', '<div id="cl"></div>');
+  shell('customers', 'Shop customers', '<input class="search" id="q" placeholder="Search">', '<div id="cl"></div>');
   $('#q').oninput = e => { q = e.target.value.toLowerCase(); draw(); };
   draw();
 }
 function customer([id]) {
   const c = store.customer(id); if (!c) return shell('customers', 'Not found', '', '');
-  const os = store.orders().filter(o => o.customer_id === c.id), ss = store.submissions().filter(s => s.customer_id === c.id);
+  const os = store.orders().filter(o => o.customer_id === c.id), pc = PS.db().customers.find(x => (x.email || '').toLowerCase() === c.email);
+  const ss = pc ? PS.db().submissions.filter(s => s.customer_id === pc.id) : [];
   shell('customers', esc(c.name), '<a class="btn ghost sm" href="#/customers">← Customers</a>', `<div class="cols-main"><div>
-      <div class="panel"><h3>Restoration submissions</h3><table>${ss.map(s => `<tr class="click" data-href="#/submission/${s.id}"><td>${esc(s.code)}</td><td class="small">${fmtDate(s.created)}</td><td>${s.cards.length} cards</td><td>${pill(s.status)}</td></tr>`).join('') || '<tr><td class="muted">None</td></tr>'}</table></div>
+      <div class="panel"><h3>Restoration submissions</h3><table>${ss.map(s => `<tr class="click" data-href="${PORTAL}#/submission/${s.id}"><td>${esc(s.code)}</td><td class="small">${fmtDate(s.created_at)}</td><td>${pill(s.status)}</td></tr>`).join('') || '<tr><td class="muted">None</td></tr>'}</table></div>
       <div class="panel" style="margin-top:16px"><h3>Product orders</h3><table>${os.map(o => `<tr class="click" data-href="#/order/${o.id}"><td>${esc(o.number)}</td><td class="small">${fmtDate(o.created)}</td><td class="num">${money(o.total)}</td><td>${pill(o.status, o.status === 'paid' ? 'To ship' : null)}</td></tr>`).join('') || '<tr><td class="muted">None</td></tr>'}</table></div>
     </div><aside><form class="panel" id="cf"><div class="field"><label>Name</label><input id="n" value="${esc(c.name)}"></div><div class="field"><label>Email</label><input id="e" value="${esc(c.email)}"></div>
       <div class="field"><label>Phone</label><input id="p" value="${esc(c.phone)}"></div><div class="field"><label>Internal notes</label><textarea id="no">${esc(c.notes || '')}</textarea></div><button class="btn sm">Save</button></form>
@@ -401,14 +307,14 @@ function site() {
   const c = JSON.parse(JSON.stringify(store.content()));
   const draw = () => {
     shell('site', 'Website & prices', '', `<form id="sf"><div class="cols2">
-      <div class="panel"><h3>Announcement bar</h3><div class="field"><input id="ann" value="${esc(c.announcement)}" placeholder="Leave blank to hide"></div>
-        <h3 style="margin-top:12px">Home page</h3>${['kicker', 'title', 'sub', 'line'].map(k => `<div class="field"><label>${{ kicker: 'Small heading', title: 'Headline', sub: 'Line 1', line: 'Line 2' }[k]}</label><input data-hero="${k}" value="${esc(c.hero[k])}"></div>`).join('')}
+      <div class="panel"><p class="small muted" style="margin-top:0">Announcement bar, news, shows and Instagram are edited in the <a class="link" href="${PORTAL}#/site/announcement">work portal → Website ↗</a>, same as Restored Rarity.</p>
+        <h3>Home page</h3>${['kicker', 'title', 'sub', 'line'].map(k => `<div class="field"><label>${{ kicker: 'Small heading', title: 'Headline', sub: 'Line 1', line: 'Line 2' }[k]}</label><input data-hero="${k}" value="${esc(c.hero[k])}"></div>`).join('')}
         <div class="field"><label>Bestseller blurb</label><textarea id="best">${esc(c.bestseller)}</textarea></div></div>
       <div class="panel"><h3>Restoration prices</h3><table><tr><th>Tier</th><th>From $</th><th>To $</th><th>Price $ or %</th></tr>
         ${c.prices.tiers.map((t, i) => `<tr data-t="${i}"><td><input data-tk="name" value="${esc(t.name)}"></td><td><input data-tk="min" value="${t.min}"></td><td><input data-tk="max" value="${t.max ?? ''}" placeholder="and up"></td><td><input data-tk="amt" value="${t.pct ? t.pct + '%' : t.price}"></td></tr>`).join('')}</table>
         <div class="field" style="margin-top:12px"><label>Cleaning only, $ per card</label><input id="clean" value="${c.prices.cleaning}"></div>
         <h3>Add-ons</h3>${c.prices.addons.map((a, i) => `<div class="grid3" data-a="${i}"><div class="field"><label>Name</label><input data-ak="name" value="${esc(a.name)}"></div><div class="field"><label>Price $</label><input data-ak="price" value="${a.price}"></div><div class="field"><label>Per</label><select data-ak="unit">${['card', 'slab', 'submission'].map(u => `<option ${a.unit === u ? 'selected' : ''}>${u}</option>`).join('')}</select></div></div>`).join('')}
-        <p class="small muted">Prices update the Pricing page, the Free Card Review quiz, the submission form's quote and new invoices.</p></div>
+        <p class="small muted">This is the one price list: the Pricing page, the Free Card Review quiz, the Submit Cards quote and the work portal's service menus and quotes all read it.</p></div>
       <div class="panel"><h3>Queue & shop</h3><div class="field"><label>Cards accepted per week</label><input id="cap" value="${c.capacity}"></div>
         <div class="grid3"><div class="field"><label>Shipping $</label><input id="ship" value="${c.shop.shipping}"></div><div class="field"><label>Free over $</label><input id="free" value="${c.shop.free_over || ''}" placeholder="never"></div><div class="field"><label>Sales tax %</label><input id="tax" value="${c.shop.tax_rate}"></div></div></div>
       <div class="panel"><h3>Payments</h3><div class="field"><label>Provider</label><select id="prov"><option value="stripe">Stripe</option></select></div>
@@ -421,12 +327,12 @@ function site() {
       <div class="panel"><h3>Demo data</h3><p class="small muted">Start over with the original products, stock and sample orders. This only affects this browser.</p><button type="button" class="btn ghost" id="reset">Reset demo data</button>
         <button type="button" class="btn ghost" id="defaults" style="margin-left:6px">Restore built-in prices</button></div>
       </div><div style="position:sticky;bottom:0;padding:14px 0;background:var(--bg)"><button class="btn red">Save website settings</button> <span class="err hidden" id="serr"></span></div></form>`);
-    $('#reset').onclick = () => { if (confirm('Reset all demo data in this browser?')) { store.reset(); toast('Demo data reset'); } };
+    $('#reset').onclick = () => { if (confirm('Reset all demo data (shop and work portal) in this browser?')) { PS.reset(); store.reset(); toast('Demo data reset'); } };
     $('#defaults').onclick = () => { c.prices = JSON.parse(JSON.stringify(DEFAULT_CONTENT.prices)); draw(); toast('Built-in prices loaded — Save to keep them'); };
     $$('#sf input,#sf textarea,#sf select').forEach(i => { i.addEventListener('focus', () => busy = true); i.addEventListener('blur', () => busy = false); });
     $('#sf').onsubmit = e => {
       e.preventDefault(); busy = false; const v = id => $('#' + id).value.trim(), lines = id => v(id).split('\n').map(x => x.trim()).filter(Boolean);
-      c.announcement = v('ann'); $$('[data-hero]').forEach(i => c.hero[i.dataset.hero] = i.value.trim()); c.bestseller = v('best');
+      $$('[data-hero]').forEach(i => c.hero[i.dataset.hero] = i.value.trim()); c.bestseller = v('best');
       $$('[data-t]').forEach(tr => { const t = c.prices.tiers[+tr.dataset.t]; const g = k => $(`[data-tk=${k}]`, tr).value.trim();
         t.name = g('name'); t.min = +g('min') || 0; t.max = g('max') === '' ? null : +g('max'); const amt = g('amt');
         if (amt.endsWith('%')) { t.pct = +amt.replace('%', '') || 0; delete t.price; } else { t.price = +amt.replace(/[^\d.]/g, '') || 0; delete t.pct; } });
