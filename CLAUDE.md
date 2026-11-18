@@ -522,8 +522,10 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    (`portal/demostore.js`, same tables as schema.sql); the site's Submit Cards form creates SAE-… submissions there (like
    `intake_submit`), the customer gets the portal's `view.html` link, the portal's Website tab drives the site's announcement /
    news / events / Instagram, and the portal's service menu + quotes read the shop's one price list. Their Instagram
-   (@shinyassetexchange) shows posts only when signed in, so **prices could not be pulled from it** — asked the owner for
-   screenshots/links. Tested with Playwright (desktop + 390 px): checkout, stock, quiz, intake → portal → quote → card editor →
+   (@shinyassetexchange) shows posts only when signed in; the owner sent a screenshot of its "Price List" post (Sep 21, 2026,
+   prices effective Oct 1, 2026): tiers $80 / $150 / $200 / 10% over $2,000, cleaning $20, Card Review $5, Estimated Grade $10,
+   Slab Crack $10, Grade Prep & Ship $20 per submission, trades at 85% — **identical to the demo** (taken from their website).
+   Express Lane ($50/card) is on the website but not on that post; kept, asked the owner whether it's still offered. Tested with Playwright (desktop + 390 px): checkout, stock, quiz, intake → portal → quote → card editor →
    customer link → order status, announcement round trip. Not built: Supabase + Stripe Checkout backend (plan in the README).
    Kept off `main` on purpose (main publishes to restoredraritytcg.com). Open: where to host it (its own repo?).
    Note: the portal copy diverges from `portal/` (see the demo README's file table) — it is not kept in sync automatically.
