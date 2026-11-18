@@ -1,4 +1,4 @@
-// Centering IQ — free stand-alone centering + tilt checker (Restored Rarity, built on ScanStationIQ's card finder).
+// CardVestIQ (prototype) — centering + tilt check, grade decision, collection (Restored Rarity, built on ScanStationIQ's card finder).
 // Everything runs in the browser: pictures are never uploaded. Only an optional, anonymous grade report is sent.
 import * as P from "./shared/scanproc.js";
 import * as Ph from "./photo.js";
@@ -7,6 +7,7 @@ import * as M from "./multipoint.js";
 import * as G from "./grade.js";
 import * as T from "./track.js";
 import { createEditor } from "./editor.js";
+import * as PF from "./portfolio.js";
 
 const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -14,13 +15,10 @@ const mm = (inches) => (inches * 25.4).toFixed(2);
 const pair = (a) => (a ? `${a[0].toFixed(1)}/${a[1].toFixed(1)}` : "—");
 const share = (v) => (v == null ? "—" : `${v.toFixed(1)}/${(100 - v).toFixed(1)}`);
 const RR_SUBMIT = "https://restoredraritytcg.com/#submit", SSIQ = "https://scanstationiq.com/";
-// PSA service levels: Restored Rarity's built-in list (index.html PRICE_RULES.psaLevels, Nov 2026 — PSA sets these).
-const PSA_LEVELS = [["Value", 39.99, 500], ["Standard", 59.99, 1000], ["Priority", 79.99, 1500], ["Express", 199, 2500],
-  ["Super Express", 349, 5000], ["Premier", 599, 10000], ["Premium 1", 999, 25000]];
-const RR_GRADING_FEE = 15;                              // Restored Rarity grading submission, first card
+const { PSA_LEVELS, RR_GRADING_FEE } = G;
 
 const S = {
-  side: "front", sides: { front: null, back: null }, holder: false, editor: null, showPts: true, batch: [], busy: false,
+  side: "front", sides: { front: null, back: null }, holder: false, holding: null, meas: {}, thumbs: {}, editor: null, showPts: true, batch: [], busy: false,
   calc: { company: "PSA", condition: "near", level: "auto", fee: "", viaRR: false, ship: "25", prep: "0", sellPct: "13.25",
           raw: "", values: {}, odds: null, oddsEdited: false, feeEdited: false, name: "" },
 };
@@ -172,12 +170,12 @@ function caps() { return M.gradeCaps(worstOf(S.sides.front), worstOf(S.sides.bac
 
 function renderGrades() {
   const g = $("#grades"), f = S.sides.front;
-  if (!f) { g.innerHTML = `<p class="muted">Add the <b>front</b> to see the grade each grader's centering rules allow${S.sides.back ? "" : " (add the back too — graders check both)"}.</p>`; $("#calcwrap").hidden = true; $("#report").hidden = true; funnel(null); return; }
+  if (!f) { $("#addhold").hidden = true; renderHoldingBar(); g.innerHTML = `<p class="muted">Add the <b>front</b> to see the grade each grader's centering rules allow${S.sides.back ? "" : " (add the back too — graders check both)"}.</p>`; $("#calcwrap").hidden = true; $("#report").hidden = true; funnel(null); return; }
   const fr = worstOf(f), bk = worstOf(S.sides.back);
   g.innerHTML = G.capsHtml(fr, bk, { frontPm: pmOf(f), backPm: pmOf(S.sides.back) }) + G.scaleHtml(fr, bk)
     + (S.sides.back ? "" : `<p class="small"><button class="btn sm" data-act="goback">＋ Add the back</button> <span class="muted">Back limits are looser, but a badly centered back can still cost a 10.</span></p>`);
-  $("#calcwrap").hidden = false; $("#report").hidden = false;
-  calcSync(); renderReportForm();
+  $("#calcwrap").hidden = false; $("#report").hidden = false; $("#addhold").hidden = false;
+  calcSync(); renderReportForm(); renderHoldingBar();
 }
 
 function capFor(company) { return caps()?.companies[company]?.grade ?? "10"; }
@@ -245,7 +243,7 @@ function funnel(res) {
 function renderReportForm() {
   const f = $("#reportform"), co = f.company.value;
   f.querySelector(".sub").hidden = co !== "BGS";
-  $("#r-pred").textContent = `Centering IQ's cap for this card: ${co} ${capFor(co)}`;
+  $("#r-pred").textContent = `CardVestIQ's cap for this card: ${co} ${capFor(co)}`;
 }
 async function submitReport(e) {
   e.preventDefault();
@@ -262,7 +260,7 @@ async function submitReport(e) {
 async function runBatch(files) {
   files = [...files].filter((f) => /^image\//.test(f.type) || /\.(jpe?g|png|webp|heic|heif|bmp|gif)$/i.test(f.name));
   if (!files.length) return;
-  location.hash = "#/batch";
+  location.hash = "#batch";
   const prog = $("#b-prog");
   for (let i = 0; i < files.length; i++) {
     prog.innerHTML = `<span class="spinner"></span> Measuring ${i + 1} of ${files.length}: ${esc(files[i].name)}`;
@@ -305,29 +303,31 @@ function batchCsv() {
 // ================================================================ track record
 async function renderTrack() {
   const loc = T.localStats(), list = T.localReports();
-  $("#t-local").innerHTML = loc ? `<p>You've reported <b>${loc.n}</b> grade${loc.n > 1 ? "s" : ""}. The real grade stayed at or under Centering IQ's centering cap
+  $("#t-local").innerHTML = loc ? `<p>You've reported <b>${loc.n}</b> grade${loc.n > 1 ? "s" : ""}. The real grade stayed at or under CardVestIQ's centering cap
     <b>${loc.held}%</b> of the time${loc.subN ? `; BGS centering subgrade matched exactly ${loc.subExact}% (${loc.subN} reports)` : ""}.</p>
     <table class="btable"><thead><tr><th>Card</th><th>Grader</th><th>Predicted cap</th><th>Real</th><th>Front</th><th></th></tr></thead><tbody>
     ${list.map((r, i) => `<tr><td>${esc(r.name || "—")}</td><td>${esc(r.company)}</td><td>${r.predicted}</td><td><b>${r.real_grade}</b>${r.subgrade != null ? ` (cent. ${r.subgrade})` : ""}</td>
       <td>${r.front_share != null ? share(r.front_share) : "—"}</td><td><button class="linkbtn" data-delrep="${i}">remove</button></td></tr>`).join("")}</tbody></table>`
     : `<p class="muted">No grades reported from this device yet. After you measure a card and its slab comes back, add the grade under the results.</p>`;
-  const sh = await T.sharedStats(), box = $("#t-shared");
+  const sh = PF.isDemo() ? PF.DEMO_STATS : await T.sharedStats(), box = $("#t-shared");
   if (!sh) { box.innerHTML = `<p class="muted">The shared track record is being switched on. Reports you add are kept on this device in the meantime.</p>`; return; }
   const cos = ["PSA", "CGC", "BGS"].filter((c) => sh[c]);
   box.innerHTML = cos.length ? `<div class="caps">${cos.map((c) => { const s = sh[c]; return `<div class="cap"><div class="cap-co">${c}</div>
       <div class="cap-g">${s.cap_held != null ? s.cap_held + "%" : "—"}</div><div class="cap-note">${s.cap_held != null ? "cap held" : `needs 25 reports (${s.n} so far)`}${
       s.sub_exact != null ? ` · BGS centering subgrade exact ${s.sub_exact}%, within ½ ${s.sub_half}% (${s.sub_n})` : ""}</div></div>`; }).join("")}</div>
-      <p class="muted small">"Cap held" = the slab's grade was at or under the best grade Centering IQ said the centering allowed. Reported by users; no
-      percentage is shown until a grader has 25 reports.</p>` : `<p class="muted">No shared reports yet — be the first.</p>`;
+      <p class="muted small">"Cap held" = the slab's grade was at or under the best grade CardVestIQ said the centering allowed. Reported by users; no
+      percentage is shown until a grader has 25 reports.</p>${PF.isDemo() ? `<p><span class="pill warn">Demo numbers, not real reports</span></p>` : ""}` : `<p class="muted">No shared reports yet — be the first.</p>`;
 }
 
 // ================================================================ routing + wiring
 function route() {
-  const v = (location.hash.match(/^#\/(\w+)/) || [, "measure"])[1];
+  let v = (location.hash.match(/^#\/?(\w+)/) || [, "check"])[1];
+  if (v === "measure" || !$(`[data-view="${v}"]`)) v = "check";
   $$("[data-view]").forEach((s) => { s.hidden = s.dataset.view !== v; });
-  $$("nav a").forEach((a) => a.classList.toggle("on", a.getAttribute("href") === `#/${v}`));
+  $$("nav a").forEach((a) => a.classList.toggle("on", a.getAttribute("href") === `#${v}`));
   if (v === "track") renderTrack();
-  if (v === "measure") requestAnimationFrame(() => S.editor?.fit());
+  if (v === "collection") renderCollection();
+  if (v === "check") requestAnimationFrame(() => S.editor?.fit());
 }
 
 function wire() {
@@ -352,7 +352,12 @@ function wire() {
     if (a === "minus" || a === "plus") { S.editor?.nudge(a === "minus" ? -1 : 1); updateSel(); }
     if (a === "pts") { S.showPts = !S.showPts; S.editor?.showSamples(S.showPts); e.target.classList.toggle("on", S.showPts); }
     const o = e.target.closest("[data-open]");
-    if (o) { const x = S.batch[+o.dataset.open]; S.side = "front"; S.sides.front = x.r; S.sides.back = null; location.hash = "#/measure"; renderMeasure(); }
+    if (o) { const x = S.batch[+o.dataset.open]; S.side = "front"; S.sides.front = x.r; S.sides.back = null; S.holding = null; location.hash = "#check"; renderMeasure(); }
+    const hb = e.target.closest("[data-hold]");
+    if (hb) openHolding(hb.dataset.hold);
+    if (a === "sample") openHolding(e.target.closest("[data-act]").dataset.id || "d-emberdrake");
+    if (a === "saveholding") saveHoldingChanges();
+    if (a === "leaveholding") { S.holding = null; renderHoldingBar(); }
     const d = e.target.closest("[data-delrep]");
     if (d) { T.deleteLocal(+d.dataset.delrep); renderTrack(); }
   });
@@ -366,14 +371,14 @@ function wire() {
     const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith("image/"));
     if (!item || e.target.closest("input, textarea")) return;
     e.preventDefault(); const f = item.getAsFile();
-    if (location.hash.startsWith("#/batch")) runBatch([f]); else { location.hash = "#/measure"; addPicture(new File([f], "pasted picture", { type: f.type })); }
+    if (/^#\/?batch/.test(location.hash)) runBatch([f]); else { location.hash = "#check"; addPicture(new File([f], "pasted picture", { type: f.type })); }
   });
   document.addEventListener("dragover", (e) => { e.preventDefault(); document.body.classList.add("dropping"); });
   document.addEventListener("dragleave", (e) => { if (!e.relatedTarget) document.body.classList.remove("dropping"); });
   document.addEventListener("drop", (e) => {
     e.preventDefault(); document.body.classList.remove("dropping");
     const files = [...(e.dataTransfer?.files || [])];
-    if (files.length > 1 || location.hash.startsWith("#/batch")) runBatch(files); else if (files[0]) { location.hash = "#/measure"; addPicture(files[0]); }
+    if (files.length > 1 || /^#\/?batch/.test(location.hash)) runBatch(files); else if (files[0]) { location.hash = "#check"; addPicture(files[0]); }
   });
 
   // calculator
@@ -400,6 +405,7 @@ function wire() {
   if (window.RRCardSearch) window.RRCardSearch.attach($("#c-name"));
   $("#c-name").addEventListener("change", (e) => { S.calc.name = e.target.value; calcSync(); });
 
+  $("#holdform").addEventListener("submit", addHolding);
   $("#reportform").addEventListener("change", renderReportForm);
   $("#reportform").addEventListener("submit", submitReport);
 }
@@ -414,4 +420,114 @@ async function pasteButton() {
 
 // test hook (tests/centering): measure a file without the UI
 window.CIQ = { measureFile, analyze: M.analyze, S, addPicture, runBatch };
+
+// ================================================================ collection (CardVestIQ)
+const sideWorst = (c) => (c ? M.worseShare(M.analyze(c.model)) : null);
+async function fetchFile(url) {
+  const blob = await (await fetch(url)).blob();
+  return new File([blob], url.split("/").pop(), { type: blob.type || "image/jpeg" });
+}
+function thumbOf(cv, w = 96) {
+  const t = document.createElement("canvas"); t.width = w; t.height = Math.round(w * cv.height / cv.width);
+  t.getContext("2d").drawImage(cv, 0, 0, t.width, t.height);
+  return t.toDataURL("image/jpeg", 0.8);
+}
+// Measured sides of a holding: sample cards from demo/<img>-front|back.jpg, saved cards from their stored picture + lines.
+async function holdingSides(h) {
+  if (S.meas[h.id]) return S.meas[h.id];
+  const out = { front: null, back: null };
+  if (h.img) {
+    for (const side of ["front", "back"]) {
+      try { [out[side]] = await measureFile(await fetchFile(`demo/${h.img}-${side}.jpg`), { holder: false }); } catch (e) { console.warn(e); }
+      if (out[side] && !out[side].ok) out[side] = null;
+    }
+  } else for (const side of ["front", "back"]) {
+    const s = h.sides?.[side]; if (!s) continue;
+    const img = new Image(); img.src = s.pic; await img.decode().catch(() => {});
+    const cv = document.createElement("canvas"); cv.width = img.naturalWidth; cv.height = img.naturalHeight; cv.getContext("2d").drawImage(img, 0, 0);
+    out[side] = { ok: true, canvas: cv, dpi: s.model.dpi, model: s.model, auto: M.clone(s.model), source: s.source || "photo", file: h.name };
+  }
+  if (out.front) S.thumbs[h.id] = thumbOf(out.front.canvas);
+  return (S.meas[h.id] = out);
+}
+const measOf = (sides) => { if (!sides?.front) return null; const a = M.analyze(sides.front.model); return { lr: a.lr?.[0], tb: a.tb?.[0], tilt: a.tilt }; };
+
+async function renderCollection() {
+  const box = $("#c-list"), hs = PF.list();
+  const pending = new Set(hs.filter((h) => !S.meas[h.id]).map((h) => h.id));
+  const draw = () => {
+    box.innerHTML = PF.render(hs.map((h) => {
+      const m = S.meas[h.id];
+      return { h, v: PF.value(h, m ? { front: sideWorst(m.front), back: sideWorst(m.back) } : null), thumb: S.thumbs[h.id] || h.thumb,
+               meas: measOf(m), measuring: pending.has(h.id) };
+    }));
+  };
+  draw();
+  for (const h of hs) {
+    if (!pending.has(h.id)) continue;
+    await holdingSides(h); pending.delete(h.id);
+    if (/^#\/?collection/.test(location.hash)) draw();
+  }
+}
+
+async function openHolding(id) {
+  const h = PF.list().find((x) => x.id === id); if (!h) return;
+  location.hash = "#check";
+  setStatus(`<span class="spinner"></span> Opening ${esc(h.name)}…`);
+  const sides = await holdingSides(h);
+  setStatus("");
+  S.holding = h; S.side = "front"; S.sides.front = sides.front; S.sides.back = sides.back;
+  Object.assign(S.calc, { name: h.name, raw: h.raw || "", values: { ...(h.values || {}) }, condition: h.condition || "near",
+    company: h.company || "PSA", oddsEdited: false, feeEdited: false, fee: "", level: "auto" });
+  $("#c-name").value = h.name; $("#c-raw").value = h.raw || ""; $("#c-cond").value = S.calc.condition;
+  $("#c-company").value = S.calc.company; $("#c-level").value = "auto";
+  renderMeasure();
+  window.scrollTo({ top: 0 });
+}
+
+function renderHoldingBar() {
+  const h = S.holding, bar = $("#holdbar"), form = $("#holdform");
+  bar.hidden = !h; form.hidden = !!h;
+  if (!h) return;
+  const v = PF.value(h, { front: sideWorst(S.sides.front), back: sideWorst(S.sides.back) }), demo = h.id.startsWith("d-");
+  const $f = (x) => (x == null ? "—" : `$${Math.round(x).toLocaleString()}`);
+  bar.innerHTML = `<div class="hb-text"><b>${esc(h.name)}</b> <span class="muted">${esc(h.set || "")}</span>${demo ? ` <span class="pill warn">sample card</span>` : ""}<br>
+    <span class="small">Paid ${$f(h.paid)}${h.boughtOn ? ` on ${esc(h.boughtOn)}` : ""} · raw now ${$f(v.rawNow)}${v.gainNow != null ? ` (${v.gainNow >= 0 ? "+" : "−"}${$f(Math.abs(v.gainNow))})` : ""}${
+    h.status === "grading" ? ` · at ${esc(h.company)} since ${esc(h.sentOn)}` : ""}${h.status === "sold" ? ` · graded ${esc(h.company)} ${esc(h.realGrade)}, sold for ${$f(h.soldFor)}` : ""}</span></div>
+    <div class="row">${demo ? "" : `<button class="btn sm" data-act="saveholding">Save prices to this card</button>`}
+      <a class="btn sm" href="#collection">← Collection</a><button class="btn sm" data-act="leaveholding">Close</button></div>`;
+}
+
+// A picture up to 900 px wide plus the lines, scaled to match, so a saved card reopens without the original photo.
+function sidePack(c) {
+  if (!c) return null;
+  const k = Math.min(1, 900 / c.canvas.width), cv = document.createElement("canvas");
+  cv.width = Math.round(c.canvas.width * k); cv.height = Math.round(c.canvas.height * k);
+  cv.getContext("2d").drawImage(c.canvas, 0, 0, cv.width, cv.height);
+  const m = M.clone(c.model), sc = (v) => v * k;
+  m.w = cv.width; m.h = cv.height; m.padPx = sc(m.padPx); m.dpi = m.dpi * k; if (m.srcDpi) m.srcDpi = Math.min(m.srcDpi, m.dpi);
+  for (const s of Object.values(m.sides)) {
+    s.t = s.t.map(sc); s.outer = s.outer.map(sc); s.inner = s.inner.map(sc); if (s.se != null) s.se *= k;
+    (s.samples || []).forEach((q) => { q.t = sc(q.t); q.outer = sc(q.outer); q.inner = sc(q.inner); });
+  }
+  return { pic: cv.toDataURL("image/jpeg", 0.85), model: m, source: c.source };
+}
+function addHolding(e) {
+  e.preventDefault();
+  const f = e.target, c = S.calc, name = f.elements.hname.value.trim() || c.name || "Untitled card";
+  const h = PF.add({ name, set: f.elements.hset.value.trim(), paid: Number(f.elements.hpaid.value) || 0, boughtOn: f.elements.hon.value || "",
+    condition: c.condition, company: c.company, raw: c.raw, values: { ...c.values }, status: "raw", thumb: thumbOf(S.sides.front.canvas),
+    sides: { front: sidePack(S.sides.front), back: sidePack(S.sides.back) } });
+  if (!h) return toast("Couldn't save: this browser's storage is full or switched off.");
+  S.meas[h.id] = { front: S.sides.front, back: S.sides.back }; S.thumbs[h.id] = h.thumb; S.holding = h;
+  f.reset(); renderHoldingBar(); toast(`${name} added to your collection.`);
+}
+function saveHoldingChanges() {
+  const h = S.holding, c = S.calc; if (!h) return;
+  const patch = { raw: c.raw, values: { ...c.values }, condition: c.condition, company: c.company };
+  if (PF.update(h.id, patch)) { Object.assign(h, patch); delete S.meas[h.id]; S.meas[h.id] = { front: S.sides.front, back: S.sides.back }; renderHoldingBar(); toast("Prices saved to this card."); }
+}
+
+// ================================================================ start
+if (PF.isDemo()) { document.body.classList.add("demo"); if (!location.hash) history.replaceState(null, "", "#collection"); }
 wire(); route(); renderMeasure(); renderBatch();

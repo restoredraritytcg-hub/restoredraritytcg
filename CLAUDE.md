@@ -536,6 +536,14 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    listing check) → Decide (submit-or-skip, batch ranked by expected profit) → Track (holdings: cost, value, value if graded, real grade, sale)
    → Prove (predicted vs real grade and return). Proposed split, not decided: free single-card check + grade caps; paid portfolio, batch ROI,
    grading history. Hold: don't merge `centering/` here or name it until the CardVestIQ code has been seen.
+   **Demo built Nov 18, 2026 (owner: "build a demo"):** `centering/` is now branded CardVestIQ (prototype) with a **Collection** page
+   (`portfolio.js`: holdings with paid / raw now / centering / PSA cap / expected graded value / "Grade it · Borderline · Keep raw",
+   graded & sold with predicted vs real grade and return; KPIs paid, worth raw, grading upside, realized), "Add to my collection" on the
+   Check page (picture ≤900 px + lines kept in localStorage `cvq-collection`), open a holding → Check with its prices filled in. Demo mode
+   (`?demo` or `window.CVQ_DEMO`) adds 6 made-up sample cards (`centering/demo/*.jpg`, built by a synthetic generator; sample prices,
+   labelled as such) and demo track-record numbers (labelled). Hash routes are plain `#collection`, `#check`, `#batch`, `#track`, `#help`
+   (old `#/name` still works). Published as a private Artifact for the owner to try. Tested in Playwright at 1366 px + iPhone 13
+   (sample cards measure within ~1 point / 0.02° of how they were built, add + reload + reopen a card, no overflow, no errors).
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.

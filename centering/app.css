@@ -166,3 +166,38 @@ body.dropping .dropzone{display:flex;position:fixed;inset:12px;z-index:70;border
 .cam-shoot{width:74px;height:74px;border-radius:50%;border:5px solid #fff;background:var(--gold);cursor:pointer}
 .cam.level .cam-shoot{background:var(--cyan)}
 .cam.flash video{opacity:.3}
+
+/* CardVestIQ: collection, holding bar, demo */
+.demobar{display:none;margin:12px 0 0;padding:8px 12px;border-radius:10px;background:rgba(245,179,1,.12);border:1px solid rgba(245,179,1,.4);font-size:13px}
+body.demo .demobar{display:block}
+.samples{display:none;gap:8px;flex-wrap:wrap;align-items:center;margin:-4px 0 12px}
+body.demo .samples{display:flex}
+.holdbar{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center;margin-top:12px;padding:12px 14px;
+  border-radius:12px;background:var(--panel);border:1px solid var(--cyan)}
+.hb-text{min-width:0}
+.kpis.k5{grid-template-columns:repeat(4,1fr);margin:14px 0}
+@media(max-width:700px){.kpis.k5{grid-template-columns:repeat(2,1fr)}}
+.kpi.good .k-v{color:var(--green)} .kpi.bad .k-v{color:var(--red)}
+.pos{color:var(--green)} .neg{color:var(--red)}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+.ptable{min-width:760px}
+.ptable td,.ptable th{vertical-align:middle}
+.ptable img{width:40px;border-radius:4px;display:block}
+.ptable .nm b,.ptable .nm span,.ptable td.num span{display:block}
+.ptable .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;
+  background:var(--panel2);color:var(--muted);border:1px solid var(--line)}
+.pill.good{color:var(--green);border-color:rgba(70,214,138,.5);background:rgba(70,214,138,.1)}
+.pill.warn{color:var(--gold);border-color:rgba(245,179,1,.5);background:rgba(245,179,1,.1)}
+.pill.info{color:var(--cyan);border-color:rgba(42,212,230,.5);background:rgba(42,212,230,.08)}
+.ptable td.num span.pill{display:inline-flex}
+@media(max-width:640px){
+  .ptable{min-width:0}
+  .ptable thead{display:none}
+  .ptable tr{display:grid;grid-template-columns:44px repeat(2,minmax(0,1fr));gap:8px 12px;padding:12px;border-bottom:1px solid var(--line)}
+  .ptable td{border:0;padding:0;text-align:left!important;white-space:normal!important}
+  .ptable td:first-child{grid-row:span 5}
+  .ptable td.nm{grid-column:2/4}
+  .ptable td.act{grid-column:2/4}
+  .ptable td[data-l]::before{content:attr(data-l);display:block;font-size:11px;letter-spacing:.05em;color:var(--muted);text-transform:uppercase}
+}

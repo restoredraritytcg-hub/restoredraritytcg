@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Centering IQ — free card centering &amp; tilt checker</title>
+<title>CardVestIQ</title>
 <meta name="description" content="Measure a trading card's centering and tilt (cant) from a phone photo, scan or listing screenshot, see the grade PSA, CGC and BGS centering rules allow, and work out whether it's worth grading. Free, nothing uploaded.">
-<meta property="og:title" content="Centering IQ — is it centered, and is it straight?">
+<meta property="og:title" content="CardVestIQ — check it, decide, track it">
 <meta property="og:description" content="Free centering + tilt checker with grade caps and a submit-or-skip calculator. By Restored Rarity.">
 <meta name="theme-color" content="#0b111c">
 <link rel="icon" href="logo.svg" type="image/svg+xml">
@@ -13,13 +13,25 @@
 </head>
 <body>
 <header class="top">
-  <a class="brand" href="#/measure"><img src="logo.svg" alt="" width="32" height="32"><span>Centering<b>IQ</b></span></a>
-  <nav><a href="#/measure">Measure</a><a href="#/batch">Batch</a><a href="#/track">Track record</a><a href="#/help">How it works</a></nav>
+  <a class="brand" href="#check"><img src="logo.svg" alt="" width="32" height="32"><span>CardVest<b>IQ</b></span></a>
+  <nav><a href="#collection">Collection</a><a href="#check">Check a card</a><a href="#batch">Batch</a><a href="#track">Track record</a><a href="#help">How it works</a></nav>
 </header>
 
 <main>
-<!-- ============================================================ measure -->
-<section data-view="measure">
+<div class="demobar">Demo · sample cards and sample prices, made up for illustration. Your own cards stay on this device.</div>
+
+<!-- ============================================================ collection -->
+<section data-view="collection" hidden>
+  <h1>Your collection</h1>
+  <p class="lead">What you paid, what each card is worth raw today, and what it's likely worth graded, based on its measured centering.
+    Cards worth grading rise to the top.</p>
+  <div id="c-list"></div>
+  <p class="row"><a class="btn gold" href="#check">＋ Check and add a card</a></p>
+</section>
+
+<!-- ============================================================ check -->
+<section data-view="check">
+  <div id="holdbar" class="holdbar" hidden></div>
   <div id="sidetabs" class="sidetabs" role="tablist">
     <button data-side="front" class="on" role="tab">Front<small>not added</small></button>
     <button data-side="back" role="tab">Back<small>not added</small></button>
@@ -34,6 +46,10 @@
       <button class="btn big" data-act="file">🖼 Choose a photo or scan</button>
       <button class="btn big" data-act="paste">📋 Paste a screenshot</button>
     </div>
+    <div class="samples"><span class="muted small">Or try a sample card:</span>
+      <button class="btn sm" data-act="sample" data-id="d-emberdrake">Ember Drake (off-center, tilted)</button>
+      <button class="btn sm" data-act="sample" data-id="d-voltflare">Voltflare ex (well centered)</button>
+      <button class="btn sm" data-act="sample" data-id="d-marcushale">Marcus Hale rookie</button></div>
     <label class="switchrow"><input type="checkbox" class="holder-sw"><span class="sw"></span>
       Card is in a toploader or sleeve <span class="muted">(looks for the card inside the holder)</span></label>
     <ul class="tips">
@@ -98,6 +114,18 @@
     </form>
   </div>
 
+  <div id="addhold" class="panel" hidden>
+    <h2>Add to my collection</h2>
+    <form id="holdform" class="grid2">
+      <label>Card <input name="hname" id="h-name" placeholder="Name"></label>
+      <label>Set / number <input name="hset" id="h-set" placeholder="e.g. Base Set · 4/102"></label>
+      <label>Price paid ($) <input name="hpaid" id="h-paid" inputmode="decimal" placeholder="e.g. 40"></label>
+      <label>Bought on <input name="hon" id="h-on" type="date"></label>
+      <div><button class="btn gold">Add to my collection</button>
+        <span class="muted small">Saves the measured card and the prices above. Kept on this device only.</span></div>
+    </form>
+  </div>
+
   <div id="funnel" class="funnel"></div>
 
   <div id="report" class="panel" hidden>
@@ -132,7 +160,7 @@
 <section data-view="track" hidden>
   <h1>Track record</h1>
   <p class="lead">A centering tool should prove itself. When slabs come back, users report the real grade — this page shows how often the
-    grade landed at or under what Centering IQ said the centering allowed.</p>
+    grade landed at or under what CardVestIQ said the centering allowed.</p>
   <div class="panel"><h2>Everyone</h2><div id="t-shared"></div></div>
   <div class="panel"><h2>From this device</h2><div id="t-local"></div></div>
 </section>
@@ -147,7 +175,7 @@
       each set; points that don't fit — art running into the border, glare, a nick — are left out (red). Left/right = left border ÷ (left + right),
       measured at the middle of the card; the same for top/bottom.</p>
     <h3>Tilt (cant)</h3>
-    <p>If the printed frame is turned against the card's cut edges, the borders get wider at one end and narrower at the other. Centering IQ
+    <p>If the printed frame is turned against the card's cut edges, the borders get wider at one end and narrower at the other. CardVestIQ
       compares the angle of each inner line with its cut edge, averages the four, and shows how much each border changes end to end. Graders don't
       publish a tilt limit, but they judge the centering where it's worst — so a tilted card can read 55/45 at the top and 62/38 at the bottom.
       As a guide: under 0.15° is straight; 0.4°–0.8° is a slight tilt you can see side by side; over 1.5° is obvious.</p>
@@ -168,7 +196,7 @@
 </main>
 
 <footer class="foot">
-  <span>Centering IQ · free from <a href="https://restoredraritytcg.com/" target="_blank" rel="noopener">Restored Rarity</a> (card cleaning, restoration &amp; grading prep)</span>
+  <span>CardVestIQ · from <a href="https://restoredraritytcg.com/" target="_blank" rel="noopener">Restored Rarity</a> (card cleaning, restoration &amp; grading prep)</span>
   <span>Listing on eBay? <a href="https://scanstationiq.com/" target="_blank" rel="noopener">ScanStationIQ</a> makes the photos and listing text.</span>
 </footer>
 

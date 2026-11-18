@@ -1,9 +1,15 @@
-// Grade side of Centering IQ: best grade the centering allows at each grader (front + back), where the card sits
+// Grade side of CardVestIQ: best grade the centering allows at each grader (front + back), where the card sits
 // against each grader's published tolerances, and the submit-or-skip calculator.
 import { CENTERING_RULES, gradeCaps } from "./multipoint.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const pair = (x) => `${Math.round(x)}/${100 - Math.round(x)}`;
+// PSA service levels: Restored Rarity's built-in list (index.html PRICE_RULES.psaLevels, Nov 2026 — PSA sets these).
+// [name, fee, max declared value]
+export const PSA_LEVELS = [["Value", 39.99, 500], ["Standard", 59.99, 1000], ["Priority", 79.99, 1500], ["Express", 199, 2500],
+  ["Super Express", 349, 5000], ["Premier", 599, 10000], ["Premium 1", 999, 25000]];
+export const psaLevelFor = (value) => PSA_LEVELS.find((l) => value <= l[2]) || PSA_LEVELS.at(-1);
+export const RR_GRADING_FEE = 15;                       // Restored Rarity grading submission, first card
 export const gradeNum = (g) => { const n = parseFloat(String(g).replace(/^Pristine\s*/, "")); return isNaN(n) ? 0 : n; };
 
 // ------------------------------------------------------------ caps panel
