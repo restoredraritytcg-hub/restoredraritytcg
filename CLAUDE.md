@@ -530,6 +530,12 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    measured without the switch reads wrong with no warning in the synthetic test. Not tested on real phone photos or real toploaders.
    Owner steps: run `supabase/RUN-NEXT-in-Supabase.sql` (track record; the tool works without it, reports stay on the device), decide name +
    whether to link it from the site / ScanStationIQ, then merge.
+   **Decided Nov 18, 2026 (owner): roll it into CardVestIQ** (the owner's card-investing app, private repo `JSShipley/CardVestIQ` on the
+   personal account — not reachable from Claude sessions yet; owner to install the Claude GitHub App on it or move it into the org).
+   **ScanStationIQ stays a separate product** (linked as "Sell it → ScanStationIQ"). Planned CardVestIQ shape: Check (this centering tool,
+   listing check) → Decide (submit-or-skip, batch ranked by expected profit) → Track (holdings: cost, value, value if graded, real grade, sale)
+   → Prove (predicted vs real grade and return). Proposed split, not decided: free single-card check + grade caps; paid portfolio, batch ROI,
+   grading history. Hold: don't merge `centering/` here or name it until the CardVestIQ code has been seen.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
