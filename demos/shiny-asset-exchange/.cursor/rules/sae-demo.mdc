@@ -1,0 +1,16 @@
+---
+description: Shiny Asset Exchange demo — project rules (always on)
+alwaysApply: true
+---
+Read `AGENTS.md` first: it has the file map, how the parts connect, design rules, decisions and next steps.
+
+- Static site, no build step, plain ES modules, no frameworks. Escape rendered values with `esc()`.
+- Restoration first, card-care products second — in menus, page order and wording.
+- Keep the polished look: use the building blocks in `polish.css` (`pageHead`, `secHead`, `.btn.red/.ghost/.gold`,
+  `.panel`, `.callout`, `.notice`, `.rv`). Colours: black, red `#e3202a`, gold `#e8c27e`; Space Grotesk + Playfair italic.
+- One price list: `data.js` `content.prices`. Don't hard-code prices anywhere else.
+- Keep the service-text wording exact (`Restoration — Tier 1 ($80) + Card Review ($5) …`); the portal parses it.
+- Keep SAE's copy word for word (`content.js`, `seed.js`) unless asked.
+- Never put secret keys (Stripe secret, Shippo token, Supabase service_role) in front-end files.
+- Changing seed data → bump the localStorage version keys (see AGENTS.md) and the tests.
+- After changes: `npm start` then `npm test`; check 390 px wide pages for sideways scroll.

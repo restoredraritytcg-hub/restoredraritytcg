@@ -1,0 +1,12 @@
+{
+  "name": "shinyassetexchange-demo",
+  "private": true,
+  "description": "Shiny Asset Exchange demo: restoration-first storefront, shop admin with inventory and Shippo shipping, and the Restored Rarity work portal. Static site, browser demo data.",
+  "scripts": {
+    "start": "npx --yes http-server@14.1.1 -p 8765 -c-1 .",
+    "test": "node tests/e2e/run-all.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.0"
+  }
+}

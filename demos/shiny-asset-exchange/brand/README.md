@@ -13,5 +13,10 @@ name on a plate), as clean vector art. **A concept for discussion — not their 
 
 Lettering is converted to outlines (no fonts needed). Fonts used: Space Grotesk Bold, Playfair Display SemiBold Italic
 (free Google Fonts, SIL Open Font License). Colours: ink #0A0A0C, red #E3202A, deep red #9E1119, gold #E8C27E.
-Rebuild: put `grotesk.woff2` (Space Grotesk 700, latin) and `playfair.woff2` (Playfair Display 600 italic, latin) next to
-`source/make_logo.py`, then `pip install fonttools brotli && python3 source/make_logo.py .`
+Rebuild (fonts are included in `source/`):
+```
+pip install fonttools brotli
+python3 source/make_logo.py source/out          # outlined SVGs
+cd source && npm i playwright && node render.js '[["out/sae-logo-badge.svg",1000,1000,"out/sae-logo-badge.png"]]'   # PNGs
+node pitch.js                                    # pitch PDF/PNG from out/pitch.html (copy ../pitch.html into out/ first)
+```

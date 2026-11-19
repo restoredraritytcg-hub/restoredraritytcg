@@ -544,6 +544,11 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    see tracking on Order Status + their private link. Checkout: flat USPS Ground Advantage/Priority or live Shippo rates
    (setting). `shipping.js` is shared; live calls go through `server/supabase/functions/shippo/index.ts` (Deno type-check
    passes; never deployed/run against Shippo) + `server/shipping.sql`. Pirate Ship spreadsheet kept as an export.
+   **Nov 19: packaged for Cursor + Grok** (owner's request): the demo folder is now a standalone project — `AGENTS.md` (project
+   brief for AI agents: file map, data flow, design rules, decisions, go-live plan), `.cursor/rules/sae-demo.mdc` (always-on
+   rules), `package.json` (`npm start` = http-server on :8765, `npm test` = `tests/e2e/run-all.js`), portable Playwright checks
+   in `tests/e2e/` (shop-flow, intake-to-portal, shipping-shippo, all-pages), logo fonts in `brand/source/`. Sent as a zip with
+   its own git history (one commit on `main`); all 4 checks passed from a fresh unzip. Same content as this folder.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.

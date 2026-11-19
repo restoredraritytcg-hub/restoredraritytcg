@@ -12,8 +12,12 @@ were their site; show it to the business owner.
 ## Open it
 
 ```
-cd demos/shiny-asset-exchange && python3 -m http.server 8765
+npm start                      # or: python3 -m http.server 8765
+npm install && npx playwright install chromium && npm test   # end-to-end checks (site must be running)
 ```
+
+**Working on it with an AI agent (Cursor, Grok, Claude…):** start with `AGENTS.md` — the project brief (file map, how the
+parts connect, design rules, decisions, next steps). Cursor also loads `.cursor/rules/sae-demo.mdc` automatically.
 - Store: http://localhost:8765/index.html
 - Shop admin (orders, inventory, stock, prices): http://localhost:8765/admin.html (any password in the demo)
 - **Work portal** (restorations — the Restored Rarity portal): http://localhost:8765/portal/admin.html
