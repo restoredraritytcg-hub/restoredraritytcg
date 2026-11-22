@@ -955,9 +955,8 @@ var QUOTE_PRICING = {
     { title: 'Slab Cracking',                       price: 15, type: 'addon' },  // on its own
     { title: 'Grading Submission (PSA, CGC, BGS, TAG)', price: 15, type: 'grading' }  // on its own: first card
   ],
-  // Card Cleaning bands match evaluation: 1–25 $10, 51+ $5.
-  // 26–50 stays at the $10 base rate. That pending price is CLEANING_26_50_PRICE in pricing-defaults.js, not a second number here.
-  bulkCleaning: function (qty) { return qty >= 51 ? 5 : 10; },
+  // Card Cleaning: 1–25 $10, 26–50 $7.50, 51+ $5. Same bands as evaluation.
+  bulkCleaning: function (qty) { return qty >= 51 ? 5 : qty >= 26 ? 7.5 : 10; },
   // Grade-Ready Evaluation: 1–25 $20, 26–50 $16, 51+ $14.
   bulkEval: function (qty) { return qty >= 51 ? 14 : qty >= 26 ? 16 : 20; },
   slabAddon: 10,                 // slab cracking added to another service

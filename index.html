@@ -1220,7 +1220,7 @@
       <div class="tier-price pixel">$10</div>
       <div class="tier-body">
         <h3>Card Cleaning</h3>
-        <p>A meticulous cleaning performed under magnification to safely lift dirt, grime, fingerprints, and surface buildup while restoring the card's natural presentation and holo brilliance. Does not include scratch repair or buffing.<span class="tier-sub">Bulk pricing: $5/card for 51+ cards.</span></p>
+        <p>A meticulous cleaning performed under magnification to safely lift dirt, grime, fingerprints, and surface buildup while restoring the card's natural presentation and holo brilliance. Does not include scratch repair or buffing.<span class="tier-sub">Bulk pricing: $7.50/card for 26–50 cards, $5/card for 51+ cards.</span></p>
       </div>
     </div>
   
@@ -1242,7 +1242,7 @@
     <div class="bulk-table" id="bulk-clean-table" aria-label="Bulk cleaning pricing">
       <div class="surcharge-row surcharge-header"><span class="val">Bulk Card Cleaning</span><span class="fee">Per card</span></div>
       <div class="surcharge-row"><span class="val">1–25 cards</span><span class="fee">$10</span></div>
-      <div class="surcharge-row"><span class="val">26–50 cards</span><span class="fee">$10</span></div>
+      <div class="surcharge-row"><span class="val">26–50 cards</span><span class="fee">$7.50</span></div>
       <div class="surcharge-row"><span class="val">51+ cards</span><span class="fee">$5</span></div>
     </div>
     <div class="bulk-table" id="bulk-eval-table" aria-label="Bulk evaluation pricing" style="margin-top:10px">
@@ -1940,8 +1940,8 @@
 
 <script src="portal/config.js"></script>
 <script src="portal/cardsearch.js"></script>
-<script type="module" src="pricing-defaults.js"></script>
-<script defer>
+<script type="module">
+import { CLEANING_26_50_PRICE } from "./pricing-defaults.js";
 document.getElementById('year').textContent = new Date().getFullYear();
 
 /* Google Apps Script Web App endpoint — receives submissions and writes to your Google Sheet */
@@ -2058,7 +2058,7 @@ let ADDON_TIERS = [
   {price:"$15", title:"Grading Submission (PSA, CGC, BGS, TAG)", type:"grading", sub:"$5 each additional card on its own. Only $5 per card when combined with another service.", desc:"We package your card and submit it to the grading company you choose: PSA, CGC, BGS or TAG. The grading company\u2019s own fees are separate (see How grading fees work)."}
 ];
 /* Both services use the same bands: 1–25, 26–50, 51+.
-   Card Cleaning: $10, then CLEANING_26_50_PRICE (still $10), then $5 at 51+.
+   Card Cleaning: $10, then $7.50 (CLEANING_26_50_PRICE) for 26–50, then $5 at 51+.
    Grade-Ready Evaluation: $20, $16 for 26–50, $14 at 51+.
    One rate for every card of that service. The tier follows the order's card count. */
 /* Rules the admin portal can change (Website → Prices). These are the defaults. */
@@ -2103,7 +2103,7 @@ function bulkEvalPrice(qty){
   const t = CLEAN_TIERS.find(isEvalTier);
   return bulkRate(qty, tierAmount(t, 20), PRICE_RULES.evalBulk);
 }
-/* First band whose price is actually different from the service price. While the 26–50 cleaning rate is still $10, that band is 51+. */
+/* First band whose price differs from the service price. Cleaning's first discount is 26 cards at $7.50. */
 function firstDiscountMin(base, rules){
   const hit = [...(rules || [])].filter(r => r && r.min >= 2 && Number(r.price) !== Number(base)).sort((a, c) => a.min - c.min);
   return hit.length ? hit.min : Infinity;
@@ -3614,7 +3614,11 @@ function money(n){ return '$' + Number(n).toLocaleString('en-US', { maximumFract
 
 function bulkShortText(rules){
   const b = [...(rules || PRICE_RULES.bulk)].sort((x, y) => x.min - y.min);
-  return b.length ? ' (bulk: ' + b.map(r => `${money2(r.price)} at ${r.min}+`).join(', ') + ')' : '';
+  if(!b.length) return '';
+  return ' (bulk: ' + b.map((r, i) => {
+    const next = b[i + 1];
+    return `${money2(r.price)} at ${next ? `${r.min}–${next.min - 1}` : `${r.min}+`}`;
+  }).join(', ') + ')';
 }
 function bulkLongText(rules){
   const b = [...(rules || PRICE_RULES.bulk)].sort((x, y) => x.min - y.min);

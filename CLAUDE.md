@@ -99,8 +99,8 @@ arrow keys (Alt = outer marker), save, or reset to auto.
 
 - Built-in prices: `index.html` (`CLEAN_TIERS`/`REPAIR_TIERS`/`ADDON_TIERS`/`PRICE_RULES`) ⇄ `portal/site.js` `DEFAULT_PRICES` ⇄
   `apps-script/Code.gs` `QUOTE_PRICING` (fallback only). Once prices are saved in the portal, all three read `site_content.prices`.
-  Bulk tiers use the same bands for both services (1–25, 26–50, 51+). Card Cleaning is $10, then `CLEANING_26_50_PRICE`
-  in `pricing-defaults.js` (still $10, so the public note only mentions $5 at 51+), then $5 at 51+. Grade-Ready Evaluation is
+  Bulk tiers use the same bands for both services (1–25, 26–50, 51+). Card Cleaning is $10, then $7.50
+  (`CLEANING_26_50_PRICE` in `pricing-defaults.js`), then $5 at 51+. Grade-Ready Evaluation is
   $20, $16 for 26–50, and $14 at 51+ (`PRICE_RULES.evalBulk`). The tier follows the order's card count; one rate applies
   to every card of that service. Saved lists without `evalBulk` use the built-in evaluation tiers.
   Service types: `clean`, `repair`, `addon` (slab cracking on its own) and `grading` (grading submission on its own; rules
@@ -516,11 +516,10 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    then merge — all done Nov 13. **Still to do (owner):** portal Website → Prices: check PSA levels against psacard.com and Save.
 
 26. **Built Nov 22, 2026 (not yet live): Card Cleaning and Grade-Ready Evaluation bulk tiers.**
-    Both services use the same bands. Cleaning: 1–25 cards $10/card, 26–50 still $10/card, 51+ $5/card.
-    Evaluation: 1–25 $20/card, 26–50 $16/card, 51+ $14/card. The 26–50 cleaning rate is not decided: it is the one constant
-    `CLEANING_26_50_PRICE` in `pricing-defaults.js`. While that equals the $10 base, the Card Cleaning note and the order-form
-    label omit it ("Bulk pricing: $5/card for 51+ cards."); once it differs, the 26–50 rate is added automatically.
-    The pending-price comment stays in `pricing-defaults.js` only. Calculator, tables, and quotes still treat 26–50 cleaning as $10 until that number changes.
+    Both services use the same bands. Cleaning: 1–25 cards $10/card, 26–50 $7.50/card (`CLEANING_26_50_PRICE`), 51+ $5/card.
+    Evaluation: 1–25 $20/card, 26–50 $16/card, 51+ $14/card. The Card Cleaning note is
+    "Bulk pricing: $7.50/card for 26–50 cards, $5/card for 51+ cards." The order form says
+    "Card Cleaning — $10 (bulk: $7.50 at 26–50, $5 at 51+)".
     The tier follows the order's card count (cancelled cards don't count) and that one rate applies to every card of that service.
     Other services are unchanged, including grading submission ($15 first card, $5 each after, $5 as an add-on).
     Built-in lists: `index.html` `PRICE_RULES.bulk` / `evalBulk`, `portal/site.js` `DEFAULT_PRICES`, `apps-script/Code.gs` `QUOTE_PRICING`.

@@ -19,8 +19,7 @@
 -- Both services use the same bands. One rate applies to every card of that service.
 -- The tier follows the order's card count.
 -- Card Cleaning (the service price, unchanged at $10, covers 1–25 cards):
---   26–50 cards       $10 per card (interim base rate; pending number is
---                    CLEANING_26_50_PRICE in pricing-defaults.js)
+--   26–50 cards       $7.50 per card
 --   51 or more cards  $5 per card
 -- Grade-Ready Evaluation (the service price, unchanged at $20, covers 1–25 cards):
 --   26–50 cards       $16 per card
@@ -32,7 +31,7 @@ set value = jsonb_set(
       jsonb_set(
         value,
         '{bulk}',
-        '[{"min":26,"price":10},{"min":51,"price":5}]'::jsonb,
+        '[{"min":26,"price":7.5},{"min":51,"price":5}]'::jsonb,
         true
       ),
       '{evalBulk}',
