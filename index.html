@@ -1220,7 +1220,7 @@
       <div class="tier-price pixel">$10</div>
       <div class="tier-body">
         <h3>Card Cleaning</h3>
-        <p>A meticulous cleaning performed under magnification to safely lift dirt, grime, fingerprints, and surface buildup while restoring the card's natural presentation and holo brilliance. Does not include scratch repair or buffing.<span class="tier-sub">Bulk pricing: $10/card for 26–50 cards, $5/card for 51+ cards.</span></p>
+        <p>A meticulous cleaning performed under magnification to safely lift dirt, grime, fingerprints, and surface buildup while restoring the card's natural presentation and holo brilliance. Does not include scratch repair or buffing.<span class="tier-sub">Bulk pricing: $5/card for 51+ cards.</span></p>
       </div>
     </div>
   
@@ -2167,9 +2167,13 @@ const DEFAULT_GRADING_TIER = Object.assign({}, ADDON_TIERS.find(t => t.type === 
 /* Under the evaluation service: it can go straight to a grader with the grading add-on */
 const isEvalTier = t => t.type === 'clean' && /evaluation|grade-ready/i.test(t.title);
 function evalGradingNote(){ return `Add a grading submission for ${money(GRADING_ADDON)} more: I submit it to PSA, CGC, BGS or TAG for you.`; }
+/* Skip a cleaning bulk level that matches the $10 service price, so 26–50 stays off the note until CLEANING_26_50_PRICE changes. */
+function cleaningBulkRules(){
+  const base = tierAmount(CLEAN_TIERS.find(t => t.bulk), 10);
+  return PRICE_RULES.bulk.filter(r => Number(r.price) !== base);
+}
 function cleaningBulkNote(extra){
-  // The pending 26–50 rate is named once, in pricing-defaults.js. This is the only sentence that marks it.
-  return [bulkLongText(PRICE_RULES.bulk), 'TODO: 26-50 cleaning price pending', extra].filter(Boolean).join(' ');
+  return [bulkLongText(cleaningBulkRules()), extra].filter(Boolean).join(' ');
 }
 CLEAN_TIERS.forEach(t => {
   if(t.bulk) t.sub = cleaningBulkNote(t.sub);
@@ -2782,7 +2786,7 @@ function serviceOptionsHtml(){
   return '<option value="" disabled selected>Choose a tier</option>' +
     [...CLEAN_TIERS, ...REPAIR_TIERS, ...ADDON_TIERS].map(t => {
       const solo = t.type === 'addon' || t.type === 'grading';
-      const label = t.bulk ? `${t.title} — ${t.price}${bulkShortText(PRICE_RULES.bulk)}`
+      const label = t.bulk ? `${t.title} — ${t.price}${bulkShortText(cleaningBulkRules())}`
         : isEvalTier(t) ? `${t.title} — ${t.price}${bulkShortText(PRICE_RULES.evalBulk)}`
         : t.type === 'grading' ? `${t.title} only — ${t.price} first card, ${money(GRADING_NEXT)} each after`
         : solo ? `${t.title} only — ${t.price}` : `${t.title} — ${t.price}`;
