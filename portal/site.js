@@ -6,6 +6,7 @@
 // Apps Script (Code.gs), so those two go through the Apps Script web app with the
 // signed-in admin's token, exactly like "Send status email".
 import { api, DEMO, esc, $, $$, toast, fmtDate, mediaUrl, prepareImage, uid } from "./common.js";
+import { CLEANING_26_50_PRICE } from "../pricing-defaults.js";
 
 const GAS = window.RR_CONFIG?.emailEndpoint || "";
 const IG_DEFAULT = (window.RR_CONFIG?.instagram || "").replace(/^.*instagram\.com\//, "").replace(/\/.*$/, "") || "restored.raritytcg";
@@ -67,12 +68,22 @@ export const DEFAULT_PRICES = {
   ],
   "bulk": [
     {
-      "min": 21,
-      "price": 8
+      "min": 26,
+      "price": CLEANING_26_50_PRICE
     },
     {
-      "min": 41,
-      "price": 6
+      "min": 51,
+      "price": 5
+    }
+  ],
+  "evalBulk": [
+    {
+      "min": 26,
+      "price": 16
+    },
+    {
+      "min": 51,
+      "price": 14
     }
   ],
   "slabAddon": 10,
@@ -219,13 +230,15 @@ async function reviews(body) {
 // ------------------------------------------------------------ prices
 const GROUPS = [["clean", "Cleaning & grading prep"], ["repair", "Repairs"], ["addon", "Slab cracking on its own"],
   ["grading", "Grading submission on its own (first card)"]];
-/** Fill in anything a saved price list predates: the grading service and its two prices. */
+const isEvalSvc = (x) => x && x.type === "clean" && /evaluation|grade-ready/i.test(x.title || "");
+/** Fill in anything a saved price list predates: the grading service and its two prices, and evaluation bulk tiers. */
 function withDefaults(P) {
   if (!P.services.some((x) => x.type === "grading")) P.services.push(clone(DEFAULT_PRICES.services.find((x) => x.type === "grading")));
   if (P.gradingNext == null) P.gradingNext = DEFAULT_PRICES.gradingNext;
   if (P.gradingAddon == null) P.gradingAddon = DEFAULT_PRICES.gradingAddon;
   if (!P.psaPay || typeof P.psaPay !== "object" || P.psaPay.atShip == null) P.psaPay = clone(DEFAULT_PRICES.psaPay);
   if (!Array.isArray(P.psaLevels) || !P.psaLevels.length) P.psaLevels = clone(DEFAULT_PRICES.psaLevels);
+  if (!Array.isArray(P.evalBulk)) P.evalBulk = clone(DEFAULT_PRICES.evalBulk);
   return P;
 }
 async function prices(body) {
@@ -242,8 +255,9 @@ async function prices(body) {
       <label class="f">Description</label><textarea class="d" rows="3">${esc(x.desc)}</textarea>
       <label class="f">Extra note <span style="text-transform:none">(optional, small print under the description)</span></label>
       <input type="text" class="s" value="${esc(x.sub || "")}">
-      ${x.type === "clean" ? `<label class="small" style="display:block;margin-top:8px"><input type="radio" name="bulkpick" class="b" ${x.bulk ? "checked" : ""}>
-        Bulk pricing below applies to this service</label>` : ""}</div>`;
+      ${x.type === "clean" && !isEvalSvc(x) ? `<label class="small" style="display:block;margin-top:8px"><input type="radio" name="bulkpick" class="b" ${x.bulk ? "checked" : ""}>
+        Bulk pricing below applies to this service</label>` : ""}
+      ${isEvalSvc(x) ? `<p class="muted small" style="margin:8px 0 0">Bulk evaluation pricing below applies to this service. 25 cards or fewer use the price above.</p>` : ""}</div>`;
   const draw = () => {
     body.innerHTML = `${saved ? "" : `<div class="panel" style="border-color:var(--gold);margin-bottom:12px">These are the prices built into the website right now.
         Once you save here, the website and your order quotes both use this list.</div>`}
@@ -256,6 +270,13 @@ async function prices(body) {
           <span class="money"><span>$</span><input type="text" class="bp" inputmode="decimal" value="${esc(b.price)}" aria-label="Price per card"></span> per card
           <button class="btn sm danger" data-brm="${i}" aria-label="Remove">✕</button></div>`).join("") || `<p class="muted small" style="margin:0 0 6px">No bulk pricing.</p>`}
         <button class="btn sm" id="badd">+ Add a bulk level</button></div>
+      <h2>Bulk evaluation</h2>
+      <div class="panel"><p class="muted small" style="margin:0 0 8px">Grade-Ready Evaluation. One rate for every evaluation in the order, from the order's card count. 1–25 cards stay at the service price; these levels cover 26–50 and 51+.</p>
+        ${(P.evalBulk || []).map((b, i) => `<div class="row erow" style="margin-bottom:6px">From
+          <input type="text" class="em" inputmode="numeric" value="${esc(b.min)}" style="width:70px" aria-label="Number of cards"> cards:
+          <span class="money"><span>$</span><input type="text" class="ep" inputmode="decimal" value="${esc(b.price)}" aria-label="Price per card"></span> per card
+          <button class="btn sm danger" data-erm="${i}" aria-label="Remove">✕</button></div>`).join("") || `<p class="muted small" style="margin:0 0 6px">No bulk pricing.</p>`}
+        <button class="btn sm" id="eadd">+ Add a bulk level</button></div>
       <h2>Slab cracking with another service</h2>
       <div class="panel row">Added to another service:
         <span class="money"><span>$</span><input type="text" id="slab" inputmode="decimal" value="${esc(P.slabAddon)}" aria-label="Slab cracking add-on price"></span>
@@ -310,8 +331,10 @@ async function prices(body) {
       if (j < 0 || j >= P.services.length) return;
       [P.services[i], P.services[j]] = [P.services[j], P.services[i]]; draw();
     });
-    $("#badd").onclick = () => { collect(); const l = P.bulk.at(-1); P.bulk.push({ min: l ? l.min + 20 : 21, price: l ? Math.max(0, l.price - 2) : 8 }); draw(); };
+    $("#badd").onclick = () => { collect(); const l = P.bulk.at(-1); P.bulk.push({ min: l ? l.min + 25 : 26, price: l ? Math.max(0, l.price - 5) : CLEANING_26_50_PRICE }); draw(); };
     $$("[data-brm]", body).forEach((b) => b.onclick = () => { collect(); P.bulk.splice(+b.dataset.brm, 1); draw(); });
+    $("#eadd").onclick = () => { collect(); const l = (P.evalBulk || []).at(-1); P.evalBulk.push({ min: l ? l.min + 25 : 26, price: l ? Math.max(0, l.price - 2) : 16 }); draw(); };
+    $$("[data-erm]", body).forEach((b) => b.onclick = () => { collect(); P.evalBulk.splice(+b.dataset.erm, 1); draw(); });
     $("#sadd").onclick = () => { collect(); const l = P.surcharge.at(-1); P.surcharge.push({ upTo: l.upTo + 1000, rate: l.rate }); draw(); };
     $("#padd").onclick = () => { collect(); P.psaLevels.push({ name: "", price: 0, maxValue: 0, days: "" }); draw(); };
     $$("[data-prm]", body).forEach((b) => b.onclick = () => { collect(); P.psaLevels.splice(+b.dataset.prm, 1); draw(); });
@@ -335,6 +358,7 @@ async function prices(body) {
       return o;
     });
     P.bulk = $$(".brow", body).map((r) => ({ min: Math.round(num($(".bm", r).value)), price: num($(".bp", r).value) }));
+    P.evalBulk = $$(".erow", body).map((r) => ({ min: Math.round(num($(".em", r).value)), price: num($(".ep", r).value) }));
     P.slabAddon = num($("#slab").value);
     P.gradingNext = num($("#gnext").value);
     P.gradingAddon = num($("#gadd").value);
@@ -361,6 +385,11 @@ function check(P) {
     if (i && b.min <= P.bulk[i - 1].min) return "Bulk levels must go from fewer cards to more cards.";
   }
   if (P.bulk.length && !P.services.some((x) => x.bulk)) return "Pick which cleaning service the bulk pricing applies to.";
+  for (const [i, b] of (P.evalBulk || []).entries()) {
+    if (!(b.min >= 2) || !(b.price >= 0)) return "Each evaluation bulk level needs a number of cards (2 or more) and a price.";
+    if (i && b.min <= P.evalBulk[i - 1].min) return "Evaluation bulk levels must go from fewer cards to more cards.";
+  }
+  if ((P.evalBulk || []).length && !P.services.some(isEvalSvc)) return "Bulk evaluation pricing needs a Grade-Ready Evaluation service.";
   if (!(P.slabAddon >= 0)) return "The slab cracking add-on needs a price.";
   if (!(P.gradingNext >= 0) || !(P.gradingAddon >= 0)) return "The grading submission prices need numbers (like 5).";
   const seenL = new Set();

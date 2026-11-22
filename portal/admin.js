@@ -197,7 +197,7 @@ const gradeTag = (g) => g ? `<span class="pill gtag" title="Grading submission">
 const gradingSelect = (id, val, blank = "Not being graded", cls = "") => `<select ${cls ? `class="${cls}"` : `id="${id}"`}><option value="">${blank}</option>
   ${GRADERS.map((g) => `<option ${g === val ? "selected" : ""}>${g}</option>`).join("")}
   <option value="Not sure yet" ${val === "Not sure yet" ? "selected" : ""}>Not sure yet</option></select>`;
-const moneyTxt = (n) => "$" + Number(n).toLocaleString("en-US", { maximumFractionDigits: 2 });
+const moneyTxt = (n) => "$" + Number(n).toLocaleString("en-US", { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 });
 /** Keep a card's service text in step with its grading company (same wording as the website order form). */
 function withGrading(service, grading, P, level = "") {
   let t = String(service || "").replace(/\s+—\s+grading.*$/i, "").trim();
@@ -220,10 +220,11 @@ const gradingSummary = (cards) => {
 function buildMenu(P) {
   const items = P.services.filter((x) => x && x.title).map((x) => {
     const solo = x.type === "addon" || x.type === "grading";
+    const evalTier = x.type === "clean" && /evaluation|grade-ready/i.test(x.title);
     return { kind: x.type === "addon" ? "slab" : x.type === "grading" ? "grading" : x.type, title: x.title,
       value: solo ? `${x.title} only (${moneyTxt(x.price)})` : `${x.title} (${moneyTxt(x.price)})`,
       label: x.type === "grading" ? `${x.title} only — ${moneyTxt(x.price)} first card, ${moneyTxt(P.gradingNext)} each after`
-        : solo ? `${x.title} only — ${moneyTxt(x.price)}` : `${x.title} — ${moneyTxt(x.price)}${x.bulk ? " (bulk pricing in the quote)" : ""}` };
+        : solo ? `${x.title} only — ${moneyTxt(x.price)}` : `${x.title} — ${moneyTxt(x.price)}${x.bulk || evalTier ? " (bulk pricing in the quote)" : ""}` };
   });
   const GROUP = { clean: "Cleaning & grading prep", repair: "Repairs", slab: "On its own", grading: "On its own" };
   const labels = [...new Set(Object.values(GROUP))];

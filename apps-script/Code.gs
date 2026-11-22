@@ -1,6 +1,6 @@
 /*******************************************************************
  * RESTORED RARITY — Submission backend
- * Version: 2026-11-13 (branded emails + pickup reminders + automatic quotes + portal reviews + grading + card set/number/year + PSA levels, tracking + emails)
+ * Version: 2026-11-22 (branded emails + pickup reminders + automatic quotes + portal reviews + grading + card set/number/year + PSA levels, tracking + emails + cleaning and evaluation bulk tiers)
  *
  * What this does
  *  • Saves website submissions to the "Submissions" + "Cards" tabs
@@ -955,7 +955,11 @@ var QUOTE_PRICING = {
     { title: 'Slab Cracking',                       price: 15, type: 'addon' },  // on its own
     { title: 'Grading Submission (PSA, CGC, BGS, TAG)', price: 15, type: 'grading' }  // on its own: first card
   ],
-  bulkCleaning: function (qty) { return qty > 40 ? 6 : qty > 20 ? 8 : 10; },
+  // Card Cleaning bands match evaluation: 1–25 $10, 51+ $5.
+  // 26–50 stays at the $10 base rate. That pending price is CLEANING_26_50_PRICE in pricing-defaults.js, not a second number here.
+  bulkCleaning: function (qty) { return qty >= 51 ? 5 : 10; },
+  // Grade-Ready Evaluation: 1–25 $20, 26–50 $16, 51+ $14.
+  bulkEval: function (qty) { return qty >= 51 ? 14 : qty >= 26 ? 16 : 20; },
   slabAddon: 10,                 // slab cracking added to another service
   gradingNext: 5,                // grading submission on its own: each card after the first
   gradingAddon: 5,               // grading submission added to another service, per card
@@ -1004,7 +1008,7 @@ function quotePricing_() {
   QUOTE_LIVE_PRICING_ = quotePricingFrom_(pr) || QUOTE_PRICING;
   return QUOTE_LIVE_PRICING_;
 }
-/** Portal price list {services, bulk, slabAddon, surcharge:[{upTo, rate%}], referral%} → quote format. */
+/** Portal price list {services, bulk, evalBulk, slabAddon, surcharge:[{upTo, rate%}], referral%} → quote format. */
 function quotePricingFrom_(pr) {
   if (!pr || !pr.services || !pr.services.length) return null;
   var num = function (v) { v = Number(v); return isFinite(v) && v >= 0 ? v : 0; };
@@ -1017,8 +1021,14 @@ function quotePricingFrom_(pr) {
   services.sort(function (a, b) { return b.title.length - a.title.length; });   // longest first for name matching
   if (!services.length) return null;
   var bulkTier = services.filter(function (x) { return x.bulk; })[0];
+  var evalTier = services.filter(function (x) { return x.type === 'clean' && /evaluation|grade-ready/i.test(x.title); })[0];
   var bulk = (pr.bulk || []).map(function (b) { return { min: num(b.min), price: num(b.price) }; })
     .sort(function (a, b) { return a.min - b.min; });
+  // Missing evalBulk means the list was saved before Nov 22, 2026: use the built-in evaluation tiers.
+  var evalBulk = Array.isArray(pr.evalBulk)
+    ? pr.evalBulk.map(function (b) { return { min: num(b.min), price: num(b.price) }; })
+        .sort(function (a, b) { return a.min - b.min; })
+    : [{ min: 26, price: 16 }, { min: 51, price: 14 }];
   var surcharge = (pr.surcharge || []).map(function (t) { return { upTo: num(t.upTo), rate: num(t.rate) / 100 }; })
     .sort(function (a, b) { return a.upTo - b.upTo; });
   return {
@@ -1026,6 +1036,11 @@ function quotePricingFrom_(pr) {
     bulkCleaning: function (qty) {
       var p = bulkTier ? bulkTier.price : 10;
       bulk.forEach(function (b) { if (qty >= b.min) p = b.price; });
+      return p;
+    },
+    bulkEval: function (qty) {
+      var p = evalTier ? evalTier.price : 20;
+      evalBulk.forEach(function (b) { if (qty >= b.min) p = b.price; });
       return p;
     },
     slabAddon: pr.slabAddon != null ? num(pr.slabAddon) : QUOTE_PRICING.slabAddon,
@@ -1063,7 +1078,8 @@ function computeQuote_(cards, opts, pricing) {
              psaLevel: psaM ? psaM[1].trim() : (c.psaLevel || '') };
   });
   var gradingSeen = 0;   // grading on its own: first card full price, each after at gradingNext
-  var cleanQty = parsed.filter(function (p) { return !p.cancelled && p.tier && p.tier.bulk; }).length;
+  // Bulk tier follows the order's card count (cancelled cards drop off). One rate for every card of that service.
+  var cardQty = parsed.filter(function (p) { return !p.cancelled; }).length;
 
   var lines = parsed.map(function (p) {
     var c = p.c, num = c.num;
@@ -1074,12 +1090,13 @@ function computeQuote_(cards, opts, pricing) {
 
     var parts = [], price = 0, flag = '', gradeFee = 0, evalFee = 0;
     if (p.tier) {
-      var basePrice = p.tier.bulk ? QP.bulkCleaning(cleanQty) : p.tier.price;
+      var isEval = p.tier.type === 'clean' && /evaluation|grade-ready/i.test(p.tier.title);
+      var basePrice = isEval && QP.bulkEval ? QP.bulkEval(cardQty) : (p.tier.bulk ? QP.bulkCleaning(cardQty) : p.tier.price);
       if (p.tier.type === 'grading' && gradingSeen++ > 0) basePrice = QP.gradingNext;
       if (p.tier.type === 'grading') gradeFee = basePrice;
-      if (p.tier.type === 'clean' && /evaluation|grade-ready/i.test(p.tier.title)) evalFee = basePrice;
+      if (isEval) evalFee = basePrice;
       price += basePrice;
-      parts.push(p.tier.title + ' ' + quoteMoney_(basePrice) + (p.tier.bulk && basePrice !== p.tier.price ? ' (bulk, ' + cleanQty + ' cleanings)' : '')
+      parts.push(p.tier.title + ' ' + quoteMoney_(basePrice) + ((isEval || p.tier.bulk) && basePrice !== p.tier.price ? ' (bulk, ' + cardQty + ' cards)' : '')
         + (p.tier.type === 'grading' && basePrice !== p.tier.price ? ' (additional card)' : ''));
     } else {
       var m = p.base.match(/\$\s*([\d,]+(?:\.\d+)?)/);
