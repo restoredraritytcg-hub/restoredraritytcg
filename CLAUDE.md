@@ -99,6 +99,10 @@ arrow keys (Alt = outer marker), save, or reset to auto.
 
 - Built-in prices: `index.html` (`CLEAN_TIERS`/`REPAIR_TIERS`/`ADDON_TIERS`/`PRICE_RULES`) ⇄ `portal/site.js` `DEFAULT_PRICES` ⇄
   `apps-script/Code.gs` `QUOTE_PRICING` (fallback only). Once prices are saved in the portal, all three read `site_content.prices`.
+  Bulk tiers use the same bands for both services (1–25, 26–50, 51+). Card Cleaning is $10, then $7.50
+  (`CLEANING_26_50_PRICE` in `pricing-defaults.js`), then $5 at 51+. Grade-Ready Evaluation is
+  $20, $16 for 26–50, and $14 at 51+ (`PRICE_RULES.evalBulk`). The tier follows the order's card count; one rate applies
+  to every card of that service. Saved lists without `evalBulk` use the built-in evaluation tiers.
   Service types: `clean`, `repair`, `addon` (slab cracking on its own) and `grading` (grading submission on its own; rules
   `gradingNext` / `gradingAddon`). All three places add the built-in grading service back if a saved list predates it.
 - Service text wording is shared by the website form, the portal's New submission (`withGrading` in admin.js) and Code.gs's
@@ -518,6 +522,20 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    on project `bcozwalfszzuecjjqgam`. Verified: `POST /rest/v1/rpc/site_get` with the publishable key returns `{}` (no
    sections saved yet). Owner still needs to open Website → Prices and Save once so the live site and quotes pick up the
    saved list.
+
+27. **Built Nov 22, 2026 (not yet live): Card Cleaning and Grade-Ready Evaluation bulk tiers.**
+    Both services use the same bands. Cleaning: 1–25 cards $10/card, 26–50 $7.50/card (`CLEANING_26_50_PRICE`), 51+ $5/card.
+    Evaluation: 1–25 $20/card, 26–50 $16/card, 51+ $14/card. The Card Cleaning note is
+    "Bulk pricing: $7.50/card for 26–50 cards, $5/card for 51+ cards." The order form says
+    "Card Cleaning — $10 (bulk: $7.50 at 26–50, $5 at 51+)".
+    The tier follows the order's card count (cancelled cards don't count) and that one rate applies to every card of that service.
+    Other services are unchanged, including grading submission ($15 first card, $5 each after, $5 as an add-on).
+    Built-in lists: `index.html` `PRICE_RULES.bulk` / `evalBulk`, `portal/site.js` `DEFAULT_PRICES`, `apps-script/Code.gs` `QUOTE_PRICING`.
+    A saved `site_content.prices` row still wins until `supabase/2026-11-22_cleaning_eval_pricing.sql` (also in
+    `RUN-NEXT-in-Supabase.sql`) is run; it sets `bulk` and `evalBulk` only. A saved list with no `evalBulk` key uses the built-in
+    evaluation tiers. Quotes need the new `Code.gs` pasted and deployed. The desktop scanner has no cleaning or evaluation prices.
+    FAQ, terms, and the October repair notice don't state these per-card amounts. No meta description or structured data lists them.
+    Build **v11-22a**.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.

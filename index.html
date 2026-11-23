@@ -1220,7 +1220,7 @@
       <div class="tier-price pixel">$10</div>
       <div class="tier-body">
         <h3>Card Cleaning</h3>
-        <p>A meticulous cleaning performed under magnification to safely lift dirt, grime, fingerprints, and surface buildup while restoring the card's natural presentation and holo brilliance. Does not include scratch repair or buffing.<span class="tier-sub">Bulk pricing: $8/card for 21–40 cards, $6/card for 41+ cards.</span></p>
+        <p>A meticulous cleaning performed under magnification to safely lift dirt, grime, fingerprints, and surface buildup while restoring the card's natural presentation and holo brilliance. Does not include scratch repair or buffing.<span class="tier-sub">Bulk pricing: $7.50/card for 26–50 cards, $5/card for 51+ cards.</span></p>
       </div>
     </div>
   
@@ -1236,14 +1236,20 @@
       <div class="tier-price pixel">$20</div>
       <div class="tier-body">
         <h3>Grade-Ready Evaluation + Deep Clean</h3>
-        <p>Our most comprehensive grading-prep service. Includes a detailed evaluation under magnification, deep cleaning, scratch and surface refinement, identification and correction of addressable surface defects, and minor corner or edge flattening where appropriate. Your card is cleaned, evaluated, refined, and ready to submit.</p>
+        <p>Our most comprehensive grading-prep service. Includes a detailed evaluation under magnification, deep cleaning, scratch and surface refinement, identification and correction of addressable surface defects, and minor corner or edge flattening where appropriate. Your card is cleaned, evaluated, refined, and ready to submit.<span class="tier-sub">Bulk pricing: $16/card for 26–50 cards, $14/card for 51+ cards.</span></p>
       </div>
     </div></div>
-    <div class="bulk-table" aria-label="Bulk cleaning pricing">
+    <div class="bulk-table" id="bulk-clean-table" aria-label="Bulk cleaning pricing">
       <div class="surcharge-row surcharge-header"><span class="val">Bulk Card Cleaning</span><span class="fee">Per card</span></div>
-      <div class="surcharge-row"><span class="val">1–20 cards</span><span class="fee">$10</span></div>
-      <div class="surcharge-row"><span class="val">21–40 cards</span><span class="fee">$8</span></div>
-      <div class="surcharge-row"><span class="val">41+ cards</span><span class="fee">$6</span></div>
+      <div class="surcharge-row"><span class="val">1–25 cards</span><span class="fee">$10</span></div>
+      <div class="surcharge-row"><span class="val">26–50 cards</span><span class="fee">$7.50</span></div>
+      <div class="surcharge-row"><span class="val">51+ cards</span><span class="fee">$5</span></div>
+    </div>
+    <div class="bulk-table" id="bulk-eval-table" aria-label="Bulk evaluation pricing" style="margin-top:10px">
+      <div class="surcharge-row surcharge-header"><span class="val">Bulk Grade-Ready Evaluation</span><span class="fee">Per card</span></div>
+      <div class="surcharge-row"><span class="val">1–25 cards</span><span class="fee">$20</span></div>
+      <div class="surcharge-row"><span class="val">26–50 cards</span><span class="fee">$16</span></div>
+      <div class="surcharge-row"><span class="val">51+ cards</span><span class="fee">$14</span></div>
     </div>
 
     <div class="ladder-group-label" style="margin-top:36px;">Repairs</div>
@@ -1928,13 +1934,14 @@
 
   <footer>
     <div class="fname pixel" style="font-size:10px; color:var(--muted);">RESTORED RARITY</div>
-    <div class="fyear">© <span id="year"></span> · Card cleaning, repair &amp; grading prep <span style="opacity:.55;">· build v11-13c</span></div>
+    <div class="fyear">© <span id="year"></span> · Card cleaning, repair &amp; grading prep <span style="opacity:.55;">· build v11-22a</span></div>
   </footer>
 </div>
 
 <script src="portal/config.js"></script>
 <script src="portal/cardsearch.js"></script>
-<script>
+<script type="module">
+import { CLEANING_26_50_PRICE } from "./pricing-defaults.js";
 document.getElementById('year').textContent = new Date().getFullYear();
 
 /* Google Apps Script Web App endpoint — receives submissions and writes to your Google Sheet */
@@ -2038,7 +2045,7 @@ renderShows();
 
 /* ---------- Pricing data (edit here to change prices/text) ---------- */
 let CLEAN_TIERS = [
-  {price:"$10", title:"Card Cleaning", type:"clean", bulk:true, sub:"Bulk pricing: $8/card for 21–40 cards, $6/card for 41+ cards.", desc:"A meticulous cleaning performed under magnification to safely lift dirt, grime, fingerprints, and surface buildup while restoring the card's natural presentation and holo brilliance. Does not include scratch repair or buffing."},
+  {price:"$10", title:"Card Cleaning", type:"clean", bulk:true, sub:"", desc:"A meticulous cleaning performed under magnification to safely lift dirt, grime, fingerprints, and surface buildup while restoring the card's natural presentation and holo brilliance. Does not include scratch repair or buffing."},
   {price:"$15", title:"Card Cleaning + Scratch Repair", type:"clean", desc:"Everything included in our Card Cleaning service, with additional surface refinement and precision buffing to reduce visible scratches, scuffs, and holo wear while preserving the card's original finish."},
   {price:"$20", title:"Grade-Ready Evaluation + Deep Clean", type:"clean", desc:"Our most comprehensive grading-prep service. Includes a detailed evaluation under magnification, deep cleaning, scratch and surface refinement, identification and correction of addressable surface defects, and minor corner or edge flattening where appropriate. Your card is cleaned, evaluated, refined, and ready to submit."}
 ];
@@ -2050,10 +2057,14 @@ let ADDON_TIERS = [
   {price:"$15", title:"Slab Cracking", type:"addon", sub:"Only $10 when combined with another service.", desc:"Careful removal of your card from a graded slab so it can be cleaned, restored, or resubmitted. The slab is opened with care to protect the card's surface, edges, and corners."},
   {price:"$15", title:"Grading Submission (PSA, CGC, BGS, TAG)", type:"grading", sub:"$5 each additional card on its own. Only $5 per card when combined with another service.", desc:"We package your card and submit it to the grading company you choose: PSA, CGC, BGS or TAG. The grading company\u2019s own fees are separate (see How grading fees work)."}
 ];
-/* Bulk Card Cleaning: $10/card (1–20), $8/card (21–40), $6/card (41+) */
+/* Both services use the same bands: 1–25, 26–50, 51+.
+   Card Cleaning: $10, then $7.50 (CLEANING_26_50_PRICE) for 26–50, then $5 at 51+.
+   Grade-Ready Evaluation: $20, $16 for 26–50, $14 at 51+.
+   One rate for every card of that service. The tier follows the order's card count. */
 /* Rules the admin portal can change (Website → Prices). These are the defaults. */
 let PRICE_RULES = {
-  bulk: [{ min: 21, price: 8 }, { min: 41, price: 6 }],      // per-card price for the bulk cleaning tier
+  bulk: [{ min: 26, price: CLEANING_26_50_PRICE }, { min: 51, price: 5 }], // Card Cleaning. 26–50 is CLEANING_26_50_PRICE in pricing-defaults.js
+  evalBulk: [{ min: 26, price: 16 }, { min: 51, price: 14 }],               // Grade-Ready Evaluation
   slabAddon: 10,                                              // slab cracking added to another service
   gradingNext: 5,                                             // grading submission on its own: each card after the first
   gradingAddon: 5,                                            // grading submission added to another service, per card
@@ -2074,11 +2085,49 @@ let PRICE_RULES = {
   surcharge: [{ upTo: 250, rate: 0 }, { upTo: 1500, rate: 10 }, { upTo: 3000, rate: 12 }],  // % of card value; above the last = custom quote
   referral: 10                                                // referral code discount, %
 };
+function tierAmount(t, fallback){
+  const n = t ? Number(String(t.price).replace(/[^0-9.]/g, '')) : NaN;
+  return isFinite(n) ? n : fallback;
+}
+/* One rate for the whole order: the service price until a bulk level, then that level's price. */
+function bulkRate(qty, base, rules){
+  let p = base;
+  [...(rules || [])].sort((a, b) => a.min - b.min).forEach(b => { if(qty >= b.min) p = b.price; });
+  return p;
+}
 function bulkCleaningPrice(qty){
   const t = CLEAN_TIERS.find(x => x.bulk);
-  let p = t ? Number(t.price.replace(/[^0-9.]/g, '')) : 10;
-  [...PRICE_RULES.bulk].sort((a, b) => a.min - b.min).forEach(b => { if(qty >= b.min) p = b.price; });
-  return p;
+  return bulkRate(qty, tierAmount(t, 10), PRICE_RULES.bulk);
+}
+function bulkEvalPrice(qty){
+  const t = CLEAN_TIERS.find(isEvalTier);
+  return bulkRate(qty, tierAmount(t, 20), PRICE_RULES.evalBulk);
+}
+/* First band whose price differs from the service price. Cleaning's first discount is 26 cards at $7.50. */
+function firstDiscountMin(base, rules){
+  const hit = [...(rules || [])].filter(r => r && r.min >= 2 && Number(r.price) !== Number(base)).sort((a, c) => a.min - c.min);
+  return hit.length ? hit.min : Infinity;
+}
+function bulkRows(base, rules){
+  const b = [...(rules || [])].filter(r => r && r.min >= 2).sort((a, c) => a.min - c.min);
+  if(!b.length) return [{ range: 'Any number of cards', fee: money2(base) }];
+  const rows = [];
+  if(b[0].min > 1) rows.push({ range: `1–${b[0].min - 1} cards`, fee: money2(base) });
+  b.forEach((r, i) => {
+    const next = b[i + 1];
+    rows.push({ range: next ? `${r.min}–${next.min - 1} cards` : `${r.min}+ cards`, fee: money2(r.price) });
+  });
+  return rows;
+}
+function renderBulkTable(id, title, base, rules){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.innerHTML = `<div class="surcharge-row surcharge-header"><span class="val">${title}</span><span class="fee">Per card</span></div>`
+    + bulkRows(base, rules).map(r => `<div class="surcharge-row"><span class="val">${r.range}</span><span class="fee">${r.fee}</span></div>`).join('');
+}
+function renderBulkTables(){
+  renderBulkTable('bulk-clean-table', 'Bulk Card Cleaning', tierAmount(CLEAN_TIERS.find(t => t.bulk), 10), PRICE_RULES.bulk);
+  renderBulkTable('bulk-eval-table', 'Bulk Grade-Ready Evaluation', tierAmount(CLEAN_TIERS.find(isEvalTier), 20), PRICE_RULES.evalBulk);
 }
 let SLAB_CRACK_SOLO = 15, SLAB_CRACK_ADDON = 10;
 let GRADING_NEXT = 5, GRADING_ADDON = 5;
@@ -2118,7 +2167,18 @@ const DEFAULT_GRADING_TIER = Object.assign({}, ADDON_TIERS.find(t => t.type === 
 /* Under the evaluation service: it can go straight to a grader with the grading add-on */
 const isEvalTier = t => t.type === 'clean' && /evaluation|grade-ready/i.test(t.title);
 function evalGradingNote(){ return `Add a grading submission for ${money(GRADING_ADDON)} more: I submit it to PSA, CGC, BGS or TAG for you.`; }
-CLEAN_TIERS.forEach(t => { if(isEvalTier(t)) t.sub = [t.sub, evalGradingNote()].filter(Boolean).join(' '); });
+/* Skip a cleaning bulk level that matches the $10 service price, so 26–50 stays off the note until CLEANING_26_50_PRICE changes. */
+function cleaningBulkRules(){
+  const base = tierAmount(CLEAN_TIERS.find(t => t.bulk), 10);
+  return PRICE_RULES.bulk.filter(r => Number(r.price) !== base);
+}
+function cleaningBulkNote(extra){
+  return [bulkLongText(cleaningBulkRules()), extra].filter(Boolean).join(' ');
+}
+CLEAN_TIERS.forEach(t => {
+  if(t.bulk) t.sub = cleaningBulkNote(t.sub);
+  if(isEvalTier(t)) t.sub = [bulkLongText(PRICE_RULES.evalBulk), t.sub, evalGradingNote()].filter(Boolean).join(' ');
+});
 function gradingSubText(){ return `${money(GRADING_NEXT)} each additional card on its own. Only ${money(GRADING_ADDON)} per card when combined with another service.`; }
 /* Surcharge policy: 0 at $250 or under; 10% of card value (rounded up) for $251\u2013$1,500;
    12% for $1,501\u2013$3,000; custom quote above $3,000. */
@@ -2152,6 +2212,7 @@ function renderLadder(containerId, tiers){
 renderLadder('ladder-clean', CLEAN_TIERS);
 renderLadder('ladder-repair', REPAIR_TIERS);
 renderLadder('ladder-addon', ADDON_TIERS);
+renderBulkTables();
 
 const surchargeHeaderRow = `<div class="surcharge-row surcharge-header"><span class="val">Card Value</span><span class="fee">Surcharge</span></div>`;
 document.getElementById('surcharge-table').innerHTML = surchargeHeaderRow + SURCHARGE_DISPLAY_ROWS.map(s => `
@@ -2199,7 +2260,7 @@ let calcGradeFeeNote = '', calcPsaExtra = 0;
 function runCalculator(){
   const tier = ALL_TIERS[Number(calcServiceSelect.value)];
   const qty = Math.max(1, Math.floor(Number(calcQtyInput.value.replace(/[^0-9]/g, '')) || 1));
-  let perCard = tier.bulk ? bulkCleaningPrice(qty) : Number(tier.price.replace(/[^0-9.]/g, ''));
+  let perCard = tier.bulk ? bulkCleaningPrice(qty) : isEvalTier(tier) ? bulkEvalPrice(qty) : Number(String(tier.price).replace(/[^0-9.]/g, ''));
   const isSlabOnly = tier.type === 'addon', isGradeOnly = tier.type === 'grading';
   calcCrackWrap.style.display = isSlabOnly ? 'none' : 'flex';
   calcGradeWrap.style.display = isGradeOnly ? 'none' : 'flex';
@@ -2207,8 +2268,8 @@ function runCalculator(){
   const grade = !isGradeOnly && calcGradeInput.checked;
   // Grading on its own: full price for the first card, less for each one after
   const baseTotal = isGradeOnly ? perCard + GRADING_NEXT * (qty - 1) : perCard * qty;
-  calcBaseLabel.textContent = qty > 1 ? (isGradeOnly ? `Base service ($${perCard} + $${GRADING_NEXT} × ${qty - 1})` : `Base service ($${perCard} × ${qty})`) : 'Base service';
-  calcBaseEl.textContent = `$${baseTotal}`;
+  calcBaseLabel.textContent = qty > 1 ? (isGradeOnly ? `Base service (${money2(perCard)} + ${money2(GRADING_NEXT)} × ${qty - 1})` : `Base service (${money2(perCard)} × ${qty})`) : 'Base service';
+  calcBaseEl.textContent = money2(baseTotal);
   if(crack){
     calcCrackLine.style.display = 'flex';
     calcCrackAmt.textContent = `+$${SLAB_CRACK_ADDON * qty}`;
@@ -2241,7 +2302,10 @@ function runCalculator(){
   if(tier.type !== 'repair'){
     calcSurchargeLine.style.display = 'none';
     applyDiscountAndTotal(basePrice, refValid);
-    calcHintEl.textContent = ((rawValue ? CLEAN_CALC_HINT : DEFAULT_CALC_HINT) + (tier.bulk && qty <= 20 ? " Submit 21+ cards for bulk cleaning pricing." : "")) + calcGradeFeeNote;
+    const bulkRules = tier.bulk ? PRICE_RULES.bulk : isEvalTier(tier) ? PRICE_RULES.evalBulk : null;
+    const bulkAt = firstDiscountMin(Number(String(tier.price).replace(/[^0-9.]/g, '')), bulkRules);
+    const bulkHint = bulkRules && qty < bulkAt ? ` Submit ${bulkAt}+ cards for bulk ${tier.bulk ? "cleaning" : "evaluation"} pricing.` : "";
+    calcHintEl.textContent = ((rawValue ? CLEAN_CALC_HINT : DEFAULT_CALC_HINT) + bulkHint) + calcGradeFeeNote;
     return;
   }
 
@@ -2273,7 +2337,7 @@ function applyDiscountAndTotal(subtotal, refValid){
     calcTotalEl.textContent = `$${(subtotal - discount + extra).toFixed(2)}`;
   } else {
     calcDiscountLine.style.display = 'none';
-    calcTotalEl.textContent = extra ? money2(cents(subtotal + extra)) : `$${subtotal}`;
+    calcTotalEl.textContent = extra ? money2(cents(subtotal + extra)) : money2(subtotal);
   }
 }
 
@@ -2722,7 +2786,9 @@ function serviceOptionsHtml(){
   return '<option value="" disabled selected>Choose a tier</option>' +
     [...CLEAN_TIERS, ...REPAIR_TIERS, ...ADDON_TIERS].map(t => {
       const solo = t.type === 'addon' || t.type === 'grading';
-      const label = t.bulk ? `${t.title} — ${t.price}${bulkShortText()}` : t.type === 'grading' ? `${t.title} only — ${t.price} first card, ${money(GRADING_NEXT)} each after`
+      const label = t.bulk ? `${t.title} — ${t.price}${bulkShortText(cleaningBulkRules())}`
+        : isEvalTier(t) ? `${t.title} — ${t.price}${bulkShortText(PRICE_RULES.evalBulk)}`
+        : t.type === 'grading' ? `${t.title} only — ${t.price} first card, ${money(GRADING_NEXT)} each after`
         : solo ? `${t.title} only — ${t.price}` : `${t.title} — ${t.price}`;
       const val = solo ? `${t.title} only (${t.price})` : `${t.title} (${t.price})`;
       const kind = t.type === 'addon' ? ' data-kind="slab"' : t.type === 'grading' ? ' data-kind="grading"' : '';
@@ -3546,16 +3612,20 @@ checkTermsScroll();
 const SITE_CACHE_KEY = 'rr-site-content-v1';
 function money(n){ return '$' + Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 }); }  // a function so the order form can use it before this point
 
-function bulkShortText(){
-  const b = [...PRICE_RULES.bulk].sort((x, y) => x.min - y.min);
-  return b.length ? ' (bulk: ' + b.map(r => `${money(r.price)} at ${r.min}+`).join(', ') + ')' : '';
+function bulkShortText(rules){
+  const b = [...(rules || PRICE_RULES.bulk)].sort((x, y) => x.min - y.min);
+  if(!b.length) return '';
+  return ' (bulk: ' + b.map((r, i) => {
+    const next = b[i + 1];
+    return `${money2(r.price)} at ${next ? `${r.min}–${next.min - 1}` : `${r.min}+`}`;
+  }).join(', ') + ')';
 }
-function bulkLongText(){
-  const b = [...PRICE_RULES.bulk].sort((x, y) => x.min - y.min);
+function bulkLongText(rules){
+  const b = [...(rules || PRICE_RULES.bulk)].sort((x, y) => x.min - y.min);
   if(!b.length) return '';
   return 'Bulk pricing: ' + b.map((r, i) => {
     const next = b[i + 1];
-    return `${money(r.price)}/card for ${next ? `${r.min}–${next.min - 1}` : `${r.min}+`} cards`;
+    return `${money2(r.price)}/card for ${next ? `${r.min}–${next.min - 1}` : `${r.min}+`} cards`;
   }).join(', ') + '.';
 }
 function surchargeRowsFromRules(){
@@ -3575,11 +3645,14 @@ function surchargeSentence(){
   return `For repair services, a surcharge is added to the selected service price based on the card's estimated value (based on natural wear, excluding any damage; see below): ${list}, rounded up to the nearest dollar. Cards valued above ${money(last.upTo)} require a custom quote. Cleaning and evaluation services are never subject to a value surcharge.`;
 }
 
-/* Apply the "prices" section: { services:[{title,price,type,desc,sub,bulk}], bulk, slabAddon, surcharge, referral } */
+/* Apply the "prices" section: { services:[{title,price,type,desc,sub,bulk}], bulk, evalBulk, slabAddon, surcharge, referral } */
 function applyPrices(pr){
   if(!pr || !Array.isArray(pr.services) || !pr.services.length) return;
   const clean = v => Math.max(0, Number(v) || 0);
-  if(Array.isArray(pr.bulk)) PRICE_RULES.bulk = pr.bulk.map(b => ({ min: Math.max(2, Math.round(clean(b.min))), price: clean(b.price) })).filter(b => b.min);
+  const levels = list => list.map(b => ({ min: Math.max(2, Math.round(clean(b.min))), price: clean(b.price) })).filter(b => b.min);
+  if(Array.isArray(pr.bulk)) PRICE_RULES.bulk = levels(pr.bulk);
+  // A price list saved before evaluation bulk tiers: keep the built-in 26 / 50 levels.
+  if(Array.isArray(pr.evalBulk)) PRICE_RULES.evalBulk = levels(pr.evalBulk);
   if(pr.slabAddon != null) PRICE_RULES.slabAddon = clean(pr.slabAddon);
   if(pr.gradingNext != null) PRICE_RULES.gradingNext = clean(pr.gradingNext);
   if(pr.gradingAddon != null) PRICE_RULES.gradingAddon = clean(pr.gradingAddon);
@@ -3606,14 +3679,15 @@ function applyPrices(pr){
   SLAB_CRACK_SOLO = slab ? Number(slab.price.replace(/[^0-9.]/g, '')) : SLAB_CRACK_SOLO;
   REFERRAL_DISCOUNT = PRICE_RULES.referral / 100;
   // Automatic notes under the bulk tier and the slab add-on (typed notes are kept after them)
-  CLEAN_TIERS.forEach(t => { if(t.bulk) t.sub = [bulkLongText(), t.sub].filter(Boolean).join(' '); });
-  CLEAN_TIERS.forEach(t => { if(isEvalTier(t)) t.sub = [t.sub, evalGradingNote()].filter(Boolean).join(' '); });
+  CLEAN_TIERS.forEach(t => { if(t.bulk) t.sub = cleaningBulkNote(t.sub); });
+  CLEAN_TIERS.forEach(t => { if(isEvalTier(t)) t.sub = [bulkLongText(PRICE_RULES.evalBulk), t.sub, evalGradingNote()].filter(Boolean).join(' '); });
   if(slab) slab.sub = [`Only ${money(SLAB_CRACK_ADDON)} when combined with another service.`, slab.sub].filter(Boolean).join(' ');
   [...CLEAN_TIERS, ...REPAIR_TIERS, ...ADDON_TIERS].forEach(t => { t.title = siteEsc(t.title); t.desc = siteEsc(t.desc); t.sub = siteEsc(t.sub); });
 
   renderLadder('ladder-clean', CLEAN_TIERS);
   renderLadder('ladder-repair', REPAIR_TIERS);
   renderLadder('ladder-addon', ADDON_TIERS);
+  renderBulkTables();
   SURCHARGE_DISPLAY_ROWS = surchargeRowsFromRules();
   document.getElementById('surcharge-table').innerHTML = surchargeHeaderRow + SURCHARGE_DISPLAY_ROWS.map(r =>
     `<div class="surcharge-row"><span class="val">${r.range}</span><span class="fee">${r.fee}</span></div>`).join('');
