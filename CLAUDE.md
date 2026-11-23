@@ -515,7 +515,15 @@ arrow keys (Alt = outer marker), save, or reset to auto.
    Owner steps, in order: run `supabase/2026-11-13_psa_tracking.sql` → paste `apps-script/Code.gs` and deploy a new version →
    then merge — all done Nov 13. **Still to do (owner):** portal Website → Prices: check PSA levels against psacard.com and Save.
 
-26. **Built Nov 22, 2026 (not yet live): Card Cleaning and Grade-Ready Evaluation bulk tiers.**
+26. **Fixed Nov 15, 2026: portal `site_content` was never created.** Grading, set/year, PSA, and email-status columns were
+   on the live database, but `public.site_content`, `site_get()`, and `submissions.quote_discount` were not. The website's
+   `site_get` call and the portal Website section (prices, announcement, news, events, Instagram) could not read or save
+   content, so the site stayed on its built-in defaults. Applied `supabase/2026-11-04_site_content.sql` (safe to re-run)
+   on project `bcozwalfszzuecjjqgam`. Verified: `POST /rest/v1/rpc/site_get` with the publishable key returns `{}` (no
+   sections saved yet). Owner still needs to open Website → Prices and Save once so the live site and quotes pick up the
+   saved list.
+
+27. **Built Nov 22, 2026 (not yet live): Card Cleaning and Grade-Ready Evaluation bulk tiers.**
     Both services use the same bands. Cleaning: 1–25 cards $10/card, 26–50 $7.50/card (`CLEANING_26_50_PRICE`), 51+ $5/card.
     Evaluation: 1–25 $20/card, 26–50 $16/card, 51+ $14/card. The Card Cleaning note is
     "Bulk pricing: $7.50/card for 26–50 cards, $5/card for 51+ cards." The order form says
