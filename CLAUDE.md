@@ -537,5 +537,23 @@ arrow keys (Alt = outer marker), save, or reset to auto.
     FAQ, terms, and the October repair notice don't state these per-card amounts. No meta description or structured data lists them.
     Build **v11-22a**.
 
+28. **Built Nov 24, 2026 (not yet live): an order is Completed when every card is Completed.**
+    Postgres (not the portal alone) does it. `public.sync_submission_completion` runs after cards are
+    inserted, deleted, or updated — including one update of several cards — and, when the order has at
+    least one card and every card is `completed`, sets `submissions.status` to `completed`. The status the
+    order had just before that is kept in `submissions.auto_completed_from`. An order with no cards is never
+    completed by this rule. If a card later leaves `completed` and the order was completed by this rule, the
+    order goes back to `auto_completed_from`. If the owner set the order to Completed on the order itself,
+    that column is cleared and the order stays Completed when a card changes. No email is sent;
+    `emailed_status` is left alone, so the existing "hasn't been emailed" banner shows and Send status email
+    works the same way as a status change made by hand. The Google Sheet is unchanged: its overall status
+    already follows the furthest-behind card. Portal: each order's card table has checkboxes and
+    **Set selected to** (one update for the ticked cards); the order badge on that page, on the card page,
+    and on the scan station refreshes from the saved row. Demo mode applies the same rule in the browser.
+    SQL: `supabase/2026-11-24_order_completed_when_cards_completed.sql`, also in `schema.sql` and
+    `RUN-NEXT-in-Supabase.sql`. Existing orders are not rewritten until a card on that order is saved.
+    **Owner step:** run `supabase/RUN-NEXT-in-Supabase.sql` (it still includes the Nov 22 price tiers).
+    Not on the live database until the owner says they ran it.
+
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.

@@ -308,6 +308,13 @@ export const realApi = {
   },
   async insert(table, row) { return must(await (await sb()).from(table).insert(row).select().single()); },
   async update(table, id, patch) { return must(await (await sb()).from(table).update(patch).eq("id", id).select().single()); },
+  // One update for many rows, so a bulk status change is a single statement
+  // and the order-completion trigger sees every selected card together.
+  async updateMany(table, ids, patch) {
+    if (!ids?.length) return [];
+    return must(await (await sb()).from(table).update(patch).in("id", ids).select());
+  },
+  async get(table, id) { return must(await (await sb()).from(table).select("*").eq("id", id).maybeSingle()); },
   async remove(table, id) { must(await (await sb()).from(table).delete().eq("id", id)); },
   async adminUpload(storageKey, file) {
     const c = await sb();
@@ -330,6 +337,32 @@ export const realApi = {
   async newLink(customerId) { return must(await (await sb()).rpc("admin_new_link", { p_customer: customerId })); },
   async select(table) { return fetchAll(await sb(), table); },
 };
+
+// Demo stand-in for the database trigger in
+// supabase/2026-11-24_order_completed_when_cards_completed.sql.
+// Every card completed → order completed, and the previous order status is kept.
+// A later card leaving completed puts the order back. Zero cards never completes it.
+// A status saved on the order itself is left alone (auto_completed_from is cleared there).
+function syncOrderCompletion(store, submissionId) {
+  if (!submissionId) return;
+  const sub = store.submissions.find((s) => s.id === submissionId);
+  if (!sub) return;
+  const cards = store.cards.filter((c) => c.submission_id === submissionId);
+  const allDone = cards.length > 0 && cards.every((c) => c.status === "completed");
+  if (allDone) {
+    if (sub.status !== "completed") {
+      sub.auto_completed_from = sub.status;
+      sub.status = "completed";
+      sub.updated_at = new Date().toISOString();
+    }
+    return;
+  }
+  if (sub.status === "completed" && sub.auto_completed_from) {
+    sub.status = sub.auto_completed_from;
+    sub.auto_completed_from = null;
+    sub.updated_at = new Date().toISOString();
+  }
+}
 
 // Demo backend: in-memory copy of demo/demo-data.js so the portal can be
 // tried before Supabase is set up. Nothing is saved.
@@ -367,11 +400,43 @@ export const demoApi = {
   async insert(table, row) {
     const d = demoStore(), r = { id: uid(), created_at: new Date().toISOString(), ...row };
     if (table === "customers") Object.assign(r, { share_token: uid().replace(/-/g, ""), storage_key: uid().slice(0, 12) });
-    if (table === "submissions") r.code ||= "RR-" + (1 + Math.max(1000, ...d.submissions.map((x) => +x.code.slice(3) || 0)));
-    d[table].push(r); return r;
+    if (table === "submissions") {
+      r.code ||= "RR-" + (1 + Math.max(1000, ...d.submissions.map((x) => +x.code.slice(3) || 0)));
+      r.auto_completed_from ??= null;
+    }
+    d[table].push(r);
+    if (table === "cards") syncOrderCompletion(d, r.submission_id);
+    return r;
   },
-  async update(table, id, patch) { const r = demoStore()[table].find((x) => x.id === id); Object.assign(r, patch); return r; },
-  async remove(table, id) { const d = demoStore(); d[table] = d[table].filter((x) => x.id !== id); },
+  async update(table, id, patch) {
+    const d = demoStore(), r = d[table].find((x) => x.id === id);
+    const oldStatus = r.status, oldSub = r.submission_id;
+    Object.assign(r, patch);
+    // Editing the order status by hand forgets an automatic completion.
+    if (table === "submissions" && Object.prototype.hasOwnProperty.call(patch, "status")
+        && patch.status !== oldStatus && !Object.prototype.hasOwnProperty.call(patch, "auto_completed_from")) {
+      r.auto_completed_from = null;
+    }
+    // Any card save rechecks the order, matching the database trigger
+    // (a bulk "Completed" on cards that are already completed still counts).
+    if (table === "cards") {
+      syncOrderCompletion(d, r.submission_id);
+      if (oldSub !== r.submission_id) syncOrderCompletion(d, oldSub);
+    }
+    return r;
+  },
+  async updateMany(table, ids, patch) {
+    const rows = [];
+    for (const id of ids || []) rows.push(await this.update(table, id, patch));
+    return rows;
+  },
+  async get(table, id) { return demoStore()[table]?.find((x) => x.id === id) || null; },
+  async remove(table, id) {
+    const d = demoStore();
+    const row = (d[table] || []).find((x) => x.id === id);
+    d[table] = d[table].filter((x) => x.id !== id);
+    if (table === "cards" && row) syncOrderCompletion(d, row.submission_id);
+  },
   async adminUpload(storageKey, file) { return URL.createObjectURL(file); },
   async removeFiles() {},
   async putFile(path, blob) { return URL.createObjectURL(blob); },
