@@ -23,6 +23,20 @@ export const STATUSES = [
 ];
 export const STATUS_LABEL = Object.fromEntries(STATUSES);
 export const pill = (s) => `<span class="pill ${esc(s)}">${esc(STATUS_LABEL[s] || s)}</span>`;
+
+// Completed cards can be marked picked up. Hidden when the card isn't Completed,
+// and when the row has no picked_up value yet (the SQL hasn't been run).
+export function pickedUpBox(card, opts = {}) {
+  if (!card || card.status !== "completed" || typeof card.picked_up !== "boolean") return "";
+  const when = card.picked_up && card.picked_up_at
+    ? ` <span class="muted">· ${esc(fmtDate(card.picked_up_at))}</span>` : "";
+  return `<label class="pickup-flag"><input type="checkbox" class="pick pickup" data-card="${esc(card.id || "")}"
+    ${card.picked_up ? "checked" : ""} ${opts.editable ? "" : "disabled"}> Picked up${when}</label>`;
+}
+export function pickedUpNote(card) {
+  if (!card || card.status !== "completed" || card.picked_up !== true) return "";
+  return ` <span class="muted small">Picked up</span>`;
+}
 export const STAGE_LABEL = { before: "Before (intake)", progress: "In progress", after: "After (restored)" };
 const STAGE_ORDER = ["before", "progress", "after"];
 const CORNERS = [["top-left", "Top left"], ["top-right", "Top right"],
@@ -366,9 +380,25 @@ function syncOrderCompletion(store, submissionId) {
 
 // Demo backend: in-memory copy of demo/demo-data.js so the portal can be
 // tried before Supabase is set up. Nothing is saved.
+// Same rule as cards_picked_up_guard: the flag only sticks on a Completed card.
+function normalizePickedUp(card, { backfill = false } = {}) {
+  if (typeof card.picked_up !== "boolean") card.picked_up = backfill && card.status === "completed";
+  if (card.status !== "completed" || !card.picked_up) {
+    card.picked_up = false;
+    card.picked_up_at = null;
+  } else if (!card.picked_up_at) {
+    card.picked_up_at = card.updated_at || new Date().toISOString();
+  }
+  return card;
+}
 function demoStore() {
-  if (!window._rrDemo) window._rrDemo = JSON.parse(JSON.stringify(window.RR_DEMO || {
-    customers: [], submissions: [], cards: [], scans: [], photos: [] }));
+  if (!window._rrDemo) {
+    const d = JSON.parse(JSON.stringify(window.RR_DEMO || {
+      customers: [], submissions: [], cards: [], scans: [], photos: [] }));
+    // Cards already Completed in the sample data count as picked up, matching the SQL backfill.
+    (d.cards || []).forEach((c) => normalizePickedUp(c, { backfill: true }));
+    window._rrDemo = d;
+  }
   return window._rrDemo;
 }
 export const demoApi = {
@@ -405,7 +435,10 @@ export const demoApi = {
       r.auto_completed_from ??= null;
     }
     d[table].push(r);
-    if (table === "cards") syncOrderCompletion(d, r.submission_id);
+    if (table === "cards") {
+      normalizePickedUp(r);
+      syncOrderCompletion(d, r.submission_id);
+    }
     return r;
   },
   async update(table, id, patch) {
@@ -420,6 +453,7 @@ export const demoApi = {
     // Any card save rechecks the order, matching the database trigger
     // (a bulk "Completed" on cards that are already completed still counts).
     if (table === "cards") {
+      normalizePickedUp(r);
       syncOrderCompletion(d, r.submission_id);
       if (oldSub !== r.submission_id) syncOrderCompletion(d, oldSub);
     }

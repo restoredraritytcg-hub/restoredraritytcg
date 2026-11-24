@@ -1,6 +1,6 @@
 // Customer view: everything under one profile, opened by a private link.
 import { api, DEMO, esc, $, $$, pill, progressSteps, renderReport, wireReport, thumbOf, mediaUrl,
-  fmtDate, installLightbox, installHint, toast } from "./common.js";
+  fmtDate, installLightbox, installHint, toast, pickedUpBox, pickedUpNote } from "./common.js";
 import { psaCustomerHtml } from "./psa.js";
 
 const CFG = window.RR_CONFIG || {};
@@ -56,7 +56,7 @@ function tile(c) {
   return `<a class="tile" data-card="${esc(c.id)}">
     ${t ? `<img class="ph" src="${esc(mediaUrl(t))}" alt="" loading="lazy">` : `<div class="ph">Photos coming soon</div>`}
     <div class="n">${esc(c.name || `Card #${c.card_number}`)}</div>
-    <div class="s">${esc(c.details || "")}</div>${pill(c.status)}</a>`;
+    <div class="s">${esc(c.details || "")}</div>${pill(c.status)}${pickedUpNote(c)}</a>`;
 }
 
 function photosBlock(photos, cardId) {
@@ -141,7 +141,7 @@ function cardPage(c) {
     <div class="row"><div class="grow"><h1>${esc(c.name || `Card #${c.card_number}`)}</h1>
     <div class="meta">${c.details ? `<span><b>${esc(c.details)}</b></span>` : ""}
       <span>Submission <b>${esc(c.sub.code)}</b></span><span>Card <b>#${c.card_number}</b></span></div></div>
-      <div>${pill(c.status)}</div></div>
+      <div>${pill(c.status)}${pickedUpBox(c)}</div></div>
     ${c.public_notes ? `<div class="panel" style="margin-top:12px;border-left:3px solid var(--gold)">${esc(c.public_notes)}</div>` : ""}
     <h2>Scans</h2>${renderReport(c.scans)}
     <h2>Photos</h2>${photosBlock(photos, c.id)}${footer()}`;

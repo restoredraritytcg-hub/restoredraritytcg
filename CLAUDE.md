@@ -572,5 +572,25 @@ arrow keys (Alt = outer marker), save, or reset to auto.
     portal and admin are unchanged. **Owner step:** review and merge the draft PR when this should go
     live on GitHub Pages. No Supabase SQL and no Apps Script paste for this change.
 
+30. **Built Nov 24, 2026 (draft PR, not merged): holding-fee emails follow the card, and Completed cards have a Picked up checkbox.**
+    The day-25 reminder and the day-30 holding-fee notice are sent by the Sheet's hourly Apps Script
+    (`runPickupReminders` in `apps-script/Code.gs`), not by SQL, an edge function, or the browser.
+    Each card qualifies on its own status. A card that is Completed (`completed` in the portal, or
+    `Order Completed / Picked Up / Shipped` on the Sheet) is left out even when the order is still open.
+    If none of the cards in that notice are still eligible, nothing is sent. The list and the $/day total
+    count only the cards that remain. The wording is unchanged. `picked_up` does not start or stop the email.
+    Opening the portal writes Completed onto those Sheet rows (no email) once the new Apps Script is deployed
+    (`?action=portalEmails` reports `holding:true`). Optional: Script property `SUPABASE_SERVICE_ROLE`
+    (not stored in the repo) lets the hourly job read portal Completed cards directly.
+    Portal: a Completed card shows a Picked up checkbox (admin can change it; the customer link shows it
+    read-only). The checkbox stays hidden until `cards.picked_up` exists, so the portal still loads if the
+    SQL hasn't been run. Cards that are already Completed are marked picked up by the SQL. A card that
+    leaves Completed is unchecked. Build **v11-24b**.
+    SQL: `supabase/2026-11-24_holding_fee_per_card.sql`, also in `schema.sql` and `RUN-NEXT-in-Supabase.sql`.
+    **Owner steps:** run `supabase/RUN-NEXT-in-Supabase.sql` (still includes the Nov 22 prices and the
+    order-completion trigger) before relying on the checkbox, then paste `apps-script/Code.gs` and
+    `apps-script/PortalEmails.gs`, deploy a new version, and open the portal once so the Sheet learns
+    which cards are Completed. Not on the live database until the owner says they ran the SQL.
+
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.

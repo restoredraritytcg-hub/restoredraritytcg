@@ -1,6 +1,7 @@
 // Admin portal: every customer, submission, card, scan and photo.
 import { api, DEMO, esc, $, $$, pill, STATUSES, renderReport, wireReport, thumbOf, mediaUrl, fmtDate,
-  fmtDateTime, installLightbox, installHint, toast, customerLink, progressSteps, STAGE_LABEL } from "./common.js";
+  fmtDateTime, installLightbox, installHint, toast, customerLink, progressSteps, STAGE_LABEL,
+  pickedUpBox, pickedUpNote } from "./common.js";
 import * as U from "./scanupload.js";
 import { sitePage, quotePanel, wireQuote, currentPrices, saveServicesToSheet, savePsaToSheet } from "./site.js";
 import { psaPanel, wirePsa, levelFromService } from "./psa.js";
@@ -109,13 +110,14 @@ async function start() {
   // Installed as a phone app there's no browser reload, so offer one here.
   $("#refresh").onclick = async () => {
     const b = $("#refresh"); b.disabled = true; b.textContent = "Refreshing…";
-    try { await reload(); route(); toast("Up to date."); }
+    try { await reload(); route(); syncHoldingCards(); toast("Up to date."); }
     catch (err) { toast("Couldn't refresh: " + err.message); }
     finally { b.disabled = false; b.textContent = "↻ Refresh"; }
   };
   await reload();
   window.addEventListener("hashchange", route);
   route();
+  syncHoldingCards();
 }
 
 // Phone-friendly wording for what Supabase / the browser report.
@@ -149,7 +151,70 @@ function loginPage(initialError = "") {
   };
 }
 
-async function reload() { S = await api.loadAll(); }
+async function reload() { S = await api.loadAll(); holdingSyncKey = ""; }
+
+// Tell the Sheet which cards are Completed so the holding-fee email skips them
+// even when the order is still open. An older Apps Script would treat this POST
+// as a new submission, so it is sent only after ?action=portalEmails reports holding:true.
+// Does nothing in demo, or when the email address isn't configured.
+let holdingSyncKey = "";
+async function syncHoldingCards() {
+  if (DEMO || !EMAIL_ENDPOINT || !S) return;
+  const orders = S.submissions.map((s) => ({
+    code: s.code,
+    cards: subCards(s.id).map((k) => ({ num: k.card_number, status: k.status })),
+  })).filter((o) => o.cards.length);
+  const key = JSON.stringify(orders);
+  if (key === holdingSyncKey) return;
+  try {
+    const ping = await fetch(`${EMAIL_ENDPOINT}?action=portalEmails`).then((r) => r.json()).catch(() => null);
+    if (!ping?.holding) return;
+    const token = (await api.session())?.access_token;
+    if (!token) return;
+    const res = await fetch(EMAIL_ENDPOINT, {
+      method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ type: "portalCardStatus", token, orders }),
+    });
+    const out = await res.json().catch(() => null);
+    if (out?.success) holdingSyncKey = key;
+  } catch (e) {
+    console.warn("Sheet card status wasn't updated:", e);
+  }
+}
+
+async function savePickedUp(k, on) {
+  const patch = on
+    ? { picked_up: true, picked_up_at: new Date().toISOString() }
+    : { picked_up: false, picked_up_at: null };
+  try {
+    Object.assign(k, await api.update("cards", k.id, patch));
+  } catch (e) {
+    if (/picked_up/i.test(String(e.message || e))) {
+      throw new Error("Run supabase/RUN-NEXT-in-Supabase.sql in the Supabase SQL editor, then try again.");
+    }
+    throw e;
+  }
+}
+function wirePickedUp(root = document) {
+  $$("input.pickup", root).forEach((box) => {
+    if (box.disabled) return;
+    box.addEventListener("click", (e) => e.stopPropagation());
+    box.addEventListener("change", async () => {
+      const k = byId("cards", box.dataset.card);
+      if (!k) return;
+      box.disabled = true;
+      try {
+        await savePickedUp(k, box.checked);
+        toast(box.checked ? "Marked picked up." : "Marked not picked up yet.");
+        route();
+      } catch (e) {
+        box.checked = !box.checked;
+        box.disabled = false;
+        toast(e.message, 6000);
+      }
+    });
+  });
+}
 
 // ------------------------------------------------------------------ router
 function route() {
@@ -326,7 +391,7 @@ function cardTile(c) {
   return `<a class="tile" href="#/card/${c.id}">
     ${t ? `<img class="ph" src="${esc(mediaUrl(t))}" alt="" loading="lazy">` : `<div class="ph">Not scanned</div>`}
     <div class="n">${esc(cardTitle(c))}</div>
-    <div class="s">${esc(s.code)} · #${c.card_number} · ${esc(cu.name || "")}</div>${pill(c.status)} ${gradeTag(c.grading)}</a>`;
+    <div class="s">${esc(s.code)} · #${c.card_number} · ${esc(cu.name || "")}</div>${pill(c.status)}${pickedUpNote(c)} ${gradeTag(c.grading)}</a>`;
 }
 
 function allCards() {
@@ -522,6 +587,7 @@ function wireCardPicks(sub) {
         if (k) Object.assign(k, row);
       }
       await pullSubmission(sub.id);
+      syncHoldingCards();
       toast(`Updated ${rows.length} card${rows.length === 1 ? "" : "s"}.${orderChangeNote(before, sub.status)}`);
       route();
     } catch (e) {
@@ -573,7 +639,7 @@ function submission(id) {
       return `<tr class="click" data-go="#/card/${k.id}"><td class="pick"><input type="checkbox" class="kpick pick" value="${esc(k.id)}" aria-label="Select card ${k.card_number}"></td>
       <td style="width:54px">${t ? `<img src="${esc(mediaUrl(t))}" style="height:52px;border-radius:4px">` : ""}</td>
       <td>${k.card_number}</td><td><b>${esc(k.name || "—")}</b>${k.details ? "" : ` <span class="setneed">Set needed</span>`}</td><td class="hide-sm">${esc(k.details)}</td>
-      <td>${pill(k.status)}</td><td>${gradeTag(k.grading) || `<span class="muted small">—</span>`}</td><td class="hide-sm muted small">${esc(st.join(", ") || "none")}</td>
+      <td>${pill(k.status)}${pickedUpBox(k, { editable: true })}</td><td>${gradeTag(k.grading) || `<span class="muted small">—</span>`}</td><td class="hide-sm muted small">${esc(st.join(", ") || "none")}</td>
       <td><a class="btn sm" target="rr-scan" href="${esc(scanUrl(id, k.card_number, ns))}"
         title="Scan this card (${esc(STAGE_LABEL[ns])})">📷 Scan</a></td></tr>`; }).join("")
       || `<tr><td colspan="8" class="muted">No cards.</td></tr>`}</tbody></table></div>
@@ -592,6 +658,7 @@ function submission(id) {
     go(r.dataset.go);
   });
   wireCardPicks(s);
+  wirePickedUp(app);
   window.RRCardSearch?.attach($("#kn"), { details: $("#kd") });
   $("#svopen").onclick = async () => {
     const body = $("#svbody");
@@ -632,6 +699,7 @@ function submission(id) {
         }
       }
       await pullSubmission(id);
+      syncHoldingCards();
       // This save sets the order status on purpose, so the toast does not describe it as automatic.
       toast("Saved."); route();
     } catch (e) { toast(e.message, 5000); }
@@ -672,7 +740,8 @@ function card(id) {
     <div class="panel" style="margin-top:14px"><div class="grid2">
       <div><label class="f">Card name</label><input type="text" id="kn" value="${esc(k.name)}"></div>
       <div><label class="f">Set / number / year</label><input type="text" id="kd" value="${esc(k.details)}" placeholder="e.g. Base Set · 4/102 · 1999"></div>
-      <div><label class="f">Status</label>${statusSelect("ks", k.status)}</div><div></div>
+      <div><label class="f">Status</label>${statusSelect("ks", k.status)}
+        ${pickedUpBox(k, { editable: true })}</div><div></div>
       <div style="grid-column:1/-1" id="ksvc"><span class="muted small">Loading services…</span></div>
       <div><label class="f">Note to customer (they see this)</label><textarea id="kp">${esc(k.public_notes)}</textarea></div>
       <div><label class="f">Private notes (only you)</label><textarea id="ki">${esc(k.internal_notes)}</textarea></div>
@@ -694,6 +763,7 @@ function card(id) {
     <p class="muted small">📷 opens the scan station set to ${esc(s.code)} card #${k.card_number}; scan the front, flip, scan the back.
       An uploaded image is cropped and measured like a scan and replaces that stage/side if there is one.</p>
     <h2>Photos</h2>${photosAdmin(S.photos.filter((p) => p.card_id === id), { cards: [k], fixedCard: id })}`;
+  wirePickedUp(app);
   wireReport(app, {
     scans: cardScans(id), editable: true, title: cardTitle(k),
     onSaveCentering: async (scan, cen) => {
@@ -749,6 +819,7 @@ function card(id) {
       await pullSubmission(s.id);
       const changed = got && (got.service !== cardServiceText(k) || got.grading !== (k.grading || "") || got.value !== valueOf(k) || (got.grade_level || "") !== levelOf(k));
       const note = orderChangeNote(before, s.status);
+      syncHoldingCards();
       toast((changed ? await saveServices(s, [{ k, ...got }]) : "Saved.") + note, 6000); route();
     } catch (e) { toast(e.message, 5000); }
   };

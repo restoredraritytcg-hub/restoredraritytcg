@@ -1,6 +1,6 @@
 /*******************************************************************
  * RESTORED RARITY — Submission backend
- * Version: 2026-11-22 (branded emails + pickup reminders + automatic quotes + portal reviews + grading + card set/number/year + PSA levels, tracking + emails + cleaning and evaluation bulk tiers)
+ * Version: 2026-11-24 (branded emails + pickup reminders + automatic quotes + portal reviews + grading + card set/number/year + PSA levels, tracking + emails + cleaning and evaluation bulk tiers + holding-fee emails follow each card)
  *
  * What this does
  *  • Saves website submissions to the "Submissions" + "Cards" tabs
@@ -14,7 +14,10 @@
  *  • Powers the "Track Your Submission" lookup on the website
  *  • When a card is "Ready to Ship / Pick Up", reminds the customer at day 25
  *    and sends the holding-fee notice at day 30 ($1/card/day, forfeiture at day 60).
- *    Setting the card to "Order Completed / Picked Up / Shipped" stops reminders.
+ *    This is decided per card, not by the order's status. A card that is
+ *    "Order Completed / Picked Up / Shipped" (or portal status "completed")
+ *    never gets those emails, even if the order is still open.
+ *    The picked-up checkbox in the portal does not start or stop them.
  *  • All emails use the Restored Rarity logo + site colors (upload email-logo.jpg
  *    to the website repo next to index.html)
  *  • Works out a price quote for every submission from the price list
@@ -234,6 +237,7 @@ function doPost(e) {
     if (record.type === 'portalCardServices') return json_(portalCardServices_(record));
     if (record.type === 'portalReviews') return json_(portalReviews_(record));
     if (record.type === 'portalPsa') return json_(portalPsa_(record));
+    if (record.type === 'portalCardStatus') return json_(portalCardStatus_(record));
 
     // Submissions
     var lock = LockService.getScriptLock();
@@ -311,7 +315,7 @@ function doGet(e) {
     if (action === 'track') {
       return json_(trackSubmission_(e.parameter.ref || '', e.parameter.email || ''));
     }
-        if (action === 'portalEmails') return json_({ success: true, version: 1, quotes: true, reviews: true, services: true, psa: true });
+        if (action === 'portalEmails') return json_({ success: true, version: 1, quotes: true, reviews: true, services: true, psa: true, holding: true });
 
     return json_({ success: false, error: 'Unknown action' });
   } catch (err) {
@@ -766,8 +770,78 @@ function link_(url, text) { return '<a href="' + esc_(url) + '">' + text + '</a>
  *  Day 0  card set to "Ready to Ship / Pick Up" → card update email (above)
  *  Day 25 still ready → reminder: pay for return shipping or pick up
  *  Day 30 still ready → holding fee notice ($1/card/day), forfeiture at day 60
- *  Setting a card to "Order Completed / Picked Up / Shipped" stops these.
+ *  Eligibility is the card's own status. The order's status is not read.
+ *  A completed card is left out even when the order is still open.
+ *  The portal's picked-up checkbox is not part of this decision.
  * ================================================================= */
+
+/** Portal status "completed", or the sheet's finished stage (including older
+ *  names that mean the same). The legacy sheet value "complete" is NOT this:
+ *  that one still means Ready to Ship / Pick Up. */
+function isCompletedCardStatus_(raw) {
+  var low = String(raw || '').trim().toLowerCase();
+  if (low === 'completed') return true;
+  return canonicalStatus_(raw) === FINAL_STAGE;
+}
+
+function holdingKey_(id, num) {
+  return String(id || '') + '|' + String(num == null ? '' : num).trim();
+}
+
+/** True only while this card is still Ready to Ship / Pick Up.
+ *  portalCompleted is a map of "submission id|card number" for cards the
+ *  portal currently has as completed (the sheet row may still say Ready).
+ *  Null means that lookup didn't run; the sheet status is used on its own. */
+function holdingFeeEligible_(status, id, num, portalCompleted) {
+  if (!id || isCompletedCardStatus_(status)) return false;
+  if (canonicalStatus_(status) !== READY_STAGE) return false;
+  if (portalCompleted && portalCompleted[holdingKey_(id, num)]) return false;
+  return true;
+}
+
+/** Rows from the portal's completed-card lookup → the same map. */
+function portalCompletedMap_(rows) {
+  var map = {};
+  (rows || []).forEach(function (r) {
+    if (!r) return;
+    var sub = r.submissions;
+    var code = sub && (sub.code || (sub[0] && sub[0].code));
+    if (!code || r.card_number == null || r.card_number === '') return;
+    map[holdingKey_(code, r.card_number)] = true;
+  });
+  return map;
+}
+
+/** Day-25 and day-30 groups. Only eligible cards are included, so a notice
+ *  is skipped entirely when every card in the group is completed, and the
+ *  daily total follows the cards that remain. */
+function holdingFeePlan_(rows, now, portalCompleted) {
+  var due = { r25: {}, r30: {} }, order = { r25: [], r30: [] };
+  (rows || []).forEach(function (r) {
+    if (!holdingFeeEligible_(r.status, r.id, r.num, portalCompleted)) return;
+    if (!r.completed) return;
+    var days = daysBetween_(r.completed, now);
+    var bucket = null;
+    if (days >= HOLDING_DAY && !r.r30) bucket = 'r30';
+    else if (days >= REMINDER_DAY && days < HOLDING_DAY && !r.r25) bucket = 'r25';
+    if (!bucket) return;
+    var key = r.id + '|' + r.completed.toDateString();
+    if (!due[bucket][key]) { due[bucket][key] = { id: r.id, items: [] }; order[bucket].push(key); }
+    due[bucket][key].items.push({ row: r.row, num: r.num, card: r.card, completed: r.completed });
+  });
+  return {
+    r25: order.r25.map(function (k) { return due.r25[k]; }),
+    r30: order.r30.map(function (k) { return due.r30[k]; })
+  };
+}
+
+/** Dollars in the day-30 notice. count is the eligible cards only. */
+function holdingFeeAmounts_(count) {
+  var n = count || 0;
+  var daily = n * FEE_PER_CARD_PER_DAY;
+  return { n: n, daily: daily, max: daily * (FORFEIT_DAY - HOLDING_DAY) };
+}
+
 function runPickupReminders() {
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(30000)) return;
@@ -779,32 +853,37 @@ function runPickupReminders() {
     var rows = cardSheet.getRange(2, 1, last - 1, CC.FEE_START).getValues();
     var subs = submissionsById_();
     var now = new Date();
-    var due = { r25: {}, r30: {} }, order = { r25: [], r30: [] };
-
-    rows.forEach(function (r, i) {
-      var rowNum = i + 2;
-      var id = String(r[CC.ID - 1] || '');
-      if (!id || canonicalStatus_(r[CC.STATUS - 1]) !== READY_STAGE) return;
-      var completed = asDate_(r[CC.COMPLETED - 1]);
-      if (!completed) {
-        // Card was already ready before reminders were turned on: start its clock today, no email.
-        cardSheet.getRange(rowNum, CC.COMPLETED).setValue(now);
-        return;
-      }
-      var days = daysBetween_(completed, now);
-      var item = { row: rowNum, num: r[CC.NUM - 1], card: String(r[CC.NAME - 1] || 'Card'), completed: completed };
-      var bucket = null;
-      if (days >= HOLDING_DAY && !r[CC.R30 - 1]) bucket = 'r30';
-      else if (days >= REMINDER_DAY && days < HOLDING_DAY && !r[CC.R25 - 1]) bucket = 'r25';
-      if (!bucket) return;
-      var key = id + '|' + completed.toDateString();
-      if (!due[bucket][key]) { due[bucket][key] = { id: id, items: [] }; order[bucket].push(key); }
-      due[bucket][key].items.push(item);
+    var portalCompleted = null;
+    try {
+      if (typeof portalCompletedIndex_ === 'function') portalCompleted = portalCompletedIndex_();
+    } catch (err) {
+      console.error('Could not read portal card status: ' + err);
+      portalCompleted = null;
+    }
+    var raw = rows.map(function (r, i) {
+      return {
+        row: i + 2,
+        id: String(r[CC.ID - 1] || ''),
+        status: r[CC.STATUS - 1],
+        num: r[CC.NUM - 1],
+        card: String(r[CC.NAME - 1] || 'Card'),
+        completed: asDate_(r[CC.COMPLETED - 1]),
+        r25: r[CC.R25 - 1],
+        r30: r[CC.R30 - 1]
+      };
     });
+    // A ready card with no clock yet (reminders were off, or the row predates them):
+    // start today, no email. Completed cards are not given a clock.
+    raw.forEach(function (r) {
+      if (!holdingFeeEligible_(r.status, r.id, r.num, portalCompleted) || r.completed) return;
+      cardSheet.getRange(r.row, CC.COMPLETED).setValue(now);
+      r.skip = true;
+    });
+    var plan = holdingFeePlan_(raw.filter(function (r) { return !r.skip; }), now, portalCompleted);
 
     ['r25', 'r30'].forEach(function (bucket) {
-      order[bucket].forEach(function (key) {
-        var g = due[bucket][key];
+      plan[bucket].forEach(function (g) {
+        if (!g.items.length) return;
         var sub = subs[g.id];
         var stamp = now;
         try {
@@ -861,8 +940,9 @@ function sendHoldingNotice_(sub, items) {
   var notice = items[0].completed;
   var feeDate = fmtDate_(addDays_(notice, HOLDING_DAY + 1));
   var forfeitDate = fmtDate_(addDays_(notice, FORFEIT_DAY));
-  var daily = n * FEE_PER_CARD_PER_DAY;
-  var max = daily * (FORFEIT_DAY - HOLDING_DAY);
+  var amounts = holdingFeeAmounts_(n);
+  var daily = amounts.daily;
+  var max = amounts.max;
   var inner =
     p_('Hi ' + esc_(firstName_(sub.name)) + ',') +
     p_('It has been ' + HOLDING_DAY + ' days since I let you know ' + (n === 1 ? 'your card was' : 'your ' + n + ' cards were') +
@@ -1355,6 +1435,84 @@ function portalCardServices_(record) {
       });
       SpreadsheetApp.flush();
       return { success: true, onSheet: true, updated: updated, quote: recalcQuote_(id) };
+    } finally { lock.releaseLock(); }
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
+/** Portal card status → the Sheet stage. Same words as PortalEmails.gs PORTAL_STAGE. */
+function portalToSheetStage_(status) {
+  var map = {
+    submitted: 'Submission Received',
+    received: 'In Queue',
+    in_progress: 'In Progress',
+    restored: 'Stabilizing',
+    ready: READY_STAGE,
+    completed: FINAL_STAGE
+  };
+  return map[String(status || '').trim()] || '';
+}
+
+/** The portal saved card statuses. Write only the completed boundary onto the
+ *  Cards tab so the hourly holding-fee check sees a finished card as finished,
+ *  even when the order is still open. Does not email anyone.
+ *  {type:'portalCardStatus', token, orders:[{code, cards:[{num, status}]}]}
+ *  A card moving to completed is set to "Order Completed / Picked Up / Shipped".
+ *  A card leaving that stage is set back to its portal stage. A return to
+ *  Ready restarts that card's pickup clock (same as changing the dropdown) and
+ *  still does not send email — Send status email does that.
+ *  Orders that aren't on the Sheet are skipped. */
+function portalCardStatus_(record) {
+  try {
+    var token = String(record.token || '');
+    if (!token) return { success: false, error: 'Missing sign-in.' };
+    if (typeof sbIsAdmin_ !== 'function' || !sbIsAdmin_(token)) return { success: false, error: 'Not signed in to the portal as an admin. Sign out and back in, then try again.' };
+    var cardSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CARDS_TAB);
+    var last = cardSheet.getLastRow();
+    if (last < 2) return { success: true, onSheet: false, updated: 0 };
+    var rows = cardSheet.getRange(2, 1, last - 1, CC.FEE_START).getValues();
+    var lock = LockService.getScriptLock();
+    lock.waitLock(20000);
+    try {
+      var updated = 0, touched = {};
+      (record.orders || []).forEach(function (order) {
+        var code = String(order.code || '').trim();
+        if (!code) return;
+        (order.cards || []).forEach(function (c) {
+          var stage = portalToSheetStage_(c.status);
+          if (!stage) return;
+          for (var i = 0; i < rows.length; i++) {
+            var sheetId = String(rows[i][CC.ID - 1] || '');
+            if (!sheetId) continue;
+            if (sheetId !== code && normRef_(refFromId_(sheetId)) !== normRef_(code)) continue;
+            if (Number(rows[i][CC.NUM - 1]) !== Number(c.num)) continue;
+            var cur = canonicalStatus_(rows[i][CC.STATUS - 1]);
+            var rowNum = i + 2;
+            if (stage === FINAL_STAGE && cur !== FINAL_STAGE) {
+              cardSheet.getRange(rowNum, CC.STATUS).setValue(FINAL_STAGE);
+              rows[i][CC.STATUS - 1] = FINAL_STAGE;
+              updated++;
+              touched[sheetId] = true;
+            } else if (stage !== FINAL_STAGE && (cur === FINAL_STAGE || isCompletedCardStatus_(rows[i][CC.STATUS - 1]))) {
+              cardSheet.getRange(rowNum, CC.STATUS).setValue(stage);
+              rows[i][CC.STATUS - 1] = stage;
+              if (stage === READY_STAGE) {
+                var now = new Date();
+                cardSheet.getRange(rowNum, CC.COMPLETED).setValue(now);
+                cardSheet.getRange(rowNum, CC.R25, 1, 3).clearContent();
+              }
+              updated++;
+              touched[sheetId] = true;
+            }
+            break;
+          }
+        });
+      });
+      Object.keys(touched).forEach(function (id) {
+        try { updateOverallStatus_(id); } catch (err) { console.error('Overall status for ' + id + ' failed: ' + err); }
+      });
+      return { success: true, onSheet: true, updated: updated };
     } finally { lock.releaseLock(); }
   } catch (err) {
     return { success: false, error: String(err) };
