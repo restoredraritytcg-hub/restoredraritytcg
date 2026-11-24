@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /portal/check.html
+Disallow: /portal/
+Disallow: /admin
+
+Sitemap: https://restoredraritytcg.com/sitemap.xml

@@ -555,5 +555,22 @@ arrow keys (Alt = outer marker), save, or reset to auto.
     **Owner step:** run `supabase/RUN-NEXT-in-Supabase.sql` (it still includes the Nov 22 price tiers).
     Not on the live database until the owner says they ran it.
 
+29. **Built Nov 24, 2026 (draft PR, not merged): public-site copy, SEO, and page weight.**
+    `index.html` build **v11-24a**. Approved copy is on the public page only: title and description,
+    social title and description, canonical and `og:url` `https://restoredraritytcg.com/`, hero `<h1>`
+    "Restore. Repair. Revive." with the Conroe / mail-in subhead, centering calculator line, a
+    ScanStationIQ band directly after the calculator, Conroe location and support hours, and the footer
+    line plus one "Site by 10Point Studios" credit. `og-image.jpg` is 1200×630, made from the existing
+    mascot art and a gallery pair, and is referenced with an absolute URL. LocalBusiness JSON-LD has no
+    street address. `aggregateRating` is written when the review list the page already loads has entries
+    (same average and count as the reviews summary) and removed when that list is empty. `robots.txt`
+    disallows `/portal/` and `/admin` and points at `sitemap.xml` (the homepage). The twelve gallery
+    before/after photos are `images/gallery/*.webp` (`loading="lazy"`, width, height, `decoding="async"`)
+    instead of base64 in the HTML. The viewport meta no longer sets `maximum-scale=1`. At 600px and
+    under, the header links sit behind a menu button. Upcoming shows stays hidden when nothing is
+    scheduled; News and Show older posts stay hidden when there are no posts. Pricing values and the
+    portal and admin are unchanged. **Owner step:** review and merge the draft PR when this should go
+    live on GitHub Pages. No Supabase SQL and no Apps Script paste for this change.
+
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
