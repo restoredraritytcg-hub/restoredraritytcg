@@ -45,6 +45,9 @@ table.list td{padding:10px;border-bottom:1px solid var(--line);vertical-align:mi
 table.list tr.click{cursor:pointer} table.list tr.click:hover td{background:#18233a}
 table.list th.pick, table.list td.pick{width:36px;padding-right:0}
 table.list input.pick{width:18px;height:18px;accent-color:var(--gold);cursor:pointer}
+label.pickup-flag{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:13px;text-transform:none;letter-spacing:0;white-space:nowrap}
+label.pickup-flag input{width:18px;height:18px;margin:0;accent-color:var(--gold);cursor:pointer}
+label.pickup-flag input:disabled{cursor:default}
 @media(max-width:760px){table.list .hide-sm{display:none}}
 .pill{display:inline-block;font-size:12px;padding:2px 9px;border-radius:999px;border:1px solid var(--line);color:var(--cyan);white-space:nowrap}
 .pill.submitted{color:var(--muted)}

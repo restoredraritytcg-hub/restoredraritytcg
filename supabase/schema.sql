@@ -89,6 +89,10 @@ alter table public.cards add column if not exists grading text not null default 
 alter table public.cards add column if not exists grade_level  text not null default '';
 alter table public.cards add column if not exists grade_result text not null default '';   -- e.g. "PSA 10 GEM MT"
 alter table public.cards add column if not exists cert_no      text not null default '';   -- PSA certification number
+-- Picked up / shipped back. Only while status is completed; the trigger below clears it otherwise.
+-- Not used to decide holding-fee emails (those follow the card's status).
+alter table public.cards add column if not exists picked_up boolean not null default false;
+alter table public.cards add column if not exists picked_up_at timestamptz;
 
 -- PSA tracking + payments for a submission, edited in the admin portal (PSA panel). Customers see it on
 -- their private link. Shape: {"stage":"shipped","history":[{"stage","at"}],"order_no","ship_tracking",
@@ -179,6 +183,7 @@ begin
             'status', k.status, 'public_notes', k.public_notes, 'customer_notes', k.customer_notes,
             'service', k.service, 'grading', k.grading, 'grade_level', k.grade_level,
             'grade_result', k.grade_result, 'cert_no', k.cert_no,
+            'picked_up', k.picked_up, 'picked_up_at', k.picked_up_at,
             'scans', coalesce((
               select jsonb_agg(jsonb_build_object('stage', x.stage, 'side', x.side, 'dpi', x.dpi,
                                                   'files', x.files, 'scanned_at', x.scanned_at))
@@ -631,3 +636,57 @@ revoke all on function public.cards_order_completion_ins() from public, anon, au
 revoke all on function public.cards_order_completion_upd() from public, anon, authenticated;
 revoke all on function public.cards_order_completion_del() from public, anon, authenticated;
 revoke all on function public.submissions_forget_auto_complete() from public, anon, authenticated;
+
+-- --------------------------------------------------------------------- picked up
+-- Same as supabase/2026-11-24_holding_fee_per_card.sql (kept here so a fresh schema has it).
+-- A card that is not Completed cannot stay marked picked up.
+-- Cards that are already Completed are marked picked up once.
+
+comment on column public.cards.picked_up is
+  'True when a Completed card has been picked up or shipped back. Cleared when the card leaves Completed. Not used to decide holding-fee emails.';
+
+comment on column public.cards.picked_up_at is
+  'When picked_up was turned on. Null when the card is not marked picked up.';
+
+create or replace function public.cards_picked_up_guard()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.status is distinct from 'completed' then
+    new.picked_up := false;
+    new.picked_up_at := null;
+  elsif new.picked_up is true then
+    if new.picked_up_at is null then
+      new.picked_up_at := now();
+    end if;
+  else
+    new.picked_up := false;
+    new.picked_up_at := null;
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists cards_picked_up_guard on public.cards;
+create trigger cards_picked_up_guard
+  before insert or update on public.cards
+  for each row
+  execute function public.cards_picked_up_guard();
+
+revoke all on function public.cards_picked_up_guard() from public, anon, authenticated;
+
+-- Existing Completed cards count as already picked up, once.
+-- A later run does not check the box again: the owner may have unchecked it.
+-- The table comment is the marker. Replacing the trigger function does not clear it.
+do $$
+begin
+  if coalesce(obj_description('public.cards'::regclass), '') not ilike '%backfill applied%' then
+    update public.cards
+    set picked_up = true,
+        picked_up_at = coalesce(picked_up_at, now())
+    where status = 'completed'
+      and picked_up is distinct from true;
+    comment on table public.cards is 'Backfill applied 2026-11-24.';
+  end if;
+end $$;

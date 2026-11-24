@@ -132,3 +132,31 @@ function sbGet_(token, path) {
   if (res.getResponseCode() !== 200) throw new Error('Supabase answered ' + res.getResponseCode() + ': ' + res.getContentText());
   return JSON.parse(res.getContentText());
 }
+
+/** Cards the portal currently has as completed, keyed "code|card number".
+ *  The hourly holding-fee check calls this so a card marked Completed in the
+ *  portal is skipped even when its Sheet row still says Ready and the order
+ *  is still open. Uses the service_role key from Apps Script → Project Settings
+ *  → Script properties, name SUPABASE_SERVICE_ROLE. That key is not in the repo.
+ *  Returns null when the property isn't set or the lookup fails; the Sheet
+ *  card status is used on its own in that case. The picked-up flag is not read. */
+function portalCompletedIndex_() {
+  var key = '';
+  try { key = PropertiesService.getScriptProperties().getProperty('SUPABASE_SERVICE_ROLE') || ''; }
+  catch (e) { return null; }
+  if (!key) return null;
+  var res = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/cards?status=eq.completed&select=card_number,submissions!inner(code)&limit=1000', {
+    method: 'get',
+    headers: { apikey: key, Authorization: 'Bearer ' + key },
+    muteHttpExceptions: true
+  });
+  if (res.getResponseCode() !== 200) {
+    console.error('Portal completed-card lookup failed: ' + res.getResponseCode());
+    return null;
+  }
+  var rows;
+  try { rows = JSON.parse(res.getContentText()); } catch (e) { return null; }
+  if (!Array.isArray(rows)) return null;
+  if (rows.length >= 1000) console.error('Portal completed-card lookup hit 1000 rows; later completed cards may still be included.');
+  return (typeof portalCompletedMap_ === 'function') ? portalCompletedMap_(rows) : null;
+}
