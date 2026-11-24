@@ -364,6 +364,11 @@ async function save() {
       }
       done.push(`<a href="admin.html${DEMO ? "?demo" : ""}#/card/${card.id}" target="_blank">#${num}</a>`);
     }
+    // A new card, or a card leaving "submitted", can complete the order or put it back.
+    try {
+      const fresh = await api.get("submissions", s.id);
+      if (fresh) Object.assign(s, fresh);
+    } catch { /* the badge catches up on the next load */ }
     if (cfg.organize) await organize(cap, savedAs);
     log(`Saved ${s.code} card ${done.join(", ")} (${STAGE_LABEL[stage]}) to the portal.`, "ok");
     toast(`Saved card ${nums.map((n) => "#" + n).join(" + ")}.`);

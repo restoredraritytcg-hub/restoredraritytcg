@@ -29,6 +29,19 @@ const emailedStatus = (s) => s.emailed_status || "submitted";
 const needsEmail = (s) => s.status !== emailedStatus(s);
 const statusLabel = (k) => (STATUSES.find(([x]) => x === k) || [k, k])[1];
 const EMAIL_ENDPOINT = window.RR_CONFIG?.emailEndpoint || "";
+// Sentence added to a toast when the database just completed the order, or put it back.
+function orderChangeNote(before, after) {
+  if (before !== "completed" && after === "completed") return " This order is now completed.";
+  if (before === "completed" && after !== "completed") return ` This order is back to ${statusLabel(after)}.`;
+  return "";
+}
+// The card trigger may have changed the order. Copy that row so the badge redraws.
+async function pullSubmission(id) {
+  const fresh = await api.get("submissions", id);
+  const s = byId("submissions", id);
+  if (fresh && s) Object.assign(s, fresh);
+  return s;
+}
 
 async function markEmailed(s) {
   Object.assign(s, await api.update("submissions", s.id, { emailed_status: s.status, emailed_at: new Date().toISOString() }));
@@ -472,6 +485,53 @@ function customer(id) {
   };
 }
 
+// Checkboxes on an order's cards. One Apply updates every selected card together.
+function wireCardPicks(sub) {
+  const boxes = () => $$(".kpick");
+  const refresh = () => {
+    const all = boxes(), n = all.filter((b) => b.checked).length;
+    const count = $("#kcount"), apply = $("#kapply"), head = $("#kall");
+    if (count) count.textContent = n ? `${n} selected` : "None selected";
+    if (apply) apply.disabled = n === 0;
+    if (head) { head.checked = all.length > 0 && n === all.length; head.indeterminate = n > 0 && n < all.length; }
+  };
+  $("#kall") && ($("#kall").onclick = (e) => {
+    e.stopPropagation();
+    const on = $("#kall").checked;
+    boxes().forEach((b) => { b.checked = on; });
+    refresh();
+  });
+  $$("td.pick").forEach((td) => {
+    td.onclick = (e) => {
+      e.stopPropagation();
+      const box = $(".kpick", td);
+      if (box && e.target !== box) box.checked = !box.checked;
+      refresh();
+    };
+  });
+  boxes().forEach((b) => { b.onclick = (e) => { e.stopPropagation(); refresh(); }; });
+  $("#kapply") && ($("#kapply").onclick = async () => {
+    const ids = boxes().filter((b) => b.checked).map((b) => b.value);
+    if (!ids.length) return;
+    const status = $("#kbulk").value, before = sub.status;
+    $("#kapply").disabled = true;
+    try {
+      const rows = await api.updateMany("cards", ids, { status });
+      for (const row of rows) {
+        const k = byId("cards", row.id);
+        if (k) Object.assign(k, row);
+      }
+      await pullSubmission(sub.id);
+      toast(`Updated ${rows.length} card${rows.length === 1 ? "" : "s"}.${orderChangeNote(before, sub.status)}`);
+      route();
+    } catch (e) {
+      toast(e.message, 5000);
+      if ($("#kapply")) $("#kapply").disabled = false;
+    }
+  });
+  refresh();
+}
+
 // --------------------------------------------------------------- submission
 function submission(id) {
   const s = byId("submissions", id);
@@ -484,7 +544,9 @@ function submission(id) {
     ${progressSteps(s.status)}${emailBar(s)}${quotePanel()}${psaPanel(cards)}
     <div class="panel" style="margin-top:14px"><div class="grid2">
       <div><label class="f">Status</label>${statusSelect("ss", s.status)}
-        <label class="small" style="display:block;margin-top:6px"><input type="checkbox" id="sall" checked> Also set every card to this status</label></div>
+        <label class="small" style="display:block;margin-top:6px"><input type="checkbox" id="sall" checked> Also set every card to this status</label>
+        <p class="muted small" style="margin:6px 0 0">Once every card is Completed, this order is marked Completed on its own.${s.auto_completed_from
+          ? ` Changing a card off Completed puts it back to ${esc(statusLabel(s.auto_completed_from))}.` : ""}</p></div>
       <div><label class="f">Service</label><input type="text" id="sv" value="${esc(s.service)}"></div>
       <div><label class="f">Note to customer (they see this)</label><textarea id="sp">${esc(s.public_notes)}</textarea></div>
       <div><label class="f">Private notes (only you)</label><textarea id="si">${esc(s.internal_notes)}</textarea></div>
@@ -496,11 +558,20 @@ function submission(id) {
       <a class="btn" target="rr-scan" href="${esc(scanUrl(id))}" title="Open the scan station at the first card without a scan">📷 Scan cards</a></div>
     ${gradingSummary(cards) ? `<p class="small" style="margin:0 0 8px">Grading submission: <b>${esc(gradingSummary(cards))}</b></p>` : ""}
     ${(n => n ? `<p class="small setneed-note">${n === 1 ? "1 card still needs" : `${n} cards still need`} a set — open the card and fill in Set / number / year.</p>` : "")(cards.filter((k) => !String(k.details || "").trim()).length)}
-    <div class="panel" style="padding:0;overflow:auto"><table class="list"><thead><tr><th></th><th>#</th><th>Card</th>
+    ${cards.length ? `<div class="row" style="margin:0 0 8px">
+      <span class="muted small" id="kcount">None selected</span>
+      <span class="grow"></span>
+      <label class="small" for="kbulk">Set selected to</label>
+      ${statusSelect("kbulk", "completed", 'style="width:auto;max-width:260px"')}
+      <button class="btn sm gold" type="button" id="kapply" disabled>Apply</button></div>` : ""}
+    <div class="panel" style="padding:0;overflow:auto"><table class="list"><thead><tr>
+      ${cards.length ? `<th class="pick"><input type="checkbox" id="kall" aria-label="Select all cards"></th>` : ""}
+      <th></th><th>#</th><th>Card</th>
       <th class="hide-sm">Set / number</th><th>Status</th><th>Grading</th><th class="hide-sm">Scans</th><th></th></tr></thead><tbody>
     ${cards.map((k) => { const t = thumbOf(cardScans(k.id)); const st = [...new Set(cardScans(k.id).map((x) => x.stage))];
       const ns = nextStage(k.id);
-      return `<tr class="click" data-go="#/card/${k.id}"><td style="width:54px">${t ? `<img src="${esc(mediaUrl(t))}" style="height:52px;border-radius:4px">` : ""}</td>
+      return `<tr class="click" data-go="#/card/${k.id}"><td class="pick"><input type="checkbox" class="kpick pick" value="${esc(k.id)}" aria-label="Select card ${k.card_number}"></td>
+      <td style="width:54px">${t ? `<img src="${esc(mediaUrl(t))}" style="height:52px;border-radius:4px">` : ""}</td>
       <td>${k.card_number}</td><td><b>${esc(k.name || "—")}</b>${k.details ? "" : ` <span class="setneed">Set needed</span>`}</td><td class="hide-sm">${esc(k.details)}</td>
       <td>${pill(k.status)}</td><td>${gradeTag(k.grading) || `<span class="muted small">—</span>`}</td><td class="hide-sm muted small">${esc(st.join(", ") || "none")}</td>
       <td><a class="btn sm" target="rr-scan" href="${esc(scanUrl(id, k.card_number, ns))}"
@@ -516,7 +587,11 @@ function submission(id) {
       <button class="btn gold" id="kadd">Add card #${(cards.at(-1)?.card_number || 0) + 1}</button></div>
       <p class="muted small" style="margin:8px 0 0">📷 Scan opens the scan station set to that card. In the Windows app, use submission <b>${esc(s.code)}</b> and the card number.</p></div>
     <h2>Photos</h2>${photosAdmin(S.photos.filter((p) => p.submission_id === id), { cards })}`;
-  $$("[data-go]").forEach((r) => r.onclick = (e) => { if (!e.target.closest("a")) go(r.dataset.go); });
+  $$("[data-go]").forEach((r) => r.onclick = (e) => {
+    if (e.target.closest("a, td.pick, input, button, select, label")) return;
+    go(r.dataset.go);
+  });
+  wireCardPicks(s);
   window.RRCardSearch?.attach($("#kn"), { details: $("#kd") });
   $("#svopen").onclick = async () => {
     const body = $("#svbody");
@@ -549,14 +624,23 @@ function submission(id) {
       const status = $("#ss").value;
       Object.assign(s, await api.update("submissions", id, { status, service: $("#sv").value,
         public_notes: $("#sp").value, internal_notes: $("#si").value }));
-      if ($("#sall").checked) for (const k of cards) if (k.status !== status) Object.assign(k, await api.update("cards", k.id, { status }));
+      if ($("#sall").checked) {
+        const ids = cards.filter((k) => k.status !== status).map((k) => k.id);
+        for (const row of await api.updateMany("cards", ids, { status })) {
+          const k = byId("cards", row.id);
+          if (k) Object.assign(k, row);
+        }
+      }
+      await pullSubmission(id);
+      // This save sets the order status on purpose, so the toast does not describe it as automatic.
       toast("Saved."); route();
     } catch (e) { toast(e.message, 5000); }
   };
   $("#kadd").onclick = async () => {
     const row = { submission_id: id, card_number: (cards.at(-1)?.card_number || 0) + 1,
       name: $("#kn").value.trim(), details: $("#kd").value.trim(), status: s.status === "submitted" ? "received" : s.status };
-    try { S.cards.push(await api.insert("cards", row)); route(); } catch (e) { toast(e.message, 5000); }
+    try { S.cards.push(await api.insert("cards", row)); await pullSubmission(id); route(); }
+    catch (e) { toast(e.message, 5000); }
   };
   $("#sdel").onclick = async () => {
     if (!confirm(`Delete ${s.code} with its ${cards.length} cards and their scans?`)) return;
@@ -583,7 +667,7 @@ function card(id) {
   const s = byId("submissions", k.submission_id), c = customerOf(s);
   app.innerHTML = `<p><a href="#/submission/${s.id}">← ${esc(s.code)}</a> · <a href="#/customer/${c.id}">${esc(c.name)}</a></p>
     <div class="row"><h1 class="grow">${esc(cardTitle(k))}</h1>${pill(k.status)}</div>
-    <div class="meta"><span>Submission <b>${esc(s.code)}</b></span><span>Card <b>#${k.card_number}</b></span>
+    <div class="meta"><span>Submission <b>${esc(s.code)}</b> · order ${pill(s.status)}</span><span>Card <b>#${k.card_number}</b></span>
       ${k.details ? `<span><b>${esc(k.details)}</b></span>` : `<span class="setneed">Set needed</span>`}</div>
     <div class="panel" style="margin-top:14px"><div class="grid2">
       <div><label class="f">Card name</label><input type="text" id="kn" value="${esc(k.name)}"></div>
@@ -659,10 +743,13 @@ function card(id) {
       const got = SV ? readServiceFields($(".svrow", app), SV.M, SV.P, "this card") : null;
       if (got && got.error) return toast(got.error, 6000);
       if (!$("#kd").value.trim() && window.RRCardSearch?.info) $("#kd").value = RRCardSearch.detailsOf(await RRCardSearch.info($("#kn")));
+      const before = s.status;
       Object.assign(k, await api.update("cards", id, { name: $("#kn").value.trim(), details: $("#kd").value.trim(),
         status: $("#ks").value, public_notes: $("#kp").value, internal_notes: $("#ki").value }));
+      await pullSubmission(s.id);
       const changed = got && (got.service !== cardServiceText(k) || got.grading !== (k.grading || "") || got.value !== valueOf(k) || (got.grade_level || "") !== levelOf(k));
-      toast(changed ? await saveServices(s, [{ k, ...got }]) : "Saved.", 6000); route();
+      const note = orderChangeNote(before, s.status);
+      toast((changed ? await saveServices(s, [{ k, ...got }]) : "Saved.") + note, 6000); route();
     } catch (e) { toast(e.message, 5000); }
   };
   $("#kdel").onclick = async () => {
