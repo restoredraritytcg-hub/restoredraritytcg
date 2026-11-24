@@ -1,4 +1,5 @@
 User-agent: *
+Allow: /portal/check.html
 Disallow: /portal/
 Disallow: /admin
 
