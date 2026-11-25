@@ -12,6 +12,7 @@ grading prep). This adds a card-intake and customer portal to the existing site
 | `portal/admin.html` + `admin.js` | Owner's admin portal (Supabase email/password login): submissions, all cards, customer profiles, card detail, photos, notes, statuses, customer links. Hash router (`#/`, `#/cards`, `#/customers`, `#/customer/<id>`, `#/submission/<id>`, `#/card/<id>`, `#/new[/<customerId>]`). |
 | `portal/site.js` | Admin **Website** section (`#/site/<tab>`: reviews on/off, prices, announcement bar, news, events, Instagram) + the **Quote** panel on each submission. Content saved in Supabase `site_content`; reviews + quotes go through the Apps Script with the admin token. |
 | `portal/psa.js` | **PSA submissions**: admin PSA panel on each submission (step, PSA order #, tracking #s, grades + cert #s, 4-step payments (up front · 50% at shipping · 50% 14 days later · final invoice), per-order agreed date, email) and the PSA tracker on the customer link (`psaCustomerHtml`). |
+| `portal/grading.js` | **Grading stages (PSA, CGC, BGS, TAG)**, Nov 25, 2026: the admin **Grading** panel on each submission (per card or in bulk: company → that company's stages between Restored Rarity's own before/after stages, plus On hold; an Email box per change with the design's defaults; grade + cert #; one lot per order + company with order #, tracking #s, notes, estimated total grading fee, First 50% / Second 50% paid boxes) and the grading tracker on the customer link (`gradingCustomerHtml`). Replaces the PSA-only panel on the submission page; `psa.js` is kept for older `grading_track` records on the customer link. |
 | `portal/view.html` + `view.js` | Customer view opened by a private link `view.html#t=<share_token>` (no login). Shows everything on that customer's profile; customer can upload/delete their own photos. |
 | `portal/scan.html` + `scan.js` | **Scan station** (Mac or Windows, Chrome/Edge): watches a scan folder via the File System Access API, processes each new scan in the browser and saves it to the portal. Front → back → auto-save → next card. Moves originals into `<folder>/<code>/<code>_C001_<stage>_<side>.<ext>`. Folder handle remembered in IndexedDB. |
 | `portal/scanproc.js` | Browser image processing: card detection, straighten/crop, corner/edge regions, centering measurement, dpi from PNG pHYs / JPEG JFIF/EXIF. Port of `desktop-scanner/cardcrop.py` + `detail.py`. |
@@ -112,6 +113,11 @@ arrow keys (Alt = outer marker), save, or reset to auto.
 - PSA: the step list (`cleared, shipped, arrived, grading, assembly, graded, returning, back`) lives in `index.html` `PSA_STEPS`,
   `portal/psa.js` `PSA_STEPS` and `apps-script/Code.gs` `PSA_STEPS_`; built-in PSA levels + `psaPay` ({atShip 50, laterDays 14, dueHours 72}) in `index.html`
   `PRICE_RULES`, `portal/site.js` `DEFAULT_PRICES` and `Code.gs` `QUOTE_PRICING`. Service text for PSA ends `— grading: PSA (Value)`.
+- Grading stages: company stage lists, Restored Rarity bookends and the grader → customer stage map live in `portal/grading.js`
+  (`GRADER_STAGES`, `RR_BEFORE`/`RR_AFTER`/`RR_SIDE`, `MAP`) and `public.map_grading_stage` in `supabase/2026-11-25_grading_stages.sql`
+  (+ `schema.sql`); the customer stage list is also in `index.html` `GRADING_NORMAL` and `Code.gs` `GRADING_NORMAL_`.
+  `node tests/grading_stages.js` fails if the JS and SQL maps differ. Grading stages are **not** work statuses: never fold them
+  into `cards.status`. CGC labels are [to confirm] (marked only in the admin dropdown).
 - `portal/centering.js` ⇄ `desktop-scanner/assets/centering.js` (identical copies).
 - `portal/scanproc.js` ⇄ `desktop-scanner/cardcrop.py` + `detail.py` (same constants: crop pad 0.06 in, corner 0.40 in,
   edge 0.22 in, outside 0.06 in, centering search 0.75 in, default inner 0.125 in, thresholds).
@@ -124,6 +130,9 @@ arrow keys (Alt = outer marker), save, or reset to auto.
 - Browser parity: `python tests/make_parity_images.py tests/parity` then serve the repo root
   (`python -m http.server`) and run `runCase()` in `tests/parity.html`. JS and Python agree within 0.05 mm per border.
   Don't commit `tests/parity/` (large generated images).
+- Grading stages: `node tests/grading_stages.js` (JS/SQL map, 50/50 rounding, email defaults, customer block, the
+  second-50% reminder decision). SQL on a scratch local Postgres: `tests/grading_stages_stubs.sql` → `supabase/schema.sql` (or main's
+  schema + `supabase/2026-11-25_grading_stages.sql`) → `tests/grading_stages.sql`.
 - Portal preview without Supabase: serve `portal/` and open `admin.html?demo`, `view.html?demo#t=demo-token`, `scan.html?demo`.
 
 ## Status / next steps
@@ -591,6 +600,28 @@ arrow keys (Alt = outer marker), save, or reset to auto.
     order-completion trigger) before relying on the checkbox, then paste `apps-script/Code.gs` and
     `apps-script/PortalEmails.gs`, deploy a new version, and open the portal once so the Sheet learns
     which cards are Completed. Not on the live database until the owner says they ran the SQL.
+
+31. **Built Nov 25, 2026 (draft PR, not merged): grading-company stages for PSA, CGC, BGS and TAG.**
+    Owner's request (via Jarvis, design `/workspace/rr-grading-status/design.md` approved): pick the company per card or in bulk,
+    then set each change from that company's own stage list, with Restored Rarity's stages before and after the grader.
+    Owner's decisions: one lot per order + company (each grader package holds one customer's order); the second 50% gets an
+    automatic **reminder only** 14 days after "Shipped to grader" (no charge); an "On hold / problem at grader" stage; "Received
+    at Restored Rarity" does **not** change the work status (the owner sets Ready himself, which starts the holding-fee clock);
+    no PSA backfill from the Sheet. Added the same day: each lot has an admin-entered **Estimated total grading fee** and
+    **First 50% paid** / **Second 50% paid** boxes showing 50% of the estimate (rounded to cents; the second half is the rest),
+    storing the time when ticked and clearing it when unticked; the customer link and Track Your Submission show the paid
+    status (and amounts when the estimate is set); the reminder is skipped once Second 50% is ticked.
+    Built: `portal/grading.js` (admin Grading panel replaces the PSA-only panel; company changes go through the service editor so
+    the service text + Sheet quote follow), `view.js` (customer block; falls back to the old PSA block), `site.js`
+    (`portalGrading`), `index.html` (generic grading block in Track Your Submission, build **v11-25a**), `Code.gs`
+    (`portalGrading_` → "Grading Lots" tab, `sendGradingEmail_` (PSA email wording with the company name), daily
+    `runGradingReminders` + `setupGradingReminders`, `gradingTrackFor_`), `PortalEmails.gs` (optional service-key re-check of
+    Second 50% paid and recording the reminder). SQL: `supabase/2026-11-25_grading_stages.sql` (also in `schema.sql` and
+    `RUN-NEXT-in-Supabase.sql`). CGC stage names are [to confirm]. New customer-facing wording to confirm: the reminder email,
+    the on-hold line, and the generic "<Company> update for your cards: <stage>" line for Order prep / Research.
+    **Owner steps (after OK):** run `supabase/RUN-NEXT-in-Supabase.sql` → paste `apps-script/Code.gs` + `PortalEmails.gs`, deploy a
+    new version → run `setupGradingReminders` once (daily 9 AM Central trigger + "Grading Lots" tab) → merge. Optional: Script
+    property `SUPABASE_SERVICE_ROLE` lets the reminder re-check the portal right before sending.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
