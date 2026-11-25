@@ -1267,7 +1267,7 @@
       <a href="/centering-calculator/">Centering calculator</a>
     </nav>
     <p class="footer-legal">Restored Rarity TCG is an independent card prep and submission service. We are not affiliated with, endorsed by, or sponsored by PSA, CGC, BGS (Beckett), or TAG. Grading company names are trademarks of their owners and are used only to identify the services we submit to. Every grade is assigned solely by the grading company, and we can't guarantee any grade.</p>
-    <div class="fyear">© <span id="year"></span> <span style="opacity:.55;">· build v11-24b</span></div>
+    <div class="fyear">© <span id="year"></span> <span style="opacity:.55;">· build v11-25a</span></div>
     <div class="fsite">Site by <a href="https://10pointstudios.com/?utm_source=restoredrarity&amp;utm_medium=referral&amp;utm_campaign=footer_credit" target="_blank" rel="noopener">10Point Studios</a></div>
   </footer>
 </div>
@@ -2831,6 +2831,41 @@ form.addEventListener('submit', async (e) => {
     return box;
   }
 
+  /* Grading at PSA, CGC, BGS or TAG (portal Grading panel → Apps Script "Grading Lots" tab). One block per company. */
+  const GRADING_NORMAL = ['Preparing for submission', 'Shipped to grader', 'Received by grader', 'Order prep', 'Research / ID',
+    'Grading', 'Grades are in', 'QA / Assembly', 'Shipped back to Restored Rarity', 'Back at Restored Rarity'];
+  const GRADING_KEYS = ['preparing', 'shipped_to_grader', 'received_by_grader', 'order_prep', 'research_id', 'grading',
+    'grades_in', 'qa_assembly', 'shipped_back', 'received_at_rr'];
+  function gradingBlock(g){
+    const G = g.grader, box = el('div', 'trk-psa');
+    box.appendChild(el('div', 'lbl', G + ' SUBMISSION'));
+    const idx = GRADING_KEYS.indexOf(g.normal);
+    const official = g.stage && !/^rr_/.test(g.stage) && g.stageLabel && g.stageLabel !== g.normalLabel ? ` — ${G}: ${g.stageLabel}` : '';
+    box.appendChild(el('div', 'psa-now', (g.normalLabel || '') + official));
+    const when = {}; (g.history || []).forEach(h => { const i = GRADING_KEYS.indexOf(h.normal); if(i >= 0 && !when[GRADING_NORMAL[i]]) when[GRADING_NORMAL[i]] = h.at; });
+    if(idx >= 0) box.appendChild(stepper(GRADING_NORMAL, idx, when));
+    const meta = (k, v) => { if(!v) return; const m = el('div', 'psa-meta'); m.append(k + ': '); m.appendChild(el('b', null, v)); box.appendChild(m); };
+    meta(G + ' order #', g.orderNo); meta('Tracking to ' + G, g.shipTracking); meta('Return tracking', g.returnTracking);
+    if(g.notes) box.appendChild(el('div', 'psa-meta', g.notes));
+    const graded = (g.cards || []).filter(c => c.level || c.grade);
+    if(graded.length){
+      const ul = el('ul');
+      graded.forEach(c => { const li = el('li'); li.append(`${c.card || 'Card ' + c.num}${c.level ? ' · ' + c.level : ''}`);
+        if(c.grade){ li.append(' — '); li.appendChild(el('b', null, c.grade)); }
+        if(c.cert) li.append(` (cert #${c.cert})`); ul.appendChild(li); });
+      box.appendChild(ul);
+    }
+    const pay = g.pay || {}, ul = el('ul');
+    const line = (label, amt, paid, due) => { const li = el('li'); li.append(label + (amt != null ? ': ' : ''));
+      if(amt != null) li.appendChild(el('b', null, money2(amt))); li.append(paid ? ' — paid ✓' : due ? ' — ' + due : ''); ul.appendChild(li); };
+    if(pay.estFee != null) line(`Estimated ${G} fee`, pay.estFee, false, '');
+    line(`${G}'s fee, first 50% (when shipped to ${G})`, pay.first, pay.firstPaid, idx >= 0 ? 'due' : '');
+    line(`${G}'s fee, the other 50%`, pay.second, pay.secondPaid, pay.dueOn ? 'due ' + fmt(pay.dueOn + 'T12:00:00') : 'due 14 days after shipping');
+    if(pay.final) line('Final invoice (return shipping + upcharges)', pay.final, pay.finalPaid, 'due when grades are in');
+    box.appendChild(ul);
+    return box;
+  }
+
   function render(d){
     tOut.innerHTML = '';
     const stages = Array.isArray(d.stages) ? d.stages : [];
@@ -2845,6 +2880,7 @@ form.addEventListener('submit', async (e) => {
     head.append(left, right); tOut.appendChild(head);
 
     if(d.psa && d.psa.step) tOut.appendChild(psaBlock(d.psa, d.cards || []));
+    (Array.isArray(d.grading) ? d.grading : []).forEach(g => { if(g && g.normal) tOut.appendChild(gradingBlock(g)); });
     const cards = (d.cards || []).filter(c => c && c.status);
     if(cards.length){
       if(cards.length > 1) tOut.appendChild(el('div','trk-sub', `YOUR CARDS (${cards.length}) — TAP A CARD FOR DETAILS`));

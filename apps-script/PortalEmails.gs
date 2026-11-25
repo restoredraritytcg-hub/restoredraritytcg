@@ -160,3 +160,36 @@ function portalCompletedIndex_() {
   if (rows.length >= 1000) console.error('Portal completed-card lookup hit 1000 rows; later completed cards may still be included.');
   return (typeof portalCompletedMap_ === 'function') ? portalCompletedMap_(rows) : null;
 }
+
+/** Service-role key from Script properties (SUPABASE_SERVICE_ROLE), or '' when not set. Never stored in the repo. */
+function sbServiceKey_() {
+  try { return PropertiesService.getScriptProperties().getProperty('SUPABASE_SERVICE_ROLE') || ''; }
+  catch (e) { return ''; }
+}
+
+/** The portal's copy of one grading lot (paid dates, due date, reminder stamp), for the daily
+ *  second-50% reminder. Returns null when the service key isn't set or the lookup fails; the
+ *  reminder then uses the "Grading Lots" tab, which the portal updates on every save. */
+function portalGradingLot_(lotId) {
+  var key = sbServiceKey_();
+  if (!key || !lotId) return null;
+  var res = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/grading_lots?id=eq.' + encodeURIComponent(lotId) +
+    '&select=second_half_paid_at,balance_due_on,balance_reminder_sent_at', {
+    method: 'get', headers: { apikey: key, Authorization: 'Bearer ' + key }, muteHttpExceptions: true
+  });
+  if (res.getResponseCode() !== 200) { console.error('Grading lot lookup failed: ' + res.getResponseCode()); return null; }
+  try { var rows = JSON.parse(res.getContentText()); return Array.isArray(rows) && rows[0] ? rows[0] : null; }
+  catch (e) { return null; }
+}
+
+/** Records in the portal that the second-50% reminder went out (shown in the Grading panel).
+ *  Does nothing without the service key. Never changes any paid date. */
+function portalGradingReminderSent_(lotId, iso) {
+  var key = sbServiceKey_();
+  if (!key || !lotId) return;
+  var res = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/grading_lots?id=eq.' + encodeURIComponent(lotId), {
+    method: 'patch', contentType: 'application/json', payload: JSON.stringify({ balance_reminder_sent_at: iso }),
+    headers: { apikey: key, Authorization: 'Bearer ' + key, Prefer: 'return=minimal' }, muteHttpExceptions: true
+  });
+  if (res.getResponseCode() >= 300) console.error('Could not record the grading reminder in the portal: ' + res.getResponseCode());
+}
