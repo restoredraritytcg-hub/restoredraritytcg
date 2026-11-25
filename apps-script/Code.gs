@@ -534,7 +534,7 @@ function sendConfirmationEmail_(record, ref) {
     }).join('') + '</ol>' +
     trackButton_(ref) +
     '<p style="margin:18px 0 0;color:' + BRAND.muted + ';font-size:13px;">Final pricing is confirmed after evaluation. Questions? Just reply to this email.<br>' +
-    'You accepted the ' + BUSINESS_NAME + ' Terms & Conditions (effective ' + esc_(TERMS_EFFECTIVE) + ') with this submission. ' +
+    'You accepted the ' + BUSINESS_NAME + ' Terms &amp; Conditions (effective ' + esc_(TERMS_EFFECTIVE) + ') with this submission. ' +
     'Read them anytime at ' + link_(SITE_URL, SITE_URL.replace(/^https?:\/\//, '')) + '.</p>';
 
   sendHtml_(record.email, 'Submission received — ' + BUSINESS_NAME + ' (' + ref + ')', inner,
@@ -1838,7 +1838,7 @@ function ownerEmail_() {
   try { return Session.getEffectiveUser().getEmail(); } catch (e) { return ''; }
 }
 function esc_(s) {
-  return String(s == null ? '' : s).replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>').replace(/"/g, '"');
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 function asDate_(v) {
   if (v instanceof Date && !isNaN(v)) return v;
