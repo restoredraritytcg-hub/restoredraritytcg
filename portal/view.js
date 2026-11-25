@@ -2,6 +2,7 @@
 import { api, DEMO, esc, $, $$, pill, progressSteps, renderReport, wireReport, thumbOf, mediaUrl,
   fmtDate, installLightbox, installHint, toast, pickedUpBox, pickedUpNote } from "./common.js";
 import { psaCustomerHtml } from "./psa.js";
+import { gradingCustomerHtml, stageLabel, normalLabel } from "./grading.js";
 
 const CFG = window.RR_CONFIG || {};
 const app = $("#app");
@@ -123,7 +124,7 @@ function home() {
         <div>${pill(s.status)}</div></div>
       ${progressSteps(s.status)}
       ${s.public_notes ? `<p style="margin:12px 0 0">${esc(s.public_notes)}</p>` : ""}
-      ${psaCustomerHtml(s)}
+      ${gradingCustomerHtml(s) || psaCustomerHtml(s)}
       <div class="tiles" style="margin-top:14px">${s.cards.map(tile).join("") || '<p class="muted">No cards listed.</p>'}</div>
     </section>`;
   }
@@ -142,6 +143,8 @@ function cardPage(c) {
     <div class="meta">${c.details ? `<span><b>${esc(c.details)}</b></span>` : ""}
       <span>Submission <b>${esc(c.sub.code)}</b></span><span>Card <b>#${c.card_number}</b></span></div></div>
       <div>${pill(c.status)}${pickedUpBox(c)}</div></div>
+    ${c.grader_stage && c.grading ? `<p class="small" style="margin:8px 0 0">${esc(c.grading)} grading: <b>${esc(normalLabel(c.grading_stage))}</b>${
+      stageLabel(c.grader_stage) && !/^rr_/.test(c.grader_stage) ? ` <span class="muted">(${esc(c.grading)}: ${esc(stageLabel(c.grader_stage))})</span>` : ""}</p>` : ""}
     ${c.public_notes ? `<div class="panel" style="margin-top:12px;border-left:3px solid var(--gold)">${esc(c.public_notes)}</div>` : ""}
     <h2>Scans</h2>${renderReport(c.scans)}
     <h2>Photos</h2>${photosBlock(photos, c.id)}${footer()}`;

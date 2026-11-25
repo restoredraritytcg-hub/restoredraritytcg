@@ -3,8 +3,9 @@ import { api, DEMO, esc, $, $$, pill, STATUSES, renderReport, wireReport, thumbO
   fmtDateTime, installLightbox, installHint, toast, customerLink, progressSteps, STAGE_LABEL,
   pickedUpBox, pickedUpNote } from "./common.js";
 import * as U from "./scanupload.js";
-import { sitePage, quotePanel, wireQuote, currentPrices, saveServicesToSheet, savePsaToSheet } from "./site.js";
-import { psaPanel, wirePsa, levelFromService } from "./psa.js";
+import { sitePage, quotePanel, wireQuote, currentPrices, saveServicesToSheet, saveGradingToSheet } from "./site.js";
+import { levelFromService } from "./psa.js";
+import { gradingPanel, wireGrading, stageLabel, isGrader } from "./grading.js";
 
 const app = $("#app");
 let S = null; // { customers, submissions, cards, scans, photos }
@@ -607,7 +608,7 @@ function submission(id) {
     <div class="row"><h1 class="grow">${esc(s.code)}</h1>${pill(s.status)}</div>
     <div class="meta"><span>Customer <b><a href="#/customer/${c.id}">${esc(c.name)}</a></b></span>
       <span>Received <b>${esc(fmtDate(s.created_at))}</b></span><span><b>${cards.length}</b> cards</span></div>
-    ${progressSteps(s.status)}${emailBar(s)}${quotePanel()}${psaPanel(cards)}
+    ${progressSteps(s.status)}${emailBar(s)}${quotePanel()}${gradingPanel(cards)}
     <div class="panel" style="margin-top:14px"><div class="grid2">
       <div><label class="f">Status</label>${statusSelect("ss", s.status)}
         <label class="small" style="display:block;margin-top:6px"><input type="checkbox" id="sall" checked> Also set every card to this status</label>
@@ -639,7 +640,7 @@ function submission(id) {
       return `<tr class="click" data-go="#/card/${k.id}"><td class="pick"><input type="checkbox" class="kpick pick" value="${esc(k.id)}" aria-label="Select card ${k.card_number}"></td>
       <td style="width:54px">${t ? `<img src="${esc(mediaUrl(t))}" style="height:52px;border-radius:4px">` : ""}</td>
       <td>${k.card_number}</td><td><b>${esc(k.name || "—")}</b>${k.details ? "" : ` <span class="setneed">Set needed</span>`}</td><td class="hide-sm">${esc(k.details)}</td>
-      <td>${pill(k.status)}${pickedUpBox(k, { editable: true })}</td><td>${gradeTag(k.grading) || `<span class="muted small">—</span>`}</td><td class="hide-sm muted small">${esc(st.join(", ") || "none")}</td>
+      <td>${pill(k.status)}${pickedUpBox(k, { editable: true })}</td><td>${gradeTag(k.grading) || `<span class="muted small">—</span>`}${k.grader_stage ? `<div class="muted small">${esc(stageLabel(k.grader_stage))}</div>` : ""}</td><td class="hide-sm muted small">${esc(st.join(", ") || "none")}</td>
       <td><a class="btn sm" target="rr-scan" href="${esc(scanUrl(id, k.card_number, ns))}"
         title="Scan this card (${esc(STAGE_LABEL[ns])})">📷 Scan</a></td></tr>`; }).join("")
       || `<tr><td colspan="8" class="muted">No cards.</td></tr>`}</tbody></table></div>
@@ -684,7 +685,19 @@ function submission(id) {
   };
   wireEmailBar(s);
   wireQuote(s, cards);
-  wirePsa(s, cards, { prices: currentPrices, saveToSheet: savePsaToSheet });
+  // Grading panel (replaces the PSA-only panel). A company change goes through saveServices so the service text and
+  // the Sheet quote stay in step; stages never touch the work status.
+  wireGrading(s, cards, {
+    saveToSheet: saveGradingToSheet,
+    setCompany: async (changes) => {
+      const P = await currentPrices();
+      return saveServices(s, changes.map(({ k, grading }) => {
+        const level = grading === "PSA" ? levelOf(k) : "";
+        return { k, grading, grade_level: level, value: valueOf(k), service: withGrading(cardServiceText(k), grading, P, level) };
+      }));
+    },
+    done: () => route(),
+  });
   wirePhotosAdmin({ customer: c, cards, submissionId: id });
   $("#ssave").onclick = async () => {
     try {
@@ -741,7 +754,11 @@ function card(id) {
       <div><label class="f">Card name</label><input type="text" id="kn" value="${esc(k.name)}"></div>
       <div><label class="f">Set / number / year</label><input type="text" id="kd" value="${esc(k.details)}" placeholder="e.g. Base Set · 4/102 · 1999"></div>
       <div><label class="f">Status</label>${statusSelect("ks", k.status)}
-        ${pickedUpBox(k, { editable: true })}</div><div></div>
+        ${pickedUpBox(k, { editable: true })}</div>
+      <div>${k.grading ? `<label class="f">Grading</label><div class="small">${gradeTag(k.grading)}${k.grader_stage
+        ? ` ${esc(stageLabel(k.grader_stage))}${k.grading_stage_at ? ` <span class="muted">since ${esc(fmtDate(k.grading_stage_at))}</span>` : ""}`
+        : isGrader(k.grading) ? ` <span class="muted">no stage yet</span>` : ""}</div>
+        <p class="muted small" style="margin:4px 0 0">Change the stage in the Grading panel on <a href="#/submission/${s.id}">${esc(s.code)}</a> (one card or many).</p>` : ""}</div>
       <div style="grid-column:1/-1" id="ksvc"><span class="muted small">Loading services…</span></div>
       <div><label class="f">Note to customer (they see this)</label><textarea id="kp">${esc(k.public_notes)}</textarea></div>
       <div><label class="f">Private notes (only you)</label><textarea id="ki">${esc(k.internal_notes)}</textarea></div>
