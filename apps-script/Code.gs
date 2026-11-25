@@ -138,7 +138,6 @@ var TIMEZONE       = 'America/Chicago';
 // index.html) so it's live at this address. Leave '' for a text-only header.
 var LOGO_URL       = 'https://restoredraritytcg.com/email-logo.jpg';
 var TERMS_EFFECTIVE = 'October 19, 2026';   // update when you publish new Terms
-var TERMS_SECTION   = 'Section 29 of the Restored Rarity Terms & Conditions';
 
 // Pickup reminders for cards left at "Ready to Ship / Pick Up"
 var SEND_PICKUP_REMINDERS = true;  // set to false to pause the day-25 / day-30 emails
@@ -535,7 +534,7 @@ function sendConfirmationEmail_(record, ref) {
     }).join('') + '</ol>' +
     trackButton_(ref) +
     '<p style="margin:18px 0 0;color:' + BRAND.muted + ';font-size:13px;">Final pricing is confirmed after evaluation. Questions? Just reply to this email.<br>' +
-    'You accepted the ' + BUSINESS_NAME + ' Terms &amp; Conditions (effective ' + esc_(TERMS_EFFECTIVE) + ') with this submission. ' +
+    'You accepted the ' + BUSINESS_NAME + ' Terms & Conditions (effective ' + esc_(TERMS_EFFECTIVE) + ') with this submission. ' +
     'Read them anytime at ' + link_(SITE_URL, SITE_URL.replace(/^https?:\/\//, '')) + '.</p>';
 
   sendHtml_(record.email, 'Submission received — ' + BUSINESS_NAME + ' (' + ref + ')', inner,
@@ -577,8 +576,7 @@ function sendCardUpdateEmail_(sub, changes) {
   var readyNow = emailable.filter(function (c) { return c.status === READY_STAGE; }).length;
   var deadlineBox = readyNow ? callout_(
     '<p style="margin:0 0 8px;"><b>Please arrange ' + (hand ? 'pickup' : 'return shipping or pickup') + ' by ' + pickupBy + '.</b></p>' +
-    '<p style="margin:0;">After that, a holding fee of $' + FEE_PER_CARD_PER_DAY + ' per card, per day applies, and cards not claimed within ' +
-    FORFEIT_DAY + ' days may be forfeited, as described in ' + TERMS_SECTION + '.</p>') : '';
+    '<p style="margin:0;">After that, a holding fee of $' + FEE_PER_CARD_PER_DAY + ' per card, per day applies. Unclaimed cards will be handled after written notice as permitted by Texas law, per the Restored Rarity Terms.</p>') : '';
 
   var summary = '';
   if (sub.cards.length > 1) {
@@ -939,7 +937,6 @@ function sendHoldingNotice_(sub, items) {
   var n = items.length;
   var notice = items[0].completed;
   var feeDate = fmtDate_(addDays_(notice, HOLDING_DAY + 1));
-  var forfeitDate = fmtDate_(addDays_(notice, FORFEIT_DAY));
   var amounts = holdingFeeAmounts_(n);
   var daily = amounts.daily;
   var max = amounts.max;
@@ -951,16 +948,15 @@ function sendHoldingNotice_(sub, items) {
     callout_('<p style="margin:0 0 8px;"><b>Starting ' + feeDate + '</b>, a holding fee of $' + FEE_PER_CARD_PER_DAY +
       ' per card, per day applies (<b>$' + daily + '/day</b> for ' + (n === 1 ? 'your card' : 'your ' + n + ' cards') + '), for up to the next ' +
       (FORFEIT_DAY - HOLDING_DAY) + ' days (up to $' + max + ').</p>' +
-      '<p style="margin:0;"><b>If ' + (n === 1 ? 'the card is' : 'the cards are') + ' not claimed by ' + forfeitDate + '</b> (day ' + FORFEIT_DAY + '), ' +
-      (n === 1 ? 'it' : 'they') + ' may be considered abandoned and forfeited to ' + BUSINESS_NAME + '.</p>') +
+      '<p style="margin:0;">Unclaimed cards will be handled after written notice as permitted by Texas law, per the Restored Rarity Terms.</p>') +
     p_('Holding fees must be paid before ' + (n === 1 ? 'the card is' : 'cards are') + ' returned. Reply to this email to arrange payment and ' +
        'return shipping or pickup. If something has come up and you need more time, let me know right away — exceptions are considered case by case.') +
-    p_('Details are in ' + TERMS_SECTION + ' at ' + link_(SITE_URL, SITE_URL.replace(/^https?:\/\//, '')) + '.') +
+    p_('Details are in the Restored Rarity Terms at ' + link_(SITE_URL, SITE_URL.replace(/^https?:\/\//, '')) + '.') +
     refBox_(sub.ref);
   sendHtml_(sub.email, 'Action needed: holding fees begin for your ' + (n === 1 ? 'card' : 'cards') + ' — ' + BUSINESS_NAME + ' (' + sub.ref + ')', inner,
     'Hi ' + firstName_(sub.name) + ', your ' + (n === 1 ? 'card has' : 'cards have') + ' not been claimed (' + sub.ref + '). ' +
     'Starting ' + feeDate + ' a holding fee of $' + FEE_PER_CARD_PER_DAY + ' per card, per day applies ($' + daily + '/day). ' +
-    'Cards not claimed by ' + forfeitDate + ' may be forfeited. Reply to arrange return or pickup.',
+    'Unclaimed cards will be handled after written notice as permitted by Texas law, per the Restored Rarity Terms. Reply to arrange return or pickup.',
     'Holding fees now apply');
 }
 
@@ -1842,7 +1838,7 @@ function ownerEmail_() {
   try { return Session.getEffectiveUser().getEmail(); } catch (e) { return ''; }
 }
 function esc_(s) {
-  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return String(s == null ? '' : s).replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>').replace(/"/g, '"');
 }
 function asDate_(v) {
   if (v instanceof Date && !isNaN(v)) return v;
