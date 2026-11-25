@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Free Card Centering Calculator (PSA, BGS, CGC, TAG)</title>
+<meta name="description" content="Check your card's centering against PSA, BGS, CGC and TAG limits. Free, in your browser, no sign-up.">
+<link rel="canonical" href="https://restoredraritytcg.com/centering-calculator/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Free Card Centering Calculator (PSA, BGS, CGC, TAG)">
+<meta property="og:description" content="Check your card's centering against PSA, BGS, CGC and TAG limits. Free, in your browser, no sign-up.">
+<meta property="og:url" content="https://restoredraritytcg.com/centering-calculator/">
+<meta property="og:image" content="https://restoredraritytcg.com/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Free Card Centering Calculator (PSA, BGS, CGC, TAG)">
+<meta name="twitter:description" content="Check your card's centering against PSA, BGS, CGC and TAG limits. Free, in your browser, no sign-up.">
+<meta name="twitter:image" content="https://restoredraritytcg.com/og-image.jpg">
+<link rel="icon" type="image/webp" href="/favicon.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/site.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://restoredraritytcg.com/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Centering calculator",
+      "item": "https://restoredraritytcg.com/centering-calculator/"
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<div id="site-root">
+  <header>
+    <div class="header-inner">
+      <a href="/" class="brand">
+        <span class="brand-name"><span class="r1">RESTORED</span><span class="r2">RARITY</span></span>
+      </a>
+      <button type="button" class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-controls="site-nav" aria-label="Open menu">
+        <span class="nav-toggle-icon" aria-hidden="true"></span>
+      </button>
+      <nav class="header-nav" id="site-nav" aria-label="Primary">
+        <a href="/#about">About</a>
+        <a href="/gallery/">Gallery</a>
+        <a href="/#pricing">Pricing</a>
+        <a href="/#submit">Submit</a>
+        <a href="/#track">Track</a>
+        <a href="/#reviews">Reviews</a>
+        <a href="/#faq">FAQ</a>
+      </nav>
+    </div>
+  </header>
+  <main class="page-main wrap">
+        <p class="crumbs"><a href="/">Home</a> · <span>Centering calculator</span></p>
+    <header class="page-hero">
+      <h1>Free card centering calculator</h1>
+      <p class="lede">Check your card's centering against PSA, BGS, CGC and TAG limits. Free, in your browser, no sign-up.</p>
+    </header>
+
+    <div class="page-copy">
+      <p>Enter border measurements in any unit — mm, inches, 64ths — as long as you stay consistent. Results appear once the front is filled in.</p>
+    </div>
+
+    <details class="cent-wrap" open>
+      <summary>Open the centering calculator</summary>
+      <div class="cent-toolbar">
+        <span></span>
+        <button type="button" class="cent-reset" id="cent-reset">Reset</button>
+      </div>
+      <div class="cent-hint">Enter border measurements in any unit — mm, inches, 64ths — as long as you stay consistent. Results appear once the front is filled in.</div>
+
+      <div class="cent-faces">
+        <div class="cent-face">
+          <div class="cent-face-head">
+            <span class="cent-side-label">Front</span>
+            <span class="cent-face-status" id="cent-f-status">Needs 4 values</span>
+          </div>
+          <div class="centering-diagram">
+            <div class="cent-input cent-top">
+              <input type="number" step="any" min="0" id="cent-f-top" placeholder="0" aria-label="Front top border">
+              <label for="cent-f-top">Top</label>
+            </div>
+            <div class="cent-input cent-left">
+              <input type="number" step="any" min="0" id="cent-f-left" placeholder="0" aria-label="Front left border">
+              <label for="cent-f-left">Left</label>
+            </div>
+            <div class="cent-card-visual">
+              <div class="cent-card-frame" id="cent-frame-front">
+                <div class="cent-card-img" id="cent-img-front"></div>
+                <div class="cent-crosshair-v"></div>
+                <div class="cent-crosshair-h"></div>
+              </div>
+            </div>
+            <div class="cent-input cent-right">
+              <input type="number" step="any" min="0" id="cent-f-right" placeholder="0" aria-label="Front right border">
+              <label for="cent-f-right">Right</label>
+            </div>
+            <div class="cent-input cent-bottom">
+              <input type="number" step="any" min="0" id="cent-f-bottom" placeholder="0" aria-label="Front bottom border">
+              <label for="cent-f-bottom">Bottom</label>
+            </div>
+          </div>
+          <div class="cent-axis-readout" id="cent-front-readout"></div>
+        </div>
+
+        <div class="cent-face">
+          <div class="cent-face-head">
+            <span class="cent-side-label">Back <span class="cent-optional">optional</span></span>
+            <span class="cent-face-status" id="cent-b-status">Not entered</span>
+          </div>
+          <div class="centering-diagram">
+            <div class="cent-input cent-top">
+              <input type="number" step="any" min="0" id="cent-b-top" placeholder="0" aria-label="Back top border">
+              <label for="cent-b-top">Top</label>
+            </div>
+            <div class="cent-input cent-left">
+              <input type="number" step="any" min="0" id="cent-b-left" placeholder="0" aria-label="Back left border">
+              <label for="cent-b-left">Left</label>
+            </div>
+            <div class="cent-card-visual">
+              <div class="cent-card-frame back-frame" id="cent-frame-back">
+                <div class="cent-card-img back" id="cent-img-back"></div>
+                <div class="cent-crosshair-v"></div>
+                <div class="cent-crosshair-h"></div>
+              </div>
+            </div>
+            <div class="cent-input cent-right">
+              <input type="number" step="any" min="0" id="cent-b-right" placeholder="0" aria-label="Back right border">
+              <label for="cent-b-right">Right</label>
+            </div>
+            <div class="cent-input cent-bottom">
+              <input type="number" step="any" min="0" id="cent-b-bottom" placeholder="0" aria-label="Back bottom border">
+              <label for="cent-b-bottom">Bottom</label>
+            </div>
+          </div>
+          <div class="cent-axis-readout" id="cent-back-readout"></div>
+        </div>
+      </div>
+
+      <div class="cent-empty" id="cent-empty">Enter the four front measurements to see your centering results.</div>
+
+      <div class="cent-output" id="cent-output" style="display:none;">
+        <div class="cent-summary" id="cent-summary"></div>
+        <div class="cent-grades-label">Centering eligibility by grader</div>
+        <div class="cent-grades" id="cent-grades"></div>
+        <div class="cent-backnote" id="cent-backnote"></div>
+      </div>
+
+      <div class="calc-hint">Centering only. Corners, edges, and surface are graded separately and can lower a final grade regardless of centering. Thresholds are each grader&rsquo;s published centering tolerances.</div>
+    </details>
+
+      <section class="wrap ssi-section" aria-labelledby="ssi-heading" style="padding-left:0;padding-right:0;">
+    <div class="ssi-band">
+      <h3 id="ssi-heading" class="pixel">Selling instead of grading?</h3>
+      <p>ScanStationIQ measures centering, edges and corners from your phone or scanner for free. Upgrade to turn every card into 18 eBay-ready photos with a title and description. Paid plans include 5–15% off Restored Rarity services.</p>
+      <a class="btn btn-outline" href="https://scanstationiq.com/?utm_source=restoredrarity&amp;utm_medium=referral&amp;utm_campaign=centering_band" target="_blank" rel="noopener">Try ScanStationIQ free</a>
+    </div>
+  </section>
+
+    <nav class="page-links" aria-label="Related pages">
+      <a href="/#submit">Submit a card</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/#faq">FAQ</a>
+      <a href="/#service-area">Serving greater Houston</a>
+      <a href="/grade-ready-evaluation/">Grading prep</a>
+      <a href="/grading-submission/">Grading submissions</a>
+    </nav>
+
+  </main>
+  <footer>
+    <div class="fname"><span class="pixel">RESTORED RARITY</span> · Card cleaning, repair &amp; grading prep · Conroe, TX · Serving greater Houston and mail-in nationwide</div>
+    <nav class="footer-services" aria-label="Services">
+      <a href="/card-cleaning/">Card cleaning</a>
+      <a href="/crease-repair/">Crease &amp; dent repair</a>
+      <a href="/grading-submission/">Grading submissions</a>
+      <a href="/grade-ready-evaluation/">Grading prep</a>
+      <a href="/slab-cracking/">Slab cracking</a>
+      <a href="/centering-calculator/">Centering calculator</a>
+    </nav>
+    <p class="footer-legal">Restored Rarity TCG is an independent card prep and submission service. We are not affiliated with, endorsed by, or sponsored by PSA, CGC, BGS (Beckett), or TAG. Grading company names are trademarks of their owners and are used only to identify the services we submit to. Every grade is assigned solely by the grading company, and we can't guarantee any grade.</p>
+    <div class="fyear">© <span id="year"></span></div>
+    <div class="fsite">Site by <a href="https://10pointstudios.com/?utm_source=restoredrarity&amp;utm_medium=referral&amp;utm_campaign=footer_credit" target="_blank" rel="noopener">10Point Studios</a></div>
+  </footer>
+</div>
+<script src="/portal/config.js"></script>
+<script src="/js/live-prices.js"></script>
+<script src="/js/site-chrome.js"></script>
+<script src="/js/centering.js"></script>
+</body>
+</html>
