@@ -135,7 +135,7 @@ async function gas(type, body = {}) {
   if (DEMO) return demoGas(type, body);
   if (!GAS) throw new Error("The Apps Script address isn't set (emailEndpoint in config.js).");
   if (!gasCaps) gasCaps = await fetch(`${GAS}?action=portalEmails`).then((r) => r.json()).catch(() => null);
-  const need = type === "portalReviews" ? "reviews" : type === "portalCardServices" ? "services" : type === "portalPsa" ? "psa" : "quotes";
+  const need = type === "portalReviews" ? "reviews" : type === "portalCardServices" ? "services" : type === "portalPsa" ? "psa" : type === "portalGrading" ? "grading" : "quotes";
   if (!gasCaps?.success || !gasCaps[need]) {
     gasCaps = null;
     throw new Error("The Apps Script hasn't been updated yet: paste the new Code.gs into the Sheet's Apps Script and deploy a new version.");
@@ -165,6 +165,8 @@ async function loadSite() {
 export async function saveServicesToSheet(code, cards) { return gas("portalCardServices", { code, cards }); }
 /** PSA panel → Sheet copy (website tracker) + the step email. */
 export async function savePsaToSheet(body) { return gas("portalPsa", body); }
+/** Grading panel → Sheet copy ("Grading Lots" tab: website tracker + daily second-50% reminder) + the stage email. */
+export async function saveGradingToSheet(body) { return gas("portalGrading", body); }
 
 /** The current price list (saved in the portal, or the website's built-in one), for the New submission service menu. */
 export async function currentPrices() {
@@ -670,6 +672,7 @@ export async function wireQuote(s, cards) {
 
 // ------------------------------------------------------------ demo (?demo)
 function demoGas(type, body) {
+  if (type === "portalGrading") { window._rrDemoGrading = (window._rrDemoGrading || []).concat([body]); return { success: true, onSheet: false, emailed: !!body.email }; }
   if (type === "portalPsa") { window._rrDemoPsa = (window._rrDemoPsa || []).concat([body]); return { success: true, onSheet: false, emailed: !!body.email }; }
   if (type === "portalCardServices") { window._rrDemoSheetWrites = (window._rrDemoSheetWrites || []).concat([body]); return { success: true, onSheet: false, updated: 0 }; }
   if (type === "portalReviews") {

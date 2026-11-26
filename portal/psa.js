@@ -1,3 +1,5 @@
+// Nov 25, 2026: the admin side is replaced by the Grading panel in grading.js (all companies). psaCustomerHtml is still
+// used on the customer link for older submissions.grading_track records.
 // PSA submissions: the admin PSA panel on each submission + the tracker on the customer's link.
 //
 // The record lives in Supabase: submissions.grading_track (step, history, PSA order #, tracking #s, payments) and

@@ -410,6 +410,7 @@ export const demoApi = {
       submissions: d.submissions.filter((s) => s.customer_id === c.id)
         .sort((a, b) => b.created_at.localeCompare(a.created_at)).map((s) => ({
           ...s, internal_notes: undefined,
+          grading_lots: (d.grading_lots || []).filter((l) => l.submission_id === s.id).map((l) => ({ ...l, internal_notes: undefined })),
           cards: d.cards.filter((k) => k.submission_id === s.id).sort((a, b) => a.card_number - b.card_number)
             .map((k) => ({ ...k, internal_notes: undefined, scans: d.scans.filter((x) => x.card_id === k.id) })),
         })),

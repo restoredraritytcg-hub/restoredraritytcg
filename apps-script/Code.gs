@@ -1,6 +1,6 @@
 /*******************************************************************
  * RESTORED RARITY — Submission backend
- * Version: 2026-11-24 (branded emails + pickup reminders + automatic quotes + portal reviews + grading + card set/number/year + PSA levels, tracking + emails + cleaning and evaluation bulk tiers + holding-fee emails follow each card)
+ * Version: 2026-11-25 (branded emails + pickup reminders + automatic quotes + portal reviews + grading + card set/number/year + PSA levels, tracking + emails + cleaning and evaluation bulk tiers + holding-fee emails follow each card + grading-company stages + second-50% grading reminder)
  *
  * What this does
  *  • Saves website submissions to the "Submissions" + "Cards" tabs
@@ -58,6 +58,10 @@ function setup() {
   });
   if (SEND_PICKUP_REMINDERS) ScriptApp.newTrigger('runPickupReminders').timeBased().everyHours(1).create();
   step('Pickup reminder trigger ' + (SEND_PICKUP_REMINDERS ? 'ready' : 'off'));
+
+  // 1c) Daily second-50% grading reminder + the "Grading Lots" tab
+  setupGradingReminders();
+  step('Grading reminder trigger ' + (SEND_GRADING_REMINDERS ? 'ready' : 'off'));
 
   // 2) History tab
   historySheet_();
@@ -236,6 +240,7 @@ function doPost(e) {
     if (record.type === 'portalCardServices') return json_(portalCardServices_(record));
     if (record.type === 'portalReviews') return json_(portalReviews_(record));
     if (record.type === 'portalPsa') return json_(portalPsa_(record));
+    if (record.type === 'portalGrading') return json_(portalGrading_(record));
     if (record.type === 'portalCardStatus') return json_(portalCardStatus_(record));
 
     // Submissions
@@ -314,7 +319,7 @@ function doGet(e) {
     if (action === 'track') {
       return json_(trackSubmission_(e.parameter.ref || '', e.parameter.email || ''));
     }
-        if (action === 'portalEmails') return json_({ success: true, version: 1, quotes: true, reviews: true, services: true, psa: true, holding: true });
+        if (action === 'portalEmails') return json_({ success: true, version: 1, quotes: true, reviews: true, services: true, psa: true, holding: true, grading: true });
 
     return json_({ success: false, error: 'Unknown action' });
   } catch (err) {
@@ -362,7 +367,8 @@ function trackSubmission_(refInput, emailInput) {
       updated: isoOrBlank_(r[SC.STATUS_UPDATED - 1] || r[SC.TIMESTAMP - 1]),
       delivery: String(r[SC.DELIVERY - 1] || ''),
       cards: cards,
-      psa: psaTrackFor_(sheet, i + 2, id)
+      psa: psaTrackFor_(sheet, i + 2, id),
+      grading: gradingTrackFor_(id)
     };
   }
   return notFound;
@@ -1682,6 +1688,283 @@ function psaTrackFor_(subSheet, row, id) {
                depositPaid: !!pay.depositPaid, balance: pay.balance || 0, balanceDue: pay.balanceDue || '', balancePaid: !!pay.balancePaid,
                final: pay.final || 0, finalPaid: !!pay.finalPaid, dueBy: pay.dueBy || '' } };
   } catch (err) { console.error('PSA tracking not read: ' + err); return null; }
+}
+
+/* =================================================================
+ *  GRADING STAGES (PSA, CGC, BGS, TAG) — Nov 25, 2026
+ *  The portal's Grading panel posts {type:"portalGrading"}. This copies each
+ *  order + company "lot" to the "Grading Lots" tab (made on first use), emails
+ *  the stage when the admin ticked Email, and feeds Track Your Submission.
+ *  Grading stages never change a card's Status (work status) or the
+ *  holding-fee clock. Nothing here charges anyone.
+ *
+ *  Second-50% reminder: runGradingReminders runs once a day (trigger made by
+ *  setup or setupGradingReminders). It emails the customer once when the
+ *  second 50% is due (14 days after "Shipped to grader", or the date set in
+ *  the portal) and "Second 50% paid" isn't ticked. Reminder only — no charge.
+ * ================================================================= */
+var SEND_GRADING_REMINDERS = true;   // set to false to pause the automatic second-50% reminder
+var GRADING_LATER_DAYS = 14;
+var GRADING_TAB = 'Grading Lots';
+var GRADING_HEADERS_ = ['Lot ID', 'Code', 'Sheet ID', 'Grader', 'Customer', 'Email', 'Stage', 'Stage Label', 'Customer Stage',
+  'Order #', 'Tracking', 'Return Tracking', 'Notes', 'Estimated Fee', 'First 50%', 'First 50% Paid', 'Second 50%', 'Second 50% Paid',
+  'Shipped', 'Second 50% Due', 'Return Shipping', 'Upcharge', 'Final Paid', 'Cards', 'History', 'Reminder Sent', 'Updated'];
+// Customer stages, in order (portal/grading.js NORMAL). on_hold is outside the stepper.
+var GRADING_NORMAL_ = [['preparing', 'Preparing for submission'], ['shipped_to_grader', 'Shipped to grader'],
+  ['received_by_grader', 'Received by grader'], ['order_prep', 'Order prep'], ['research_id', 'Research / ID'],
+  ['grading', 'Grading'], ['grades_in', 'Grades are in'], ['qa_assembly', 'QA / Assembly'],
+  ['shipped_back', 'Shipped back to Restored Rarity'], ['received_at_rr', 'Back at Restored Rarity']];
+var GRADING_ON_HOLD_ = 'On hold / problem at grader';
+function gradingNormalIndex_(k) { for (var i = 0; i < GRADING_NORMAL_.length; i++) if (GRADING_NORMAL_[i][0] === k) return i; return -1; }
+function gradingNormalLabel_(k) { var i = gradingNormalIndex_(k); return i >= 0 ? GRADING_NORMAL_[i][1] : (k === 'on_hold' ? GRADING_ON_HOLD_ : ''); }
+function isGrader_(g) { return g === 'PSA' || g === 'CGC' || g === 'BGS' || g === 'TAG'; }
+
+/** Tab with the lot copies; headers added on first use (by name, so columns can be moved). */
+function gradingSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet(), sh = ss.getSheetByName(GRADING_TAB);
+  if (!sh) { sh = ss.insertSheet(GRADING_TAB); sh.getRange(1, 1, 1, GRADING_HEADERS_.length).setValues([GRADING_HEADERS_]).setFontWeight('bold'); sh.setFrozenRows(1); }
+  GRADING_HEADERS_.forEach(function (h) { quoteCol_(sh, h); });
+  return sh;
+}
+/** All lot rows as objects ({_row, header: value}). */
+function gradingRows_(sh) {
+  var lc = sh.getLastColumn(), lr = sh.getLastRow();
+  if (lr < 2) return [];
+  var heads = sh.getRange(1, 1, 1, lc).getValues()[0].map(function (h) { return String(h).trim(); });
+  return sh.getRange(2, 1, lr - 1, lc).getValues().map(function (r, i) {
+    var o = { _row: i + 2 }; heads.forEach(function (h, j) { if (h) o[h] = r[j]; }); return o;
+  }).filter(function (o) { return o['Lot ID']; });
+}
+function gradingParse_(t, d) { try { return JSON.parse(t || '') || d; } catch (e) { return d; } }
+
+/** The lot's current customer stage: the card furthest behind. On hold only when every card is on hold. */
+function gradingLeadStage_(cards) {
+  var best = -1, lead = null, hold = null;
+  (cards || []).forEach(function (c) {
+    if (c.normal === 'on_hold') { hold = hold || c; return; }
+    var i = gradingNormalIndex_(c.normal);
+    if (i >= 0 && (best < 0 || i < best)) { best = i; lead = c; }
+  });
+  return lead || hold;
+}
+
+/** Pure: should the second-50% reminder go out now? r = {shippedAt, dueOn, secondPaidAt, reminderSent, finalStage}. */
+function gradingReminderDue_(r, now) {
+  if (!r || !r.shippedAt || r.secondPaidAt || r.reminderSent) return false;
+  var due = String(r.dueOn || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(due)) {
+    var shipped = asDate_(r.shippedAt);
+    if (!shipped) return false;
+    due = Utilities.formatDate(addDays_(shipped, GRADING_LATER_DAYS), TIMEZONE, 'yyyy-MM-dd');
+  }
+  return Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd') >= due;
+}
+
+function portalGrading_(record) {
+  try {
+    var token = String(record.token || ''), code = String(record.code || '').trim();
+    if (!token || !code) return { success: false, error: 'Missing sign-in or submission code.' };
+    if (typeof sbIsAdmin_ !== 'function' || !sbIsAdmin_(token)) return { success: false, error: 'Not signed in to the portal as an admin. Sign out and back in, then try again.' };
+    var lot = record.lot || {}, grader = String(record.grader || lot.grader || '');
+    if (!isGrader_(grader) || !lot.id) return { success: false, error: 'Missing grading company or lot.' };
+    var clip = function (v, n) { return String(v == null ? '' : v).replace(/[\r\n]+/g, ' ').trim().slice(0, n); };
+    var ss = SpreadsheetApp.getActiveSpreadsheet(), subSheet = ss.getSheetByName(SUBMISSIONS_TAB);
+    var id = '', row = 0, last = subSheet.getLastRow();
+    if (last >= 2) {
+      var ids = subSheet.getRange(2, SC.ID, last - 1, 1).getValues();
+      for (var i = ids.length - 1; i >= 0; i--) {
+        var v = String(ids[i][0] || '');
+        if (v && (v === code || normRef_(refFromId_(v)) === normRef_(code))) { id = v; row = i + 2; break; }
+      }
+    }
+    var who = null;
+    if (row) {
+      var sv = subSheet.getRange(row, 1, 1, SC.STATUS_UPDATED).getValues()[0];
+      who = { name: sv[SC.NAME - 1], email: String(sv[SC.EMAIL - 1] || '').trim() };
+    } else if (typeof sbGet_ === 'function') {
+      try {
+        var got = sbGet_(token, 'submissions?code=eq.' + encodeURIComponent(code) + '&select=customers(name,email)');
+        var cu = got && got[0] && got[0].customers;
+        if (cu) who = { name: cu.name, email: String(cu.email || '').trim() };
+      } catch (e) { console.error('Customer lookup failed: ' + e); }
+    }
+    var cards = (record.cards || []).slice(0, 100).map(function (c) {
+      return { num: c.num, card: clip(c.card, 120), stage: clip(c.stage, 40), stageLabel: clip(c.stageLabel, 60),
+               normal: clip(c.normal, 40), grade: clip(c.grade, 60), cert: clip(c.cert, 30), level: clip(c.level, 40) };
+    });
+    var lead = gradingLeadStage_(cards);
+    var info = { ref: id ? refFromId_(id) : code, grader: grader, lot: lot, cards: cards,
+                 stage: String(record.stage || ''), stageLabel: clip(record.stageLabel, 60), normal: String(record.normal || ''),
+                 emailCards: (record.emailCards || []).slice(0, 100) };
+
+    var lock = LockService.getScriptLock();
+    lock.waitLock(20000);
+    try {
+      var sh = gradingSheet_(), rows = gradingRows_(sh), cur = null;
+      for (var r = 0; r < rows.length; r++) if (String(rows[r]['Lot ID']) === String(lot.id)) { cur = rows[r]; break; }
+      var at = cur ? cur._row : sh.getLastRow() + 1;
+      var hist = cur ? gradingParse_(cur['History'], []) : [];
+      var leadNormal = lead ? lead.normal : '';
+      if (leadNormal && (!hist.length || hist[hist.length - 1].normal !== leadNormal))
+        hist.push({ normal: leadNormal, stage: lead.stage, at: new Date().toISOString() });
+      var vals = {
+        'Lot ID': String(lot.id), 'Code': code, 'Sheet ID': id, 'Grader': grader,
+        'Customer': who ? clip(who.name, 120) : (cur ? cur['Customer'] : ''), 'Email': who ? who.email : (cur ? cur['Email'] : ''),
+        'Stage': lead ? lead.stage : '', 'Stage Label': lead ? lead.stageLabel : '', 'Customer Stage': leadNormal,
+        'Order #': clip(lot.orderNo, 40), 'Tracking': clip(lot.shipTracking, 60), 'Return Tracking': clip(lot.returnTracking, 60),
+        'Notes': clip(lot.notes, 500), 'Estimated Fee': lot.estFee == null ? '' : Number(lot.estFee),
+        'First 50%': lot.firstAmount == null ? '' : Number(lot.firstAmount), 'First 50% Paid': String(lot.firstPaidAt || ''),
+        'Second 50%': lot.secondAmount == null ? '' : Number(lot.secondAmount), 'Second 50% Paid': String(lot.secondPaidAt || ''),
+        'Shipped': String(lot.shippedAt || ''), 'Second 50% Due': String(lot.balanceDueOn || ''),
+        'Return Shipping': lot.returnShipping == null ? '' : Number(lot.returnShipping), 'Upcharge': lot.upcharge == null ? '' : Number(lot.upcharge),
+        'Final Paid': String(lot.finalPaidAt || ''), 'Cards': JSON.stringify(cards), 'History': JSON.stringify(hist.slice(-40)),
+        'Reminder Sent': cur ? cur['Reminder Sent'] : '', 'Updated': new Date()
+      };
+      GRADING_HEADERS_.forEach(function (h) {
+        var c = quoteCol_(sh, h), cell = sh.getRange(at, c);
+        if (typeof vals[h] === 'string') cell.setNumberFormat('@');
+        cell.setValue(vals[h]);
+      });
+      SpreadsheetApp.flush();
+    } finally { lock.releaseLock(); }
+
+    var emailed = false;
+    if (record.email && info.stage && SEND_CUSTOMER_EMAILS) {
+      if (!who || !who.email) return { success: true, onSheet: !!row, emailed: false, error: 'Saved, but this customer has no email address on file.' };
+      sendGradingEmail_(who, info);
+      emailed = true;
+    }
+    return { success: true, onSheet: !!row, emailed: emailed };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
+/** One email per stage change the admin ticked, in the same branded style as the PSA updates. Subject "<Company> update: …". */
+function sendGradingEmail_(who, info) {
+  var G = info.grader, lot = info.lot || {}, mm = function (n) { return quoteMoney_(Number(n) || 0); };
+  var cards = info.emailCards && info.emailCards.length ? info.emailCards : info.cards;
+  var n = cards.length || 1, them = n === 1 ? 'your card' : 'your cards', Them = them.charAt(0).toUpperCase() + them.slice(1);
+  var is = n === 1 ? ' is' : ' are', They = n === 1 ? 'It' : 'They';
+  var label = info.stageLabel || gradingNormalLabel_(info.normal);
+  var meta = function (k, v) { return v ? '<p style="margin:0 0 6px;">' + k + ': <b>' + esc_(v) + '</b></p>' : ''; };
+  // Wording from the PSA emails (sendPsaEmail_), with the company's name.
+  var body = {
+    preparing:          'I&rsquo;ve evaluated ' + them + ' and ' + (n === 1 ? 'it&rsquo;s' : 'they&rsquo;re') + ' cleared to send to ' + G + '.',
+    shipped_to_grader:  Them + is + ' on the way to ' + G + '.',
+    received_by_grader: G + ' has received ' + them + '. ' + They + '&rsquo;ll move through ' + G + '&rsquo;s research, grading and quality checks next.',
+    order_prep:         G + ' update for ' + them + ': <b>' + esc_(label) + '</b>.',
+    research_id:        G + ' update for ' + them + ': <b>' + esc_(label) + '</b>.',
+    grading:            Them + is + ' being graded at ' + G + '.',
+    qa_assembly:        'Grading is done and ' + them + is + ' being slabbed and quality-checked at ' + G + '.',
+    grades_in:          'Your grades are in!',
+    shipped_back:       G + ' has shipped ' + them + ' back to me.',
+    received_at_rr:     Them + is + ' back at Restored Rarity. I&rsquo;ll be in touch about pickup or return shipping.',
+    on_hold:            G + ' update for ' + them + ': <b>' + esc_(GRADING_ON_HOLD_) + '</b>. I&rsquo;ll be in touch with details.'
+  }[info.normal] || (G + ' update for ' + them + ': <b>' + esc_(label) + '</b>.');
+  var grades = cards.filter(function (c) { return c.grade || c.level; });
+  var table = grades.length ? cardTable_(grades.map(function (c) {
+    return { num: c.num, card: c.card || 'Card', sub: [c.level ? G + ' ' + c.level : '', c.cert ? 'Cert #' + c.cert : ''].filter(Boolean).join(' · '), right: c.grade || '—' };
+  }), /grades_in|shipped_back|received_at_rr/.test(info.normal) ? 'GRADE' : 'STATUS') : '';
+  var dueDate = function (ymd) { var d = asDate_(String(ymd || '').slice(0, 10) + 'T12:00:00'); return d ? Utilities.formatDate(d, TIMEZONE, 'MMMM d, yyyy') : ''; };
+  var money = '';
+  var first = Number(lot.firstAmount), second = Number(lot.secondAmount), fin = (Number(lot.returnShipping) || 0) + (Number(lot.upcharge) || 0);
+  if (info.normal === 'preparing' && first && !lot.firstPaidAt)
+    money = callout_('<p style="margin:0;"><b>Due before your cards ship: ' + mm(first) + '</b> (50% of ' + G + '&rsquo;s estimated fee for the cards going to ' + G + '). ' +
+                     (second ? 'The other ' + mm(second) + ' is due two weeks after they ship. ' : '') +
+                     'I&rsquo;ll ship to ' + G + ' as soon as it&rsquo;s received. Reply to this email if you have questions.</p>');
+  if (info.normal === 'shipped_to_grader' && second && !lot.secondPaidAt)
+    money = callout_('<p style="margin:0;"><b>Rest of ' + G + '&rsquo;s fee: ' + mm(second) + '</b>, due ' +
+                     (dueDate(lot.balanceDueOn) ? '<b>' + dueDate(lot.balanceDueOn) + '</b>' : 'two weeks from today') + '. Reply to this email to arrange payment.</p>');
+  if (info.normal === 'grades_in' && fin && !lot.finalPaidAt)
+    money = callout_('<p style="margin:0;"><b>Final invoice: ' + mm(fin) + '</b> (return shipping and any ' + G + ' upcharge' +
+                     (second && !lot.secondPaidAt ? '; the remaining ' + mm(second) + ' of ' + G + '&rsquo;s fee is also still open' : '') +
+                     '). <b>Due within 72 hours.</b> Reply to this email to arrange payment.</p>');
+  var inner = p_('Hi ' + esc_(firstName_(who.name)) + ',') + p_(body) +
+    meta(G + ' order #', lot.orderNo) +
+    meta(info.normal === 'shipped_back' ? 'Tracking' : 'Tracking to ' + G, info.normal === 'shipped_back' ? lot.returnTracking : (info.normal === 'shipped_to_grader' ? lot.shipTracking : '')) +
+    table + money + refBox_(info.ref) + trackButton_(info.ref);
+  sendHtml_(who.email, G + ' update: ' + label + ' (' + info.ref + ')', inner,
+    'Hi ' + firstName_(who.name) + ', ' + G + ' update for ' + info.ref + ': ' + label + '. Track it: ' + trackUrl_(info.ref), label);
+}
+
+/** Daily: the second-50% reminder (reminder only, never a charge). Each lot gets it once. */
+function runGradingReminders() {
+  if (!SEND_GRADING_REMINDERS || !SEND_CUSTOMER_EMAILS) return;
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(GRADING_TAB);
+    if (!sh) return;
+    var now = new Date(), sentCol = quoteCol_(sh, 'Reminder Sent');
+    gradingRows_(sh).forEach(function (r) {
+      var row = { shippedAt: isoOrBlank_(r['Shipped']), dueOn: r['Second 50% Due'] instanceof Date
+                    ? Utilities.formatDate(r['Second 50% Due'], TIMEZONE, 'yyyy-MM-dd') : String(r['Second 50% Due'] || ''),
+                  secondPaidAt: String(r['Second 50% Paid'] || ''), reminderSent: String(r['Reminder Sent'] || '') };
+      if (!gradingReminderDue_(row, now)) return;
+      // The portal is the source of truth for "Second 50% paid" when the service key is set (PortalEmails.gs).
+      var live = typeof portalGradingLot_ === 'function' ? portalGradingLot_(String(r['Lot ID'])) : null;
+      if (live && (live.second_half_paid_at || live.balance_reminder_sent_at)) {
+        sh.getRange(r._row, sentCol).setNumberFormat('@').setValue(live.second_half_paid_at ? 'not needed (paid ' + String(live.second_half_paid_at).slice(0, 10) + ')' : String(live.balance_reminder_sent_at));
+        return;
+      }
+      if (live && live.balance_due_on && live.balance_due_on !== row.dueOn) {
+        row.dueOn = live.balance_due_on;
+        if (!gradingReminderDue_(row, now)) return;
+      }
+      var email = String(r['Email'] || '').trim();
+      var stamp = now.toISOString();
+      try {
+        if (email) sendGradingReminder_({ name: r['Customer'], email: email }, r, row.dueOn);
+        else stamp = 'no email on file';
+      } catch (err) { console.error('Grading reminder for ' + r['Code'] + ' failed: ' + err); return; }   // retries tomorrow
+      sh.getRange(r._row, sentCol).setNumberFormat('@').setValue(stamp);
+      if (email && typeof portalGradingReminderSent_ === 'function') portalGradingReminderSent_(String(r['Lot ID']), stamp);
+    });
+  } finally { lock.releaseLock(); }
+}
+
+function sendGradingReminder_(who, r, dueOn) {
+  var G = String(r['Grader'] || ''), ref = r['Sheet ID'] ? refFromId_(String(r['Sheet ID'])) : String(r['Code'] || '');
+  var amt = Number(r['Second 50%']) || 0;
+  var due = String(dueOn || '').slice(0, 10), dueTxt = '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(due)) dueTxt = Utilities.formatDate(asDate_(due + 'T12:00:00'), TIMEZONE, 'MMMM d, yyyy');
+  var inner = p_('Hi ' + esc_(firstName_(who.name)) + ',') +
+    p_('A reminder about ' + G + '&rsquo;s fee for the cards I sent to ' + G + ' for you.') +
+    callout_('<p style="margin:0;"><b>Rest of ' + G + '&rsquo;s fee' + (amt ? ': ' + quoteMoney_(amt) : '') + '</b>' +
+             (dueTxt ? ', due <b>' + dueTxt + '</b>' : ', due now') + '. Reply to this email to arrange payment.</p>') +
+    refBox_(ref) + trackButton_(ref);
+  sendHtml_(who.email, G + ' fee reminder (' + ref + ')', inner,
+    'Hi ' + firstName_(who.name) + ', a reminder: the rest of ' + G + "'s fee" + (amt ? ' (' + quoteMoney_(amt) + ')' : '') +
+    ' for ' + ref + ' is due' + (dueTxt ? ' ' + dueTxt : '') + '. Reply to arrange payment.', G + ' fee reminder');
+}
+
+/** Run once after pasting this code (or run setup): makes the daily reminder trigger. */
+function setupGradingReminders() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'runGradingReminders') ScriptApp.deleteTrigger(t);
+  });
+  if (SEND_GRADING_REMINDERS) ScriptApp.newTrigger('runGradingReminders').timeBased().everyDays(1).atHour(9).inTimezone(TIMEZONE).create();
+  gradingSheet_();
+}
+
+/** Grading blocks for Track Your Submission (one per company), or [] when none. */
+function gradingTrackFor_(id) {
+  try {
+    var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(GRADING_TAB);
+    if (!sh) return [];
+    return gradingRows_(sh).filter(function (r) { return String(r['Sheet ID']) === String(id) && r['Customer Stage']; }).map(function (r) {
+      var num = function (v) { return v === '' || v == null ? null : Number(v); };
+      return { grader: String(r['Grader']), normal: String(r['Customer Stage']), normalLabel: gradingNormalLabel_(String(r['Customer Stage'])),
+        stage: String(r['Stage']), stageLabel: String(r['Stage Label']), orderNo: String(r['Order #'] || ''),
+        shipTracking: String(r['Tracking'] || ''), returnTracking: String(r['Return Tracking'] || ''), notes: String(r['Notes'] || ''),
+        history: gradingParse_(r['History'], []), cards: gradingParse_(r['Cards'], []),
+        pay: { estFee: num(r['Estimated Fee']), first: num(r['First 50%']), firstPaid: !!r['First 50% Paid'],
+               second: num(r['Second 50%']), secondPaid: !!r['Second 50% Paid'],
+               dueOn: r['Second 50% Due'] instanceof Date ? Utilities.formatDate(r['Second 50% Due'], TIMEZONE, 'yyyy-MM-dd') : String(r['Second 50% Due'] || ''),
+               final: (Number(r['Return Shipping']) || 0) + (Number(r['Upcharge']) || 0), finalPaid: !!r['Final Paid'] } };
+    });
+  } catch (err) { console.error('Grading tracking not read: ' + err); return []; }
 }
 
 // Each card's set, number in the set and year (from the website's card lookup) in "Set" / "Set No." / "Year" columns, found by
