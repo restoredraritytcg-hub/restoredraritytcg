@@ -12,7 +12,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <link rel="apple-touch-icon" href="../portal/icons/icon-180.png">
-<link rel="icon" type="image/png" sizes="192x192" href="../portal/icons/icon-192.png">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<link rel="icon" href="/portal/icons/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/portal/icons/icon-180.png" sizes="180x180">
 <link rel="stylesheet" href="../portal/portal.css">
 <link rel="stylesheet" href="app.css">
 <script src="config.js"></script>
@@ -20,6 +22,7 @@
 <script src="../portal/cardsearch.js"></script>
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <div id="demo"></div>
 <header class="top" id="topbar" hidden>
   <div class="brand">Scan Station · Restored Rarity</div>
@@ -31,7 +34,7 @@
   </nav>
   <button class="btn sm" id="signout">Sign out</button>
 </header>
-<main class="wrap" id="app"><div class="loading">Loading…</div></main>
+<main id="main" class="wrap" id="app"><div class="loading">Loading…</div></main>
 <div class="footer wrap">Scan Station by <a href="https://restoredraritytcg.com/">Restored Rarity</a> · centering from photos is an estimate, not a grade.</div>
 <script type="module" src="app.js"></script>
 </body>
