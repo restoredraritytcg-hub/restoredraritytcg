@@ -625,3 +625,7 @@ arrow keys (Alt = outer marker), save, or reset to auto.
 
 **Keep this file current:** the owner wants this Status section updated whenever a step is finished or a
 next step is decided — do it as part of the work, without being asked.
+
+## 10Point footer credit (required)
+
+Public pages must keep the “Site by 10Point Studios” footer credit linking to https://10pointstudios.com/?utm_source=restoredrarity&utm_medium=referral&utm_campaign=footer_credit. Do not remove it. Compass & Oak sites are the exception and must not mention 10Point.
